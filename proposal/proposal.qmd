@@ -28,21 +28,28 @@ Cite a reference in text: @agonafir2022machine did something.
 Cite a reference in parenthesis: some interesting work has been done
 [@agonafir2022understanding].
 -->
-Curling, nicknamed Chess on Ice, is an official sport at the
-Winter Olympics where two teams take turns sliding stones down a 
-sheet of ice. In curling, the team which has the "hammer" throws the
-last stone, allowing them to analyze the position and be at an
-advantage. There have been several articles which dive into how having
-the "hammer" influences strategy and win probability. For example,
-@PARK2013391 find the posession of the hammer in the ninth end was 
-more impactful in determining the winner of the game than in other ends. 
-Additionally, an analysis of strategic decision shows that at the beginning
-of the 10th end, it is better to be one point ahead without the
-hammer rather than one point down with the hammer[@doi:10.1287/deca.1050.0032].
-In this project, we explore defenseive curling strategy, specific to
-mixed doubles. The aspect of defending against the power play has
-rarely been covered and it will be interesting to see how this unique
-aspect influences the optimal behavior of the team without the hammer.
+Curling, nicknamed "chess on ice", is an official Winter Olympic sport
+where two teams take turns sliding stones down a sheet of ice toward
+a target known as the house. The team with the hammer-- the privilege of
+throwing the final stone in an end-- has the strategic advantage, as they can 
+react to the position and attempt to score multiple points.
+
+Previous research has explored how posession of the "hammer" influences 
+strategy and win probability. For example, @PARK2013391 find the posession 
+of the hammer in the ninth end was more influential in determining the winner
+of the game than in other ends. Additionally, an analysis of strategic 
+decision shows that at the beginning
+of the 10th end, it is preferable to be one point ahead without the
+hammer than one point down with the hammer[@doi:10.1287/deca.1050.0032].
+
+In this project, we focus on the defensive strategy in mixed
+doubles curling, where the dynamics of play differ substantially from
+traditional curling. In particular, we will examine the defense against
+the power play, an option unique to mixed doubles that has received little
+analytical attention. Understanding how the power play affects the optimal
+behavior of the team without the hammer can provide new insights into 
+risk-reward tradeoffs and decision-making in modern curling.
+
 
 # Specific Aims
 
