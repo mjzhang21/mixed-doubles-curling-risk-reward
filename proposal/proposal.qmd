@@ -134,26 +134,26 @@ prediction, validation, or other methodological issues you need
 address in order to answer your scientific questions.
 -->
 I will begin with data preparation and visualization, creating derived
- variables such as `probability_steal` (likelihood of the team without 
- the hammer stealing an end) and `probability_give_up` 
- (risk of allowing multiple points). These variables will quantify
-  risk-reward trade-offs and evaluate defensive strategies.  
+variables such as `probability_steal` (likelihood of the team without 
+the hammer stealing an end) and `probability_give_up` 
+(risk of allowing multiple points). These variables will quantify
+risk-reward trade-offs and evaluate defensive strategies.  
 
 For visualization, I will use heatmaps, scatterplots, and animations to 
 show stone placement patterns across ends, score differentials, and power
- play usage. Animations can illustrate stone progression and how initial 
- positioning and opponent power plays influence defensive decisions.  
+play usage. Animations can illustrate stone progression and how initial 
+positioning and opponent power plays influence defensive decisions.  
 
 For modeling, I will start with logistic regression to predict
- success of shot types or defensive strategies, and use XGBoost or 
- regression models to estimate expected win probability based on
-  game state, shot types, stone positions, and power play. Feature 
-  importance will highlight key factors affecting defensive outcomes.  
+success of shot types or defensive strategies, and use XGBoost or 
+regression models to estimate expected win probability based on
+game state, shot types, stone positions, and power play. Feature 
+importance will highlight key factors affecting defensive outcomes.  
 
 Finally, models will be validated using cross-validation across
- competitions and games. This combination
-  of analysis, modeling, and simulation will help quantify optimal
-  defensive strategies for teams without the hammer in mixed doubles curling.
+competitions and games. This combination
+of analysis, modeling, and simulation will help quantify optimal
+defensive strategies for teams without the hammer in mixed doubles curling.
 
 
 
@@ -165,5 +165,24 @@ What are the most challenge parts of the task? What are the
 limitations of your work? What is your fall-back plan if something
 unexpected happens?
 -->
+
+The main challenges of this project include the high dimensionality
+of stone position data and the complexity of modeling decisions.
+Categorizing shot objectives
+(`Task`) into defensive, neutral, or aggressive strategies is
+subjective, and variation in team skill and strategy introduces
+additional noise.
+
+Limitations include the focus on Olympic competitions, which 
+may not generalize to lower levels of play, and the fact that the dataset
+records only observed actions without capturing players’ decision-making
+reasoning.
+
+As a fallback plan, if full stone-level modeling proves
+computationally intensive, the analysis can focus on 
+summary metrics per end and engineered variables such as
+number of guards, center control, or pre-placed stone positions. 
+Also, we can change certain categorizations of shots to be more
+lenient or strict depending on the inconsistency of results.
 
 # References  
