@@ -39,7 +39,10 @@ more impactful in determining the winner of the game than other ends.
 Additionally, an analysis of strategic decision shows at the beginning
 of the 10th end, it is better to be one point ahead without the
 hammer than one point down with the hammer[@doi:10.1287/deca.1050.0032].
-
+In this project, we explore defenseive curling strategy, specific to
+mixed doubles. The aspect of defending against the power play has
+rarely been covered and it will be interesting to see how this unique
+aspect influences the optimal behavior of the team without the hammer.
 
 # Specific Aims
 
