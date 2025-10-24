@@ -97,9 +97,26 @@ files for this research are Ends.csv, Games.csv, and Stones.csv.
 The dataset contains over 26,000 observations, each corresponding to a single
 stone throw during a match.
 Key variables include:
-- Stones.csv: ```EndID```, ```Task```, ```Points```, and ```Stone_{i}_x```,
-  and ```Stone_{i}_y```
-  
+
+- **Stones.csv**: `EndID`, `Task`, `Points`, and stone positions `Stone_{i}_x`
+   and `Stone_{i}_y`.  
+  - `Task` indicates the objective of the shot, which can be categorized as 
+    aggressive, neutral, or defensive, allowing analysis of the defensive
+    team’s playstyle.  
+  - `Points` evaluates the execution quality of each shot.  
+  - Stone coordinates enable reconstruction of stone placement and strategy
+    during each end.  
+
+- **Ends.csv**: `TeamID`, `Result` (points scored), and `PowerPlay` 
+  usage (none, left-side, or right-side).  
+  - This allows identification of game state, scoring outcomes, and the 
+    effect of power plays on defensive strategy.  
+
+- **Games.csv**: `GameID`, `TeamID1`, `TeamID2`, `Winner`, and `LSFE`
+   (starting hammer).  
+  - Provides overall match outcomes and starting conditions, essential for
+    connecting end-level play to match-level win probabilities.  
+    
 The dataset is suitable for this research because it provides high-resolution, 
 shot-by-shot information across multiple top-level competitions. This allows 
 for statistical modeling and simulation of defensive strategies in response 
