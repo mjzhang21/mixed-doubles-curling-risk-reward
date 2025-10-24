@@ -116,7 +116,7 @@ Key variables include:
    (starting hammer).  
   - Provides overall match outcomes and starting conditions, essential for
     connecting end-level play to match-level win probabilities.  
-    
+
 The dataset is suitable for this research because it provides high-resolution, 
 shot-by-shot information across multiple top-level competitions. This allows 
 for statistical modeling and simulation of defensive strategies in response 
@@ -133,6 +133,30 @@ Show your thoughts on modeling, visualization, analysis,
 prediction, validation, or other methodological issues you need
 address in order to answer your scientific questions.
 -->
+I will begin with data preparation and visualization, creating derived
+ variables such as `probability_steal` (likelihood of the team without 
+ the hammer stealing an end) and `probability_give_up` 
+ (risk of allowing multiple points). These variables will quantify
+  risk-reward trade-offs and evaluate defensive strategies.  
+
+For visualization, I will use heatmaps, scatterplots, and animations to 
+show stone placement patterns across ends, score differentials, and power
+ play usage. Animations can illustrate stone progression and how initial 
+ positioning and opponent power plays influence defensive decisions.  
+
+For modeling, I will start with logistic regression to predict
+ success of shot types or defensive strategies, and use XGBoost or 
+ regression models to estimate expected win probability based on
+  game state, shot types, stone positions, and power play. Feature 
+  importance will highlight key factors affecting defensive outcomes.  
+
+Finally, models will be validated using cross-validation across
+ competitions and games. This combination
+  of analysis, modeling, and simulation will help quantify optimal
+  defensive strategies for teams without the hammer in mixed doubles curling.
+
+
+
 
 # Discussion
 
