@@ -88,7 +88,24 @@ about your data (source, coverage, key variables, structure, etc.)
 and justify its suitability for your research questions.
 -->
 
-
+The data for this project are provided by Curlit, an information technology 
+company specializing in curling analytics. Shot-by-shot stone positions are 
+available for the Beijing 2022 Olympic Winter Games and the World Mixed Doubles 
+Curling Championships for 2023, 2024, and 2025. The data are stored in six CSV 
+files which can be joined using the common identifier, CompetitionID. The primary
+files for this research are Ends.csv, Games.csv, and Stones.csv.
+The dataset contains over 26,000 observations, each corresponding to a single
+stone throw during a match.
+Key variables include:
+- Stones.csv: ```EndID```, ```Task```, ```Points```, and ```Stone_{i}_x```,
+  and ```Stone_{i}_y```
+  
+The dataset is suitable for this research because it provides high-resolution, 
+shot-by-shot information across multiple top-level competitions. This allows 
+for statistical modeling and simulation of defensive strategies in response 
+to opponent actions, 
+including power plays, and supports the calculation of metrics such as steal
+probability, risk of giving up multiple points, and expected win probability.
 
 # Methods and Research Design
 
