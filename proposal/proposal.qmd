@@ -28,17 +28,17 @@ Cite a reference in text: @agonafir2022machine did something.
 Cite a reference in parenthesis: some interesting work has been done
 [@agonafir2022understanding].
 -->
-Curling, nicknamed Chess on Ice, is a popular official sport at the
+Curling, nicknamed Chess on Ice, is an official sport at the
 Winter Olympics where two teams take turns sliding stones down a 
 sheet of ice. In curling, the team which has the "hammer" throws the
 last stone, allowing them to analyze the position and be at an
 advantage. There have been several articles which dive into how having
 the "hammer" influences strategy and win probability. For example,
-@PARK2013391 finds the posession of hammer in the ninth end was 
-more impactful in determining the winner of the game than other ends. 
-Additionally, an analysis of strategic decision shows at the beginning
+@PARK2013391 find the posession of the hammer in the ninth end was 
+more impactful in determining the winner of the game than in other ends. 
+Additionally, an analysis of strategic decision shows that at the beginning
 of the 10th end, it is better to be one point ahead without the
-hammer than one point down with the hammer[@doi:10.1287/deca.1050.0032].
+hammer rather than one point down with the hammer[@doi:10.1287/deca.1050.0032].
 In this project, we explore defenseive curling strategy, specific to
 mixed doubles. The aspect of defending against the power play has
 rarely been covered and it will be interesting to see how this unique
