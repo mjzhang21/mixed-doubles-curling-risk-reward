@@ -58,7 +58,28 @@ Formulate your research question; translate your research questions
 into statistical/data science questions.
 -->
 
+The primary goal of this project is to analyze risk–reward trade-offs in 
+mixed doubles curling, focusing on the decisions faced by the team without
+ the hammer. Specifically, we aim to determine under which game states a 
+ team should “punt” an end (play conservatively) versus attempt an aggressive
+steal.
+
+- How should the team without the hammer adjust its defensive strategy in 
+  response to the opponent’s use of the power play to maximize expected win
+   probability in mixed doubles curling?
+
+## Supporting Questions
+
+- How does the power play affect the probability that the team without the hammer
+  successfully steals an end under different score differentials and end numbers?
+- How does defensive response to the power play change the probability of giving 
+  up multiple points in the end?
+- Can we identify score differentials, end numbers, or stone placement scenarios 
+  where the team without the hammer should switch from a conservative to aggressive 
+  defensive strategy in response to a power play?
+
 # Data
+
 
 <!--
 You should have identified the data needed for your project, instead
