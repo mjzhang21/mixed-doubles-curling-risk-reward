@@ -1,7 +1,7 @@
 ---
-title: "This is an Interesting Title"
-author: "First M. Last"
-date: "2025-10-14"
+title: "Defensive Risk and Reward in Curling Proposal"
+author: "Mark J. Zhang"
+date: "2025-10-24"
 format:
   pdf:
     colorlinks: true
@@ -18,40 +18,41 @@ csl: apa.csl
 
 # Introduction
 
-Background about your research; touch the three questions to be
+<!--Background about your research; touch the three questions to be
 addressed in an introduction (why do we care; what have been done;
 what's new). 
 
 Cite at least two references. 
 Cite a reference in text: @agonafir2022machine did something.
 Cite a reference in parenthesis: some interesting work has been done
-[@agonafir2022understanding].
+[@agonafir2022understanding].-->
+
 
 # Specific Aims
 
-Formulate your research question; translate your research questions
-into statistical/data science questions.
+<!--Formulate your research question; translate your research questions
+into statistical/data science questions.-->
 
 # Data
 
-You should have identified the data needed for your project, instead
+<!--You should have identified the data needed for your project, instead
 of stating that you will try to find some data. Give a description
 about your data (source, coverage, key variables, structure, etc.) 
-and justify its suitability for your research questions.
+and justify its suitability for your research questions.-->
 
 
 # Methods and Research Design
 
-What design or methods will you use? Cite relevant references too if
+<!--What design or methods will you use? Cite relevant references too if
 needed [@agonafir2022machine; @agonafir2022understanding].
 Show your thoughts on modeling, visualization, analysis,
 prediction, validation, or other methodological issues you need
-address in order to answer your scientific questions.
+address in order to answer your scientific questions.-->
 
 # Discussion
 
-What are the most challenge parts of the task? What are the
+<!--What are the most challenge parts of the task? What are the
 limitations of your work? What is your fall-back plan if something
-unexpected happens?
+unexpected happens?-->
 
 # References  
