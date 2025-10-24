@@ -70,16 +70,16 @@ steal.
 
 ## Supporting Questions
 
-- How does the power play affect the probability that the team without the hammer
-  successfully steals an end under different score differentials and end numbers?
-- How does defensive response to the power play change the probability of giving 
-  up multiple points in the end?
-- Can we identify score differentials, end numbers, or stone placement scenarios 
-  where the team without the hammer should switch from a conservative to aggressive 
-  defensive strategy in response to a power play?
+- How does the power play affect the probability that the team without the
+  hammer successfully steals an end under different score differentials 
+  and end numbers?
+- How does defensive response to the power play change the probability 
+  of giving up multiple points in the end?
+- Can we identify score differentials, end numbers, or stone placement 
+  scenarios where the team without the hammer should switch from a
+  conservative to aggressive defensive strategy in response to a power play?
 
 # Data
-
 
 <!--
 You should have identified the data needed for your project, instead
@@ -87,6 +87,7 @@ of stating that you will try to find some data. Give a description
 about your data (source, coverage, key variables, structure, etc.) 
 and justify its suitability for your research questions.
 -->
+
 
 
 # Methods and Research Design
