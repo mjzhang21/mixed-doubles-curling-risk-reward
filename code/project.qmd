@@ -34,9 +34,13 @@ df = pd.merge(
 )
 
 df.columns = df.columns.str.lower().str.replace('id', '_id')
+df.head()
 ```
 ```{python}
 df.info()
+```
+```{python}
+df.isnull().sum()
 ```
 ```{python}
 print(df['powerplay'].value_counts())
