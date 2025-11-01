@@ -33,8 +33,19 @@ df = pd.merge(
     how="left"
 )
 
-
+df.columns = df.columns.str.lower().str.replace('id', '_id')
 ```
 ```{python}
 df.info()
+```
+```{python}
+print(df['powerplay'].value_counts())
+print(df['timeout'].value_counts())
+cols_to_fill = ['powerplay', 'timeout']
+df[cols_to_fill] = df[cols_to_fill].fillna(0)
+```
+```{python}
+df = df.dropna(subset=["stone_3_x"])
+null_counts = df.isnull().sum()
+print(null_counts)
 ```
