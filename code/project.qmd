@@ -1,0 +1,40 @@
+
+
+
+```{python}
+import pandas as pd
+
+df_competition = pd.read_csv("../data/Competition.csv")
+df_competitors  = pd.read_csv("../data/Competitors.csv")
+df_games        = pd.read_csv("../data/Games.csv")
+df_teams        = pd.read_csv("../data/Teams.csv")
+df_ends         = pd.read_csv("../data/Ends.csv")
+df_stones       = pd.read_csv("../data/Stones.csv")
+
+
+merged = pd.merge(
+    df_stones,
+    df_ends,
+    on=["CompetitionID","SessionID","GameID","EndID","TeamID"],
+    how="left"
+)
+
+merged = pd.merge(
+    merged,
+    df_games,
+    on=["CompetitionID","SessionID","GameID"],
+    how="left"
+)
+
+df = pd.merge(
+    merged,
+    df_teams[["CompetitionID","TeamID","NOC"]],
+    on=["CompetitionID","TeamID"],
+    how="left"
+)
+
+
+```
+```{python}
+df.info()
+```
