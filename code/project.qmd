@@ -100,6 +100,27 @@ for (cid, sid, gid, eid), game in df.groupby(['competition_id','session_id','gam
     print(game[["noc","lsfe","result","hammer"]])
     print("-" * 50)
     count += 1
-    if count >= 10:
+    if count >= 8:
         break
+```
+```{python}
+shots_per_team = df.groupby(["competition_id","session_id","game_id","end_id","team_id"]).size()
+print(shots_per_team.describe())
+print(shots_per_team[shots_per_team == 6])
+cid, sid, gid, eid= 24250026, 18, 1, 9
+df_end = df[(df["competition_id"] == cid) &
+            (df["session_id"] == sid) &
+            (df["game_id"] == gid) &
+            (df["end_id"] == eid)][["team_id","end_id","result","noc"]]
+
+print(df_end)
+df.loc[25375, ["team_id", "result", "noc"]] = [37, 1, "EST"]
+```
+```{python}
+import matplotlib.pyplot as plt
+
+mean_points = df.groupby("end_id")["result"].mean()
+plt.bar(mean_points.index.astype(str), mean_points.values, color='skyblue')
+plt.show()
+df[df["result"] >7]
 ```
