@@ -43,8 +43,8 @@ df.info()
 df.isnull().sum()
 ```
 ```{python}
-print(df['powerplay'].value_counts())
-print(df['timeout'].value_counts())
+print(df['powerplay'].value_counts(dropna=False).reset_index())
+print(df['timeout'].value_counts(dropna=False).reset_index())
 cols_to_fill = ['powerplay', 'timeout']
 df[cols_to_fill] = df[cols_to_fill].fillna(0)
 ```
@@ -52,4 +52,54 @@ df[cols_to_fill] = df[cols_to_fill].fillna(0)
 df = df.dropna(subset=["stone_3_x"])
 null_counts = df.isnull().sum()
 print(null_counts)
+```
+```{python}
+count = 0
+for (cid, sid, gid, eid), game in df.groupby(['competition_id','session_id','game_id', 'end_id']):
+    print(f"Competition {cid}, Session {sid}, Game {gid}, End {eid}")
+    print(game[["noc","lsfe","resultstr1","resultstr2"]])
+    print("-" * 50)
+    count += 1
+    if count >= 10:
+        break
+```
+```{python}
+import pandas as pd
+
+df = df.sort_values(["competition_id", "session_id", "game_id", "end_id"])
+
+df["hammer"] = -1 
+
+for (cid, sid, gid), game in df.groupby(["competition_id", "session_id", "game_id"]):
+    game = game.sort_values("end_id")
+    
+    team1 = game["team_id1"].iloc[0]
+    team2 = game["team_id2"].iloc[0]
+
+    lsfe = game["lsfe"].iloc[0] 
+    hammer_val = lsfe  
+    
+    # Loop through ends
+    for eid, end in game.groupby("end_id"):
+        # Assign hammer for this end
+        df.loc[end.index, "hammer"] = hammer_val
+        
+        # Compute points for each team in this end
+        points_team1 = end.loc[end["team_id"] == team1, "result"].iloc[0]
+        points_team2 = end.loc[end["team_id"] == team2, "result"].iloc[0]
+        
+        # If hammer team scored, switch hammer for next end
+        if (hammer_val == 1 and points_team1 > 0) or (hammer_val == 0 and points_team2 > 0):
+            hammer_val = 1 - hammer_val 
+
+```
+```{python}
+count = 0
+for (cid, sid, gid, eid), game in df.groupby(['competition_id','session_id','game_id', 'end_id']):
+    print(f"Competition {cid}, Session {sid}, Game {gid}, End {eid}")
+    print(game[["noc","lsfe","result","hammer"]])
+    print("-" * 50)
+    count += 1
+    if count >= 10:
+        break
 ```
