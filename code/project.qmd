@@ -11,6 +11,8 @@ df_teams        = pd.read_csv("../data/Teams.csv")
 df_ends         = pd.read_csv("../data/Ends.csv")
 df_stones       = pd.read_csv("../data/Stones.csv")
 
+```
+```{python}
 
 merged = pd.merge(
     df_stones,
@@ -19,20 +21,12 @@ merged = pd.merge(
     how="left"
 )
 
-merged = pd.merge(
+df = pd.merge(
     merged,
     df_games,
     on=["CompetitionID","SessionID","GameID"],
     how="left"
 )
-
-df = pd.merge(
-    merged,
-    df_teams[["CompetitionID","TeamID","NOC"]],
-    on=["CompetitionID","TeamID"],
-    how="left"
-)
-
 df.columns = df.columns.str.lower().str.replace('id', '_id')
 df.head()
 ```
@@ -57,7 +51,7 @@ print(null_counts)
 count = 0
 for (cid, sid, gid, eid), game in df.groupby(['competition_id','session_id','game_id', 'end_id']):
     print(f"Competition {cid}, Session {sid}, Game {gid}, End {eid}")
-    print(game[["noc","lsfe","resultstr1","resultstr2"]])
+    print(game[["team_id","lsfe","resultstr1","resultstr2"]])
     print("-" * 50)
     count += 1
     if count >= 10:
@@ -97,7 +91,7 @@ for (cid, sid, gid), game in df.groupby(["competition_id", "session_id", "game_i
 count = 0
 for (cid, sid, gid, eid), game in df.groupby(['competition_id','session_id','game_id', 'end_id']):
     print(f"Competition {cid}, Session {sid}, Game {gid}, End {eid}")
-    print(game[["noc","lsfe","result","hammer"]])
+    print(game[["team_id","lsfe","result","hammer"]])
     print("-" * 50)
     count += 1
     if count >= 8:
@@ -111,10 +105,10 @@ cid, sid, gid, eid= 24250026, 18, 1, 9
 df_end = df[(df["competition_id"] == cid) &
             (df["session_id"] == sid) &
             (df["game_id"] == gid) &
-            (df["end_id"] == eid)][["team_id","end_id","result","noc"]]
+            (df["end_id"] == eid)][["team_id","end_id","result"]]
 
 print(df_end)
-df.loc[25375, ["team_id", "result", "noc"]] = [37, 1, "EST"]
+df.loc[25375, ["team_id", "result"]] = [37, 1]
 ```
 ```{python}
 import matplotlib.pyplot as plt
@@ -122,5 +116,11 @@ import matplotlib.pyplot as plt
 mean_points = df.groupby("end_id")["result"].mean()
 plt.bar(mean_points.index.astype(str), mean_points.values, color='skyblue')
 plt.show()
-df[df["result"] >7]
+
+df[df["result"] >5][["game_id","session_id","competition_id","end_id","result"]].head()
+#df.loc[df["result"] > 5, "result"] = pd.NA
+```
+
+```{python}
+
 ```
