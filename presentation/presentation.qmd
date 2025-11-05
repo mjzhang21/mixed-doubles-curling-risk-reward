@@ -1,0 +1,24 @@
+---
+title: "Minimal Slide Deck"
+author: "Your Name"
+format: revealjs
+theme: simple
+transition: none
+number-sections: false
+---
+
+# Slide 1
+Welcome to the presentation.
+
+# Slide 2
+Key points:
+
+- Point 1
+- Point 2
+- Point 3
+
+# Slide 3
+```{r}
+# Example R code
+plot(1:10, 1:10)
+```
