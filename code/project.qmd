@@ -12,6 +12,7 @@ df_ends         = pd.read_csv("../data/Ends.csv")
 df_stones       = pd.read_csv("../data/Stones.csv")
 
 ```
+Merge the ends and games data with the stones data.
 ```{python}
 
 merged = pd.merge(
@@ -42,6 +43,7 @@ print(df['timeout'].value_counts(dropna=False).reset_index())
 cols_to_fill = ['powerplay', 'timeout']
 df[cols_to_fill] = df[cols_to_fill].fillna(0)
 ```
+Drop rows which dont have any coordinate data.
 ```{python}
 df = df.dropna(subset=["stone_3_x"])
 null_counts = df.isnull().sum()
@@ -57,6 +59,7 @@ for (cid, sid, gid, eid), game in df.groupby(['competition_id','session_id','gam
     if count >= 10:
         break
 ```
+Create hammer column that alternates according to curling rules.
 ```{python}
 import pandas as pd
 
@@ -97,17 +100,18 @@ for (cid, sid, gid, eid), game in df.groupby(['competition_id','session_id','gam
     if count >= 8:
         break
 ```
+Fix invalid/ mistyped result and team id.
 ```{python}
 shots_per_team = df.groupby(["competition_id","session_id","game_id","end_id","team_id"]).size()
 print(shots_per_team.describe())
 print(shots_per_team[shots_per_team == 6])
 cid, sid, gid, eid= 24250026, 18, 1, 9
-df_end = df[(df["competition_id"] == cid) &
+df_invalid_shots = df[(df["competition_id"] == cid) &
             (df["session_id"] == sid) &
             (df["game_id"] == gid) &
             (df["end_id"] == eid)][["team_id","end_id","result"]]
 
-print(df_end)
+print(df_invalid_shots)
 df.loc[25375, ["team_id", "result"]] = [37, 1]
 ```
 ```{python}
@@ -115,12 +119,56 @@ import matplotlib.pyplot as plt
 
 mean_points = df.groupby("end_id")["result"].mean()
 plt.bar(mean_points.index.astype(str), mean_points.values, color='skyblue')
+plt.title("Average points per end")
+plt.xlabel("End")
+plt.ylabel("Average Points")
 plt.show()
-
+```
+```{python}
 df[df["result"] >5][["game_id","session_id","competition_id","end_id","result"]].head()
-#df.loc[df["result"] > 5, "result"] = pd.NA
+```
+```{python}
+df.loc[df["result"] > 5, "result"] = pd.NA
+```
+```{python}
+mean_points = df.groupby("end_id")["result"].mean()
+plt.bar(mean_points.index.astype(str), mean_points.values, color='skyblue')
+plt.title("Average points per end")
+plt.xlabel("End")
+plt.ylabel("Average Points")
+plt.show()
+```
+Average points per end looks more evenly spread now.
+```{python}
+end_totals = df.drop_duplicates(subset=["competition_id","session_id","game_id","end_id","team_id"]).groupby(["competition_id","session_id","game_id","team_id","team_id1","team_id2",'resultstr1','resultstr2'])["result"].sum()
+
+df2 = end_totals.to_frame("result").reset_index()
+
+df2
+```
+```{python}
+mask = (
+    ((df2["team_id"] == df2["team_id1"]) & (df2["resultstr1"] == df2["result"])) |
+    ((df2["team_id"] == df2["team_id2"]) & (df2["resultstr2"] == df2["result"]))
+)
+
+mismatch_rows = df2[~mask]
+mismatch_rows
+```
+Replace all rows from result column with the results from the calculated result of points
+```{python}
+df_merged = df.merge(
+    df2[["competition_id","session_id","game_id","team_id","result"]],
+    on=["competition_id","session_id","game_id","team_id"],
+    how="left",
+    suffixes=("", "_corrected")
+)
+df_merged["result"] = df_merged["result_corrected"]
+df_merged = df_merged.drop(columns=["result_corrected"])
 ```
 
 ```{python}
-
+null_counts = df_merged.isnull().sum()
+print(null_counts)
 ```
+
