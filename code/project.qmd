@@ -171,4 +171,47 @@ df_merged = df_merged.drop(columns=["result_corrected"])
 null_counts = df_merged.isnull().sum()
 print(null_counts)
 ```
+Check if all stone coordinates are valid
+```{python}
+x_cols = ['stone_1_x',
+            'stone_2_x',
+            'stone_3_x',
+            'stone_4_x',
+            'stone_5_x',
+            'stone_6_x',
+            'stone_7_x',
+            'stone_8_x',
+            'stone_9_x',
+            'stone_10_x',
+            'stone_11_x',
+            'stone_12_x']
+y_cols   = ['stone_1_y',
+            'stone_2_y',
+            'stone_3_y',
+            'stone_4_y',
+            'stone_5_y',
+            'stone_6_y',
+            'stone_7_y',
+            'stone_8_y',
+            'stone_9_y',
+            'stone_10_y',
+            'stone_11_y',
+            'stone_12_y']  
+             
+x_min, x_max = 0, 1500
+y_min, y_max = 0, 3000
 
+# Create masks column by column
+x_ok = (df[x_cols] >= x_min) & (df[x_cols] <= x_max) | (df[x_cols] == 4095)
+y_ok = (df[y_cols] >= y_min) & (df[y_cols] <= y_max) | (df[y_cols] == 4095)
+
+# Rows where all x and y columns are okay
+rows_ok = x_ok.all(axis=1) & y_ok.all(axis=1)
+
+# Rows that are NOT ok
+rows_out_of_range = df[~rows_ok]
+
+print(rows_out_of_range)
+
+```
+All the stone coordinates are in range
