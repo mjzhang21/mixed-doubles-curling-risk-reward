@@ -30,6 +30,14 @@ df = pd.merge(
     how="left"
 )
 df.columns = df.columns.str.lower().str.replace('id', '_id')
+categorical_cols = [
+    'competition_id', 'session_id', 'game_id', 'end_id', 'shot_id',
+    'team_id', 'player_id', 'task', 'handle', 'timeout',
+    'powerplay', 'points',
+    'group_id', 'sheet', 
+    'noc1', 'noc2', 'lsfe', 'winner', 'team_id1', 'team_id2'
+]
+df[categorical_cols] = df[categorical_cols].astype('category')
 
 df.head()
 ```
@@ -66,11 +74,13 @@ for col in categorical_cols:
 Fill in data that is supposed to be 0.
 ```{python}
 cols_to_fill = ['powerplay', 'timeout']
+df[cols_to_fill] = df[cols_to_fill].astype('int')
 df[cols_to_fill] = df[cols_to_fill].fillna(0)
+df[cols_to_fill] = df[cols_to_fill].astype('category')
 ```
 Turn -1 into NA or invalid data.
 ```{python}
-columns_to_fix = ['task', 'handle'] 
+columns_to_fix = ['task', 'handle','points'] 
 df[columns_to_fix] = df[columns_to_fix].replace(-1, pd.NA)
 df.isnull().sum()
 ```
