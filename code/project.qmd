@@ -3,6 +3,7 @@
 
 ```{python}
 import pandas as pd
+import numpy as np
 
 df_competition = pd.read_csv("../data/Competition.csv")
 df_competitors  = pd.read_csv("../data/Competitors.csv")
@@ -38,16 +39,43 @@ df.info()
 df.isnull().sum()
 ```
 ```{python}
-print(df['powerplay'].value_counts(dropna=False).reset_index())
-print(df['timeout'].value_counts(dropna=False).reset_index())
+categorical_cols = [
+    'competition_id',
+    'end_id',
+    'player_id',
+    'task',
+    'handle',
+    'sheet',
+    'lsfe',
+    'winner',
+    'powerplay',
+    'timeout'
+]
+
+
+for col in categorical_cols:
+    freq_table = df[col].value_counts(dropna=False).reset_index()
+    freq_table.columns = [col, 'Frequency']
+    freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+    
+    print(f"Frequency table for {col}:\n", freq_table, "\n")
+```
+
+Fill in data that is supposed to be 0.
+```{python}
 cols_to_fill = ['powerplay', 'timeout']
 df[cols_to_fill] = df[cols_to_fill].fillna(0)
+```
+Turn -1 into NA or invalid data.
+```{python}
+columns_to_fix = ['task', 'handle'] 
+df[columns_to_fix] = df[columns_to_fix].replace(-1, pd.NA)
+df.isnull().sum()
 ```
 Drop rows which dont have any coordinate data.
 ```{python}
 df = df.dropna(subset=["stone_3_x"])
-null_counts = df.isnull().sum()
-print(null_counts)
+df.isnull().sum()
 ```
 ```{python}
 count = 0
@@ -215,3 +243,62 @@ print(rows_out_of_range)
 
 ```
 All the stone coordinates are in range
+
+
+```{python}
+df.info()
+```
+```{python}
+categorical_cols = [
+    'end_id',
+    'shot_id',
+    'task',
+    'handle',
+    'sheet',
+    'lsfe',
+    'winner',
+]
+
+for col in categorical_cols:
+    freq_table = df[col].value_counts().reset_index()
+    freq_table.columns = [col, 'Frequency']
+    freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+    
+    print(f"Frequency table for {col}:\n", freq_table, "\n")
+```
+We will explore the different types of shots
+"0": "Draw"
+"1": "Front"
+"2": "Guard"
+"3": "Raise / Tap-back"
+"4": "Wick / Soft Peeling"
+"5": "Freeze"
+"6": "Take-out"
+"7": "Hit and Roll"
+"8": "Clearing"
+"9": "Double Take-out"
+"10": "Promotion Take-out"
+"11": "through"
+"13": "no statistics"
+```{python}
+freq_table = df['task'].value_counts().reset_index()
+freq_table.columns = ['Task', 'Frequency']
+freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+freq_table  
+```
+```{python}
+bars = plt.bar(freq_table['Task'].astype(str), freq_table['Frequency'], color='skyblue')
+plt.title('Frequency of Task Values')
+plt.xlabel('Task')
+plt.ylabel('Frequency')
+```
+Draw is the most common shot by far.
+Freeze and Through are the least common.
+
+How often players perfectly execute their shot?
+```{python}
+freq_table = df['points'].value_counts().reset_index()
+freq_table.columns = ['Point', 'Frequency']
+freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+freq_table  
+```
