@@ -30,6 +30,7 @@ df = pd.merge(
     how="left"
 )
 df.columns = df.columns.str.lower().str.replace('id', '_id')
+
 df.head()
 ```
 ```{python}
@@ -49,7 +50,8 @@ categorical_cols = [
     'lsfe',
     'winner',
     'powerplay',
-    'timeout'
+    'timeout',
+    'points'
 ]
 
 
@@ -250,17 +252,22 @@ df.info()
 ```
 ```{python}
 categorical_cols = [
+    'competition_id',
     'end_id',
-    'shot_id',
+    'player_id',
     'task',
     'handle',
     'sheet',
     'lsfe',
     'winner',
+    'powerplay',
+    'timeout',
+    'points'
 ]
 
+
 for col in categorical_cols:
-    freq_table = df[col].value_counts().reset_index()
+    freq_table = df[col].value_counts(dropna=False).reset_index()
     freq_table.columns = [col, 'Frequency']
     freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
     
@@ -284,14 +291,13 @@ We will explore the different types of shots
 freq_table = df['task'].value_counts().reset_index()
 freq_table.columns = ['Task', 'Frequency']
 freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
-freq_table  
-```
-```{python}
+print(freq_table)
 bars = plt.bar(freq_table['Task'].astype(str), freq_table['Frequency'], color='skyblue')
 plt.title('Frequency of Task Values')
 plt.xlabel('Task')
 plt.ylabel('Frequency')
 ```
+
 Draw is the most common shot by far.
 Freeze and Through are the least common.
 
@@ -300,5 +306,26 @@ How often players perfectly execute their shot?
 freq_table = df['points'].value_counts().reset_index()
 freq_table.columns = ['Point', 'Frequency']
 freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
-freq_table  
+print(freq_table)
+bars = plt.bar(freq_table['Point'].astype(str), freq_table['Frequency'], color='skyblue')
+plt.title('Frequency of Point Values')
+plt.xlabel('Task')
+plt.ylabel('Frequency')
+```
+How well do players execute different shots?
+```{python}
+avg_points = df.groupby('task')['points'].mean().reset_index()
+
+# Sort by average points descending
+avg_points = avg_points.sort_values(by='points', ascending=False)
+
+# Plot
+plt.figure(figsize=(10,6))
+plt.bar(avg_points['task'], avg_points['points'], color='skyblue')
+plt.xlabel('Task')
+plt.ylabel('Average Points')
+plt.title('Average Points by Task')
+plt.xticks(rotation=45)
+plt.show()
+
 ```
