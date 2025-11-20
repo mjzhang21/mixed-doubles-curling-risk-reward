@@ -30,15 +30,7 @@ df = pd.merge(
     how="left"
 )
 df.columns = df.columns.str.lower().str.replace('id', '_id')
-categorical_cols = [
-    'competition_id', 'session_id', 'game_id', 'end_id', 'shot_id',
-    'team_id', 'player_id', 'task', 'handle', 'timeout',
-    'powerplay', 'points',
-    'group_id', 'sheet', 
-    'noc1', 'noc2', 'lsfe', 'winner', 'team_id1', 'team_id2'
-]
-df[categorical_cols] = df[categorical_cols].astype('category')
-
+df['match_id'] = df['competition_id'].astype(str) + '_' + df['session_id'].astype(str) + '_' + df['game_id'].astype(str)
 df.head()
 ```
 ```{python}
@@ -74,15 +66,16 @@ for col in categorical_cols:
 Fill in data that is supposed to be 0.
 ```{python}
 cols_to_fill = ['powerplay', 'timeout']
-df[cols_to_fill] = df[cols_to_fill].astype('int')
 df[cols_to_fill] = df[cols_to_fill].fillna(0)
-df[cols_to_fill] = df[cols_to_fill].astype('category')
+df[cols_to_fill] = df[cols_to_fill].astype('int')
+
 ```
 Turn -1 into NA or invalid data.
 ```{python}
-columns_to_fix = ['task', 'handle','points'] 
+columns_to_fix = ['task', 'handle', 'points']
+
 df[columns_to_fix] = df[columns_to_fix].replace(-1, pd.NA)
-df.isnull().sum()
+
 ```
 Drop rows which dont have any coordinate data.
 ```{python}
@@ -91,8 +84,8 @@ df.isnull().sum()
 ```
 ```{python}
 count = 0
-for (cid, sid, gid, eid), game in df.groupby(['competition_id','session_id','game_id', 'end_id']):
-    print(f"Competition {cid}, Session {sid}, Game {gid}, End {eid}")
+for (mid, eid), game in df.groupby(['match_id', 'end_id']):
+    print(f"Match {mid}, End {eid}")
     print(game[["team_id","lsfe","resultstr1","resultstr2"]])
     print("-" * 50)
     count += 1
@@ -103,11 +96,11 @@ Create hammer column that alternates according to curling rules.
 ```{python}
 import pandas as pd
 
-df = df.sort_values(["competition_id", "session_id", "game_id", "end_id"])
+df = df.sort_values(["match_id"])
 
 df["hammer"] = -1 
 
-for (cid, sid, gid), game in df.groupby(["competition_id", "session_id", "game_id"]):
+for mid, game in df.groupby(["match_id"]):
     game = game.sort_values("end_id")
     
     team1 = game["team_id1"].iloc[0]
@@ -142,9 +135,9 @@ for (cid, sid, gid, eid), game in df.groupby(['competition_id','session_id','gam
 ```
 Fix invalid/ mistyped result and team id.
 ```{python}
-shots_per_team = df.groupby(["competition_id","session_id","game_id","end_id","team_id"]).size()
+shots_per_team = df.groupby(["match_id","end_id","team_id"]).size()
 print(shots_per_team.describe())
-print(shots_per_team[shots_per_team == 6])
+print(shots_per_team[shots_per_team > 5])
 cid, sid, gid, eid= 24250026, 18, 1, 9
 df_invalid_shots = df[(df["competition_id"] == cid) &
             (df["session_id"] == sid) &
@@ -165,7 +158,7 @@ plt.ylabel("Average Points")
 plt.show()
 ```
 ```{python}
-df[df["result"] >5][["game_id","session_id","competition_id","end_id","result"]].head()
+df[df["result"] >5][["match_id","end_id","result"]]
 ```
 ```{python}
 df.loc[df["result"] > 5, "result"] = pd.NA
@@ -179,36 +172,10 @@ plt.ylabel("Average Points")
 plt.show()
 ```
 Average points per end looks more evenly spread now.
-```{python}
-end_totals = df.drop_duplicates(subset=["competition_id","session_id","game_id","end_id","team_id"]).groupby(["competition_id","session_id","game_id","team_id","team_id1","team_id2",'resultstr1','resultstr2'])["result"].sum()
-
-df2 = end_totals.to_frame("result").reset_index()
-
-df2
-```
-```{python}
-mask = (
-    ((df2["team_id"] == df2["team_id1"]) & (df2["resultstr1"] == df2["result"])) |
-    ((df2["team_id"] == df2["team_id2"]) & (df2["resultstr2"] == df2["result"]))
-)
-
-mismatch_rows = df2[~mask]
-mismatch_rows
-```
-Replace all rows from result column with the results from the calculated result of points
-```{python}
-df_merged = df.merge(
-    df2[["competition_id","session_id","game_id","team_id","result"]],
-    on=["competition_id","session_id","game_id","team_id"],
-    how="left",
-    suffixes=("", "_corrected")
-)
-df_merged["result"] = df_merged["result_corrected"]
-df_merged = df_merged.drop(columns=["result_corrected"])
-```
 
 ```{python}
-null_counts = df_merged.isnull().sum()
+df = df.dropna(subset=["result"])
+null_counts = df.isnull().sum()
 print(null_counts)
 ```
 Check if all stone coordinates are valid
@@ -283,6 +250,24 @@ for col in categorical_cols:
     
     print(f"Frequency table for {col}:\n", freq_table, "\n")
 ```
+```{python}
+df_invalid_player = df[(df["player_id"] == 3)][["match_id"]]
+print("player_id = 3:")
+print(df_invalid_player)
+print("---------------------")
+df_invalid_points = df[(df["points"] > 4)][["match_id"]]
+print("points > 4:")
+print(df_invalid_points)
+```
+```{python}
+df_invalid_matches = df[(df["match_id"] == '22230015_2_3')][["player_id","end_id","result","team_id"]]
+df_invalid_matches.sort_values(by='end_id')
+```
+
+
+
+EXPLORATION
+
 We will explore the different types of shots
 "0": "Draw"
 "1": "Front"
@@ -319,23 +304,6 @@ freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].su
 print(freq_table)
 bars = plt.bar(freq_table['Point'].astype(str), freq_table['Frequency'], color='skyblue')
 plt.title('Frequency of Point Values')
-plt.xlabel('Task')
+plt.xlabel('Point')
 plt.ylabel('Frequency')
-```
-How well do players execute different shots?
-```{python}
-avg_points = df.groupby('task')['points'].mean().reset_index()
-
-# Sort by average points descending
-avg_points = avg_points.sort_values(by='points', ascending=False)
-
-# Plot
-plt.figure(figsize=(10,6))
-plt.bar(avg_points['task'], avg_points['points'], color='skyblue')
-plt.xlabel('Task')
-plt.ylabel('Average Points')
-plt.title('Average Points by Task')
-plt.xticks(rotation=45)
-plt.show()
-
 ```
