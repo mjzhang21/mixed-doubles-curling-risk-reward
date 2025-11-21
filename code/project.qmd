@@ -84,9 +84,10 @@ df.isnull().sum()
 ```
 ```{python}
 count = 0
+df=df.sort_values(by="shot_id")
 for (mid, eid), game in df.groupby(['match_id', 'end_id']):
     print(f"Match {mid}, End {eid}")
-    print(game[["team_id","lsfe","resultstr1","resultstr2"]])
+    print(game[["team_id","lsfe","resultstr1","resultstr2","shot_id"]])
     print("-" * 50)
     count += 1
     if count >= 10:
@@ -125,12 +126,12 @@ for mid, game in df.groupby(["match_id"]):
 ```
 ```{python}
 count = 0
-for (cid, sid, gid, eid), game in df.groupby(['competition_id','session_id','game_id', 'end_id']):
-    print(f"Competition {cid}, Session {sid}, Game {gid}, End {eid}")
+for (mid, eid), game in df.groupby(['match_id', 'end_id']):
+    print(f"Match {mid}, End {eid}")
     print(game[["team_id","lsfe","result","hammer"]])
     print("-" * 50)
     count += 1
-    if count >= 8:
+    if count >= 10:
         break
 ```
 Fix invalid/ mistyped result and team id.
@@ -251,19 +252,40 @@ for col in categorical_cols:
     print(f"Frequency table for {col}:\n", freq_table, "\n")
 ```
 ```{python}
-df_invalid_player = df[(df["player_id"] == 3)][["match_id"]]
+df_invalid_player = df[(df["player_id"] == 3)][["match_id","end_id"]]
 print("player_id = 3:")
 print(df_invalid_player)
 print("---------------------")
-df_invalid_points = df[(df["points"] > 4)][["match_id"]]
+df_invalid_points = df[(df["points"] > 4)][["match_id","end_id"]]
 print("points > 4:")
 print(df_invalid_points)
 ```
 ```{python}
-df_invalid_matches = df[(df["match_id"] == '22230015_2_3')][["player_id","end_id","result","team_id"]]
-df_invalid_matches.sort_values(by='end_id')
+match_id_to_view = '22230015_48_1'
+df_match = df[df["match_id"] == match_id_to_view]
+df_match = df_match.sort_values(by='shot_id')
+count = 0
+for (mid, eid), game in df_match.groupby(['match_id', 'end_id']):
+    print(f"Match {mid}, End {eid}")
+    print(game[["team_id","player_id","shot_id"]])
+    print("-" * 50)
+    count += 1
+    if count >= 10:
+        break
 ```
-
+```{python}
+match_id_to_view = '0_9_2'
+df_match = df[df["match_id"] == match_id_to_view]
+df_match = df_match.sort_values(by='shot_id')
+count = 0
+for (mid, eid), game in df_match.groupby(['match_id', 'end_id']):
+    print(f"Match {mid}, End {eid}")
+    print(game[["team_id","points","result","task","shot_id"]])
+    print("-" * 50)
+    count += 1
+    if count >= 10:
+        break
+```
 
 
 EXPLORATION
@@ -306,4 +328,7 @@ bars = plt.bar(freq_table['Point'].astype(str), freq_table['Frequency'], color='
 plt.title('Frequency of Point Values')
 plt.xlabel('Point')
 plt.ylabel('Frequency')
+```
+```{python}
+
 ```
