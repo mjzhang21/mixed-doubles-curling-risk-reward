@@ -292,6 +292,373 @@ for (mid, eid), game in df_match.groupby(['match_id', 'end_id']):
         break
 ```
 
+EXPLORATION
+
+We will explore the different types of shots
+"0": "Draw"
+"1": "Front"
+"2": "Guard"
+"3": "Raise / Tap-back"
+"4": "Wick / Soft Peeling"
+"5": "Freeze"
+"6": "Take-out"
+"7": "Hit and Roll"
+"8": "Clearing"
+"9": "Double Take-out"
+"10": "Promotion Take-out"
+"11": "through"
+"13": "no statistics"
+```{python}
+freq_table = df['task'].value_counts().reset_index()
+freq_table.columns = ['Task', 'Frequency']
+freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+print(freq_table)
+bars = plt.bar(freq_table['Task'].astype(str), freq_table['Frequency'], color='skyblue')
+plt.title('Frequency of Task Values')
+plt.xlabel('Task')
+plt.ylabel('Frequency')
+```
+
+Draw is the most common shot by far.
+Freeze and Through are the least common.
+
+How often players perfectly execute their shot?
+```{python}
+freq_table = df['points'].value_counts().reset_index()
+freq_table.columns = ['Point', 'Frequency']
+freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+print(freq_table)
+bars = plt.bar(freq_table['Point'].astype(str), freq_table['Frequency'], color='skyblue')
+plt.title('Frequency of Point Values')
+plt.xlabel('Point')
+plt.ylabel('Frequency')
+```
+
+Logistic Regression
+Outcome Variable: Steal
+```{python}
+df_hammer = df[df['hammer'] == 0].copy()
+end_df = df_hammer.groupby(['match_id', 'end_id', 'team_id']).agg({
+    'result': 'first',   # points scored by this team in the end
+    'hammer': 'first'  # which team had the hammer
+}).reset_index()
+
+end_df['steal'] = ((end_df['result'] > 0) & (end_df['hammer'] == 0)).astype(int)
+
+if 'steal' in df_hammer.columns:
+    df_hammer = df_hammer.drop(columns=['steal'])
+
+df_hammer = df_hammer.merge(
+    end_df[['match_id', 'end_id', 'team_id', 'steal']],
+    on=['match_id', 'end_id', 'team_id'],
+    how='left'
+)
+
+```
+```{python}
+freq_table = df_hammer['steal'].value_counts().reset_index()
+freq_table.columns = ['steal', 'Frequency']
+freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+print(freq_table)
+bars = plt.bar(freq_table['steal'].astype(str), freq_table['Frequency'], color='skyblue')
+plt.title('Frequency of Steal Values')
+plt.xlabel('Steal')
+plt.ylabel('Frequency')
+
+```
+
+
+
+```{python}
+import pandas as pd
+import numpy as np
+
+df_competition = pd.read_csv("../data/Competition.csv")
+df_competitors  = pd.read_csv("../data/Competitors.csv")
+df_games        = pd.read_csv("../data/Games.csv")
+df_teams        = pd.read_csv("../data/Teams.csv")
+df_ends         = pd.read_csv("../data/Ends.csv")
+df_stones       = pd.read_csv("../data/Stones.csv")
+
+```
+Merge the ends and games data with the stones data.
+```{python}
+
+merged = pd.merge(
+    df_stones,
+    df_ends,
+    on=["CompetitionID","SessionID","GameID","EndID","TeamID"],
+    how="left"
+)
+
+df = pd.merge(
+    merged,
+    df_games,
+    on=["CompetitionID","SessionID","GameID"],
+    how="left"
+)
+df.columns = df.columns.str.lower().str.replace('id', '_id')
+df['match_id'] = df['competition_id'].astype(str) + '_' + df['session_id'].astype(str) + '_' + df['game_id'].astype(str)
+float_cols = df.select_dtypes(include=['float64']).columns
+df[float_cols] = df[float_cols].astype(np.float32)
+df.head()
+```
+```{python}
+df.info()
+```
+```{python}
+df.isnull().sum()
+```
+```{python}
+categorical_cols = [
+    'competition_id',
+    'end_id',
+    'player_id',
+    'task',
+    'handle',
+    'sheet',
+    'lsfe',
+    'winner',
+    'powerplay',
+    'timeout',
+    'points'
+]
+
+
+for col in categorical_cols:
+    freq_table = df[col].value_counts(dropna=False).reset_index()
+    freq_table.columns = [col, 'Frequency']
+    freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+    
+    print(f"Frequency table for {col}:\n", freq_table, "\n")
+```
+
+Fill in data that is supposed to be 0.
+```{python}
+cols_to_fill = ['powerplay', 'timeout']
+df[cols_to_fill] = df[cols_to_fill].fillna(0)
+df[cols_to_fill] = df[cols_to_fill].astype('int')
+
+```
+Turn -1 into NA or invalid data.
+```{python}
+columns_to_fix = ['task', 'handle', 'points']
+
+df[columns_to_fix] = df[columns_to_fix].replace(-1, pd.NA)
+
+```
+Drop rows which dont have any coordinate data.
+```{python}
+df = df.dropna(subset=["stone_3_x"])
+df.isnull().sum()
+```
+```{python}
+count = 0
+df=df.sort_values(by="shot_id")
+for (mid, eid), game in df.groupby(['match_id', 'end_id']):
+    print(f"Match {mid}, End {eid}")
+    print(game[["team_id","lsfe","resultstr1","resultstr2","shot_id"]])
+    print("-" * 50)
+    count += 1
+    if count >= 10:
+        break
+```
+Create hammer column that alternates according to curling rules.
+```{python}
+import pandas as pd
+
+df = df.sort_values(["match_id"])
+
+df["hammer"] = -1 
+
+for mid, game in df.groupby(["match_id"]):
+    game = game.sort_values("end_id")
+    
+    team1 = game["team_id1"].iloc[0]
+    team2 = game["team_id2"].iloc[0]
+
+    lsfe = game["lsfe"].iloc[0] 
+    hammer_val = lsfe  
+    
+    # Loop through ends
+    for eid, end in game.groupby("end_id"):
+        # Assign hammer for this end
+        df.loc[end.index, "hammer"] = end["team_id"].apply(
+        lambda tid: hammer_val if tid == team1 else (1 - hammer_val)
+    )
+        
+        # Compute points for each team in this end
+        points_team1 = end.loc[end["team_id"] == team1, "result"].iloc[0]
+        points_team2 = end.loc[end["team_id"] == team2, "result"].iloc[0]
+        
+        # If hammer team scored, switch hammer for next end
+        if (hammer_val == 1 and points_team1 > 0) or (hammer_val == 0 and points_team2 > 0):
+            hammer_val = 1 - hammer_val 
+
+```
+```{python}
+count = 0
+df = df.sort_values(by="shot_id")
+for (mid, eid), game in df.groupby(['match_id', 'end_id']):
+    print(f"Match {mid}, End {eid}")
+    print(game[["team_id","lsfe","result","hammer"]])
+    print("-" * 50)
+    count += 1
+    if count >= 10:
+        break
+```
+Fix invalid/ mistyped result and team id.
+```{python}
+shots_per_team = df.groupby(["match_id","end_id","team_id"]).size()
+print(shots_per_team.describe())
+print(shots_per_team[shots_per_team > 5])
+cid, sid, gid, eid= 24250026, 18, 1, 9
+df_invalid_shots = df[(df["competition_id"] == cid) &
+            (df["session_id"] == sid) &
+            (df["game_id"] == gid) &
+            (df["end_id"] == eid)][["team_id","end_id","result"]]
+
+print(df_invalid_shots)
+df.loc[25375, ["team_id", "result"]] = [37, 1]
+```
+```{python}
+import matplotlib.pyplot as plt
+
+mean_points = df.groupby("end_id")["result"].mean()
+plt.bar(mean_points.index.astype(str), mean_points.values, color='skyblue')
+plt.title("Average points per end")
+plt.xlabel("End")
+plt.ylabel("Average Points")
+plt.show()
+```
+```{python}
+df[df["result"] >5][["match_id","end_id","result"]]
+```
+```{python}
+df.loc[df["result"] > 5, "result"] = pd.NA
+```
+```{python}
+mean_points = df.groupby("end_id")["result"].mean()
+plt.bar(mean_points.index.astype(str), mean_points.values, color='skyblue')
+plt.title("Average points per end")
+plt.xlabel("End")
+plt.ylabel("Average Points")
+plt.show()
+```
+Average points per end looks more evenly spread now.
+
+```{python}
+df = df.dropna(subset=["result"])
+null_counts = df.isnull().sum()
+print(null_counts)
+```
+Check if all stone coordinates are valid
+```{python}
+x_cols = ['stone_1_x',
+            'stone_2_x',
+            'stone_3_x',
+            'stone_4_x',
+            'stone_5_x',
+            'stone_6_x',
+            'stone_7_x',
+            'stone_8_x',
+            'stone_9_x',
+            'stone_10_x',
+            'stone_11_x',
+            'stone_12_x']
+y_cols   = ['stone_1_y',
+            'stone_2_y',
+            'stone_3_y',
+            'stone_4_y',
+            'stone_5_y',
+            'stone_6_y',
+            'stone_7_y',
+            'stone_8_y',
+            'stone_9_y',
+            'stone_10_y',
+            'stone_11_y',
+            'stone_12_y']  
+             
+x_min, x_max = 0, 1500
+y_min, y_max = 0, 3000
+
+# Create masks column by column
+x_ok = (df[x_cols] >= x_min) & (df[x_cols] <= x_max) | (df[x_cols] == 4095)
+y_ok = (df[y_cols] >= y_min) & (df[y_cols] <= y_max) | (df[y_cols] == 4095)
+
+# Rows where all x and y columns are okay
+rows_ok = x_ok.all(axis=1) & y_ok.all(axis=1)
+
+# Rows that are NOT ok
+rows_out_of_range = df[~rows_ok]
+
+print(rows_out_of_range)
+
+```
+All the stone coordinates are in range
+
+
+```{python}
+df.info()
+```
+```{python}
+categorical_cols = [
+    'competition_id',
+    'end_id',
+    'player_id',
+    'task',
+    'handle',
+    'sheet',
+    'lsfe',
+    'winner',
+    'powerplay',
+    'timeout',
+    'points'
+]
+
+
+for col in categorical_cols:
+    freq_table = df[col].value_counts(dropna=False).reset_index()
+    freq_table.columns = [col, 'Frequency']
+    freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+    
+    print(f"Frequency table for {col}:\n", freq_table, "\n")
+```
+```{python}
+df_invalid_player = df[(df["player_id"] == 3)][["match_id","end_id"]]
+print("player_id = 3:")
+print(df_invalid_player)
+print("---------------------")
+df_invalid_points = df[(df["points"] > 4)][["match_id","end_id"]]
+print("points > 4:")
+print(df_invalid_points)
+```
+```{python}
+match_id_to_view = '22230015_48_1'
+df_match = df[df["match_id"] == match_id_to_view]
+df_match = df_match.sort_values(by='shot_id')
+count = 0
+for (mid, eid), game in df_match.groupby(['match_id', 'end_id']):
+    print(f"Match {mid}, End {eid}")
+    print(game[["team_id","player_id","shot_id"]])
+    print("-" * 50)
+    count += 1
+    if count >= 10:
+        break
+```
+```{python}
+match_id_to_view = '0_9_2'
+df_match = df[df["match_id"] == match_id_to_view]
+df_match = df_match.sort_values(by='shot_id')
+count = 0
+for (mid, eid), game in df_match.groupby(['match_id', 'end_id']):
+    print(f"Match {mid}, End {eid}")
+    print(game[["team_id","points","result","task","shot_id"]])
+    print("-" * 50)
+    count += 1
+    if count >= 10:
+        break
+```
 
 EXPLORATION
 
@@ -334,62 +701,171 @@ plt.title('Frequency of Point Values')
 plt.xlabel('Point')
 plt.ylabel('Frequency')
 ```
+
+Logistic Regression
+Outcome Variable: Steal
 ```{python}
-import numpy as np
-import pandas as pd
+df_hammer = df[df['hammer'] == 0].copy()
+end_df = df_hammer.groupby(['match_id', 'end_id', 'team_id']).agg({
+    'result': 'first',   # points scored by this team in the end
+    'hammer': 'first'  # which team had the hammer
+}).reset_index()
 
-num_stones = 12
-button_x, button_y = 750, 800
+end_df['steal'] = ((end_df['result'] > 0) & (end_df['hammer'] == 0)).astype(int)
 
-new_cols = {}  # store new columns here
+if 'steal' in df_hammer.columns:
+    df_hammer = df_hammer.drop(columns=['steal'])
 
-for i in range(1, num_stones + 1):
-    x = df[f"stone_{i}_x"]
-    y = df[f"stone_{i}_y"]
-    
-    in_play = ((x > 0) & (x < 4095)).astype(int)
-    new_cols[f"stone_{i}_in_play"] = in_play
-    
-    # Thrown flag
-    if i in [1, 7]:
-        new_cols[f"stone_{i}_thrown"] = 0
-    else:
-        new_cols[f"stone_{i}_thrown"] = in_play
-    
-    # Normalized coordinates
-    new_cols[f"stone_{i}_x_norm"] = np.where(in_play == 1, x / 1500, 0)
-    new_cols[f"stone_{i}_y_norm"] = np.where(in_play == 1, y / 3000, 0)
+df_hammer = df_hammer.merge(
+    end_df[['match_id', 'end_id', 'team_id', 'steal']],
+    on=['match_id', 'end_id', 'team_id'],
+    how='left'
+)
 
-    
-    # Radial distance and angle
-    r = np.sqrt((x - button_x)**2 + (y - button_y)**2)
-    r_norm = r / np.sqrt(1500**2 + 3000**2)
-    new_cols[f"stone_{i}_r_norm"] = np.where(in_play == 1, r_norm, 0)
-
-    theta = np.arctan2(y - button_y, x - button_x)
-    new_cols[f"stone_{i}_theta_sin"] = np.where(in_play == 1, np.sin(theta), 0)
-    new_cols[f"stone_{i}_theta_cos"] = np.where(in_play == 1, np.cos(theta), 0)
-
-new_cols['num_stones_in_play'] = df[[f'stone_{i}_in_play' for i in range(1, num_stones+1)]].sum(axis=1)
-
-# Radial distance stats
-r_cols = [f'stone_{i}_r_norm' for i in range(1, num_stones+1)]
-new_cols['r_min'] = df[r_cols].min(axis=1)
-new_cols['r_max'] = df[r_cols].max(axis=1)
-new_cols['r_mean'] = df[r_cols].mean(axis=1)
-# Convert to DataFrame
-feature_df = pd.DataFrame(new_cols, index=df.index)
-
-# Optional: concatenate with original df
-df = pd.concat([df, feature_df], axis=1)
-
-feature_df.info()
+```
+```{python}
+freq_table = df_hammer['steal'].value_counts(dropna=False).reset_index()
+freq_table.columns = ['steal', 'Frequency']
+freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+print(freq_table)
+bars = plt.bar(freq_table['steal'].astype(str), freq_table['Frequency'], color='skyblue')
+plt.title('Frequency of Steal Values')
+plt.xlabel('Steal')
+plt.ylabel('Frequency')
 ```
 
+
+
+
+
 ```{python}
-feature_cols = []
+stone_features = []
+aggregate_features=[]
+numeric_features = ['points','timeout','handle']
+categorical_features = ["powerplay", "task"]
+
+all_features = stone_features + aggregate_features + categorical_features + numeric_features
+
+```
+```{python}
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegressionCV
+from sklearn.metrics import classification_report, roc_auc_score
+
+X_train, X_test, y_train, y_test = train_test_split(
+    df_hammer[all_features],
+    df_hammer["steal"],
+    test_size=0.2,
+    random_state=42,
+    stratify=df_hammer["steal"]
+)
+
+
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", StandardScaler(), numeric_features),
+        ("cat", OneHotEncoder(drop="first", handle_unknown="ignore"), categorical_features)
+    ]
+)
+auto_lasso = LogisticRegressionCV(
+    Cs=20,
+    penalty="l1",
+    solver="saga",
+    cv=5,
+    scoring="roc_auc",
+    max_iter=5000,
+    n_jobs=-1
+)
+pipeline = Pipeline([
+    ("preprocess", preprocessor),
+    ("clf", auto_lasso)
+])
+
+pipeline.fit(X_train, y_train)
+
+y_pred = pipeline.predict(X_test)
+y_prob = pipeline.predict_proba(X_test)[:,1]
+
+print("ROC-AUC:", roc_auc_score(y_test, y_prob))
+print(classification_report(y_test, y_pred))
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{python}
+import umap
+#categorical_features = ["powerplay"]
+X = pd.get_dummies(df[feature_cols])#, columns=categorical_features, prefix=categorical_features)
+
+reducer = umap.UMAP(
+    n_neighbors= 35,    # controls local vs global structure
+    min_dist=0.8,      # controls spacing of points
+    n_components=2, 
+    random_state=42,
+    low_memory=True,
+)
+
+embedding = reducer.fit_transform(X)
+
+df["umap_x"] = embedding[:, 0]
+df["umap_y"] = embedding[:, 1]
+```
+```{python}
+plt.figure(figsize=(10,8))
+plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["hammer"],cmap="viridis")
+plt.xlabel("UMAP 1")
+plt.ylabel("UMAP 2")
+plt.colorbar(label="End")
+plt.title("UMAP embedding of curling shot-level board states")
+plt.show()
+
+```
+```{python}
+plt.figure(figsize=(10,8))
+plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["shot_id"],cmap="viridis")
+plt.xlabel("UMAP 1")
+plt.ylabel("UMAP 2")
+plt.colorbar(label="Shot_id")
+plt.title("UMAP embedding of curling shot-level board states")
+plt.show()
+```
+```{python}
+plt.figure(figsize=(10,8))
+plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["noc2"],cmap="viridis")
+plt.xlabel("UMAP 1")
+plt.ylabel("UMAP 2")
+plt.colorbar(label="team_id")
+plt.title("UMAP embedding of curling shot-level board states")
+plt.show()
+```
+
+
+
+
+
+```{python}
+stone_features = []
 for i in range(1, num_stones + 1):
-    feature_cols += [
+    stone_features += [
         f"stone_{i}_x_norm",
         f"stone_{i}_y_norm",
         f"stone_{i}_in_play",
@@ -397,14 +873,63 @@ for i in range(1, num_stones + 1):
         f"stone_{i}_r_norm",
         f"stone_{i}_theta_sin",
         f"stone_{i}_theta_cos",
-        f"num_stones_in_play",
-        f"r_min",
-        f"r_max",
-        f"r_mean",
-
     ]
-feature_cols+=["shot_id","hammer","task"]
+
+aggregate_features = ["num_stones_in_play", "r_min", "r_max", "r_mean"]
+categorical_features = ["powerplay", "task"]
+
+all_features = stone_features + aggregate_features + categorical_features + ["shot_id", "hammer"]
+
 ```
+```{python}
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, roc_auc_score
+
+X_train, X_test, y_train, y_test = train_test_split(
+    df_hammer[all_features],
+    df_hammer["steal"],
+    test_size=0.2,
+    random_state=42,
+    stratify=df_hammer["steal"]
+)
+
+continuous_features = stone_features + aggregate_features + ["shot_id", "hammer"]
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", StandardScaler(), continuous_features),
+        ("cat", OneHotEncoder(drop="first", handle_unknown="ignore"), categorical_features)
+    ]
+)
+
+pipeline = Pipeline([
+    ("preprocess", preprocessor),
+    ("clf", LogisticRegression(class_weight="balanced", max_iter=1000))
+])
+
+pipeline.fit(X_train, y_train)
+
+y_pred = pipeline.predict(X_test)
+y_prob = pipeline.predict_proba(X_test)[:,1]
+
+print("ROC-AUC:", roc_auc_score(y_test, y_prob))
+print(classification_report(y_test, y_pred))
+
+
+```
+
+
+
+
+
+
+
+
+
 
 
 
