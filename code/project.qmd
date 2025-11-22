@@ -347,29 +347,45 @@ for i in range(1, num_stones + 1):
     x = df[f"stone_{i}_x"]
     y = df[f"stone_{i}_y"]
     
-    new_cols[f"stone_{i}_in_play"] = ((x > 0) & (x < 4095)).astype(int)
+    in_play = ((x > 0) & (x < 4095)).astype(int)
+    new_cols[f"stone_{i}_in_play"] = in_play
     
     # Thrown flag
     if i in [1, 7]:
         new_cols[f"stone_{i}_thrown"] = 0
     else:
-        new_cols[f"stone_{i}_thrown"] = ((x > 0) & (x < 4095)).astype(int)
+        new_cols[f"stone_{i}_thrown"] = in_play
     
     # Normalized coordinates
-    new_cols[f"stone_{i}_x_norm"] = np.where((x > 0) & (x < 4095), x / 1500, 0)
-    new_cols[f"stone_{i}_y_norm"] = np.where((y > 0) & (y < 4095), y / 3000, 0)
+    new_cols[f"stone_{i}_x_norm"] = np.where(in_play == 1, x / 1500, 0)
+    new_cols[f"stone_{i}_y_norm"] = np.where(in_play == 1, y / 3000, 0)
+
     
     # Radial distance and angle
     r = np.sqrt((x - button_x)**2 + (y - button_y)**2)
-    new_cols[f"stone_{i}_r_norm"] = r / np.sqrt(1500**2 + 3000**2)
-    new_cols[f"stone_{i}_theta"] = np.arctan2(y - button_y, x - button_x)
+    r_norm = r / np.sqrt(1500**2 + 3000**2)
+    new_cols[f"stone_{i}_r_norm"] = np.where(in_play == 1, r_norm, 0)
 
+    theta = np.arctan2(y - button_y, x - button_x)
+    new_cols[f"stone_{i}_theta_sin"] = np.where(in_play == 1, np.sin(theta), 0)
+    new_cols[f"stone_{i}_theta_cos"] = np.where(in_play == 1, np.cos(theta), 0)
 
-# Add all new columns at once
-df = pd.concat([df, pd.DataFrame(new_cols)], axis=1)
+new_cols['num_stones_in_play'] = df[[f'stone_{i}_in_play' for i in range(1, num_stones+1)]].sum(axis=1)
 
+# Radial distance stats
+r_cols = [f'stone_{i}_r_norm' for i in range(1, num_stones+1)]
+new_cols['r_min'] = df[r_cols].min(axis=1)
+new_cols['r_max'] = df[r_cols].max(axis=1)
+new_cols['r_mean'] = df[r_cols].mean(axis=1)
+# Convert to DataFrame
+feature_df = pd.DataFrame(new_cols, index=df.index)
 
+# Optional: concatenate with original df
+df = pd.concat([df, feature_df], axis=1)
+
+feature_df.info()
 ```
+
 ```{python}
 feature_cols = []
 for i in range(1, num_stones + 1):
@@ -379,18 +395,31 @@ for i in range(1, num_stones + 1):
         f"stone_{i}_in_play",
         f"stone_{i}_thrown",
         f"stone_{i}_r_norm",
-        f"stone_{i}_theta"
-    ]
+        f"stone_{i}_theta_sin",
+        f"stone_{i}_theta_cos",
+        f"num_stones_in_play",
+        f"r_min",
+        f"r_max",
+        f"r_mean",
 
+    ]
+feature_cols+=["shot_id","hammer","task"]
 ```
+
+
+
+
+
+
+
 ```{python}
 import umap
-
-X=df[feature_cols]
+#categorical_features = ["powerplay"]
+X = pd.get_dummies(df[feature_cols])#, columns=categorical_features, prefix=categorical_features)
 
 reducer = umap.UMAP(
     n_neighbors= 35,    # controls local vs global structure
-    min_dist=0.9,      # controls spacing of points
+    min_dist=0.8,      # controls spacing of points
     n_components=2, 
     random_state=42,
     low_memory=True,
@@ -400,18 +429,10 @@ embedding = reducer.fit_transform(X)
 
 df["umap_x"] = embedding[:, 0]
 df["umap_y"] = embedding[:, 1]
-
-plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["hammer"],cmap="viridis")
-plt.xlabel("UMAP 1")
-plt.ylabel("UMAP 2")
-plt.colorbar(label="Has Hammer")
-plt.title("UMAP embedding of curling shot-level board states")
-plt.show()
 ```
 ```{python}
 plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["end_id"],cmap="viridis")
+plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["hammer"],cmap="viridis")
 plt.xlabel("UMAP 1")
 plt.ylabel("UMAP 2")
 plt.colorbar(label="End")
@@ -430,19 +451,10 @@ plt.show()
 ```
 ```{python}
 plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["powerplay"],cmap="viridis")
+plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["noc2"],cmap="viridis")
 plt.xlabel("UMAP 1")
 plt.ylabel("UMAP 2")
-plt.colorbar(label="powerplay position")
-plt.title("UMAP embedding of curling shot-level board states")
-plt.show()
-```
-```{python}
-plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["task"],cmap="viridis")
-plt.xlabel("UMAP 1")
-plt.ylabel("UMAP 2")
-plt.colorbar(label="Task")
+plt.colorbar(label="team_id")
 plt.title("UMAP embedding of curling shot-level board states")
 plt.show()
 ```
