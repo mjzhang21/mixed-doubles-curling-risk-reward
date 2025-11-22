@@ -31,6 +31,8 @@ df = pd.merge(
 )
 df.columns = df.columns.str.lower().str.replace('id', '_id')
 df['match_id'] = df['competition_id'].astype(str) + '_' + df['session_id'].astype(str) + '_' + df['game_id'].astype(str)
+float_cols = df.select_dtypes(include=['float64']).columns
+df[float_cols] = df[float_cols].astype(np.float32)
 df.head()
 ```
 ```{python}
@@ -333,27 +335,42 @@ plt.xlabel('Point')
 plt.ylabel('Frequency')
 ```
 ```{python}
-num_stones = 12  # total stones per end
+import numpy as np
+import pandas as pd
+
+num_stones = 12
+button_x, button_y = 750, 800
+
+new_cols = {}  # store new columns here
 
 for i in range(1, num_stones + 1):
-    x_col = f"stone_{i}_x"
-    y_col = f"stone_{i}_y"
+    x = df[f"stone_{i}_x"]
+    y = df[f"stone_{i}_y"]
     
-    # Create in-play flag
-    df[f"stone_{i}_in_play"] = df[x_col].apply(lambda x: 0 if x == 4095 else 1)
+    new_cols[f"stone_{i}_in_play"] = ((x > 0) & (x < 4095)).astype(int)
     
-    # Create thrown flag: 1 if thrown (x>0 and not 4095)
-    if i in [1, 7]:  # preplaced stones
-        df[f"stone_{i}_thrown"] = 0
+    # Thrown flag
+    if i in [1, 7]:
+        new_cols[f"stone_{i}_thrown"] = 0
     else:
-        df[f"stone_{i}_thrown"] = df[x_col].apply(lambda x: 1 if 0 < x < 4095 else 0)
+        new_cols[f"stone_{i}_thrown"] = ((x > 0) & (x < 4095)).astype(int)
     
-    # Preplaced stones
-    df[f"stone_{i}_preplaced"] = 1 if i in [1, 7] else 0
+    # Normalized coordinates
+    new_cols[f"stone_{i}_x_norm"] = np.where((x > 0) & (x < 4095), x / 1500, 0)
+    new_cols[f"stone_{i}_y_norm"] = np.where((y > 0) & (y < 4095), y / 3000, 0)
     
-    # Normalize x and y coordinates for stones that are in play
-    df[f"stone_{i}_x_norm"] = df[x_col].apply(lambda x: x / 1500 if 0 < x < 4095 else 0)
-    df[f"stone_{i}_y_norm"] = df[y_col].apply(lambda y: y / 3000 if 0 < y < 4095 else 0)
+    # Radial distance and angle
+    r = np.sqrt((x - button_x)**2 + (y - button_y)**2)
+    new_cols[f"stone_{i}_r_norm"] = r / np.sqrt(1500**2 + 3000**2)
+    new_cols[f"stone_{i}_theta"] = np.arctan2(y - button_y, x - button_x)
+
+
+# Add all new columns at once
+df = pd.concat([df, pd.DataFrame(new_cols)], axis=1)
+
+
+```
+```{python}
 feature_cols = []
 for i in range(1, num_stones + 1):
     feature_cols += [
@@ -361,22 +378,26 @@ for i in range(1, num_stones + 1):
         f"stone_{i}_y_norm",
         f"stone_{i}_in_play",
         f"stone_{i}_thrown",
-        f"stone_{i}_preplaced"
+        f"stone_{i}_r_norm",
+        f"stone_{i}_theta"
     ]
-feature_cols += ["powerplay","task"]
+
 ```
 ```{python}
 import umap
-X = df[feature_cols]
+
+X=df[feature_cols]
 
 reducer = umap.UMAP(
-    n_neighbors=60,    # controls local vs global structure
-    min_dist=0.7,      # controls spacing of points
+    n_neighbors= 35,    # controls local vs global structure
+    min_dist=0.9,      # controls spacing of points
     n_components=2, 
-    random_state=42
+    random_state=42,
+    low_memory=True,
 )
 
 embedding = reducer.fit_transform(X)
+
 df["umap_x"] = embedding[:, 0]
 df["umap_y"] = embedding[:, 1]
 
@@ -387,17 +408,41 @@ plt.ylabel("UMAP 2")
 plt.colorbar(label="Has Hammer")
 plt.title("UMAP embedding of curling shot-level board states")
 plt.show()
-
+```
+```{python}
 plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["powerplay"],cmap="viridis")
+plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["end_id"],cmap="viridis")
 plt.xlabel("UMAP 1")
 plt.ylabel("UMAP 2")
-plt.colorbar(label="Powerplay position")
+plt.colorbar(label="End")
 plt.title("UMAP embedding of curling shot-level board states")
 plt.show()
 
 ```
-
 ```{python}
-
+plt.figure(figsize=(10,8))
+plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["shot_id"],cmap="viridis")
+plt.xlabel("UMAP 1")
+plt.ylabel("UMAP 2")
+plt.colorbar(label="Shot_id")
+plt.title("UMAP embedding of curling shot-level board states")
+plt.show()
+```
+```{python}
+plt.figure(figsize=(10,8))
+plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["powerplay"],cmap="viridis")
+plt.xlabel("UMAP 1")
+plt.ylabel("UMAP 2")
+plt.colorbar(label="powerplay position")
+plt.title("UMAP embedding of curling shot-level board states")
+plt.show()
+```
+```{python}
+plt.figure(figsize=(10,8))
+plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["task"],cmap="viridis")
+plt.xlabel("UMAP 1")
+plt.ylabel("UMAP 2")
+plt.colorbar(label="Task")
+plt.title("UMAP embedding of curling shot-level board states")
+plt.show()
 ```
