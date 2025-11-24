@@ -29,6 +29,12 @@ df = pd.merge(
     on=["CompetitionID","SessionID","GameID"],
     how="left"
 )
+#df = pd.merge(
+    #df,
+    #df_competitors,
+   # on=["CompetitionID","TeamID"],
+    #how="left"
+#)
 df.columns = df.columns.str.lower().str.replace('id', '_id')
 df['match_id'] = df['competition_id'].astype(str) + '_' + df['session_id'].astype(str) + '_' + df['game_id'].astype(str)
 float_cols = df.select_dtypes(include=['float64']).columns
@@ -701,36 +707,156 @@ plt.title('Frequency of Point Values')
 plt.xlabel('Point')
 plt.ylabel('Frequency')
 ```
-
-Logistic Regression
-Outcome Variable: Steal
 ```{python}
-df_hammer = df[df['hammer'] == 0].copy()
-end_df = df_hammer.groupby(['match_id', 'end_id', 'team_id']).agg({
-    'result': 'first',   # points scored by this team in the end
-    'hammer': 'first'  # which team had the hammer
-}).reset_index()
+freq = df.groupby(['end_id','hammer']).size().unstack(fill_value=0)
+freq.columns = ['Non-Hammer','Hammer']
 
-end_df['steal'] = ((end_df['result'] > 0) & (end_df['hammer'] == 0)).astype(int)
+ends = freq.index
 
-if 'steal' in df_hammer.columns:
-    df_hammer = df_hammer.drop(columns=['steal'])
+# Plot stacked bars
+fig, ax = plt.subplots(figsize=(10,6))
+ax.bar(ends, freq['Hammer'], label='Hammer', color='blue')
+ax.bar(ends, freq['Non-Hammer'], bottom=freq['Hammer'], label='Non-Hammer', color='orange')
 
-df_hammer = df_hammer.merge(
-    end_df[['match_id', 'end_id', 'team_id', 'steal']],
-    on=['match_id', 'end_id', 'team_id'],
-    how='left'
-)
-
+ax.set_xlabel('End ID')
+ax.set_ylabel('Frequency')
+ax.set_title('Hammer vs Non-Hammer Frequencies per End')
+ax.legend()
+plt.show()
 ```
 ```{python}
-freq_table = df_hammer['steal'].value_counts(dropna=False).reset_index()
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+# Your average results (already aggregated)
+avg_results = df.groupby(['end_id','hammer'])['result'].mean().reset_index()
+
+ends = sorted(avg_results['end_id'].unique())
+width = 0.35
+
+fig, ax = plt.subplots(figsize=(10,6), layout='constrained')
+
+# Plot bars for each hammer value
+for i, hammer_val in enumerate([1,0]):  # 1=Hammer, 0=Non-Hammer
+    hammer_data = avg_results[avg_results['hammer']==hammer_val]
+    # Align bars by offset
+    offset = (i - 0.5) * width  # i=0 -> left, i=1 -> right
+    ax.bar(hammer_data['end_id'] + offset, hammer_data['result'], width, 
+           label='Hammer' if hammer_val==1 else 'Non-Hammer')
+
+ax.set_xlabel('End ID')
+ax.set_ylabel('Average Result')
+ax.set_title('Average Result per End: Hammer vs Non-Hammer')
+ax.set_xticks(ends)
+ax.legend()
+plt.show()
+```
+```{python}
+results = sorted(df['result'].unique())
+
+# Compute frequencies
+hammer_counts = df[df['hammer']==1]['result'].value_counts().reindex(results, fill_value=0)
+nonhammer_counts = df[df['hammer']==0]['result'].value_counts().reindex(results, fill_value=0)
+
+x = np.arange(len(results))
+
+# Plot stacked bars
+fig, ax = plt.subplots(figsize=(8,6))
+ax.bar(x, hammer_counts, label='Hammer', color='blue')
+ax.bar(x, nonhammer_counts, bottom=hammer_counts, label='Non-Hammer', color='orange')
+
+ax.set_xticks(x)
+ax.set_xticklabels(results)
+ax.set_xlabel('Result')
+ax.set_ylabel('Frequency')
+ax.set_title('Stacked Frequency of Results by Hammer vs Non-Hammer')
+ax.legend()
+plt.show()
+```
+```{python}
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+# Task code to label mapping
+task_labels = {
+    0: "Draw",
+    1: "Front",
+    2: "Guard",
+    3: "Raise / Tap-back",
+    4: "Wick / Soft Peeling",
+    5: "Freeze",
+    6: "Take-out",
+    7: "Hit and Roll",
+    8: "Clearing",
+    9: "Double Take-out",
+    10: "Promotion Take-out",
+    11: "Through",
+    13: "No Statistics"
+}
+
+# Map selected tasks to labels; everything else will become 'Other'
+selected_tasks = [0, 1,2,6, 8,]  # your chosen subset
+df['task_grouped'] = df['task'].where(df['task'].isin(selected_tasks), 'Other')
+df['task_label'] = df['task_grouped'].map(task_labels)
+df['task_label'] = df['task_label'].fillna('Other')  # ensure 'Other' exists
+
+# Function to compute percent table per hammer value
+def get_percent_table(df_subset, task_order):
+    freq = df_subset.groupby(['end_id','task_label']).size().unstack(fill_value=0)
+    freq_percent = freq.div(freq.sum(axis=1), axis=0) * 100
+    # order columns safely
+    column_order = [t for t in task_order if t in freq_percent.columns] + ['Other']
+    freq_percent = freq_percent[column_order]
+    return freq_percent
+
+# Define task order for plotting
+task_order = [task_labels[i] for i in selected_tasks]
+
+# Separate for hammer and non-hammer
+hammer_df = get_percent_table(df[df['hammer']==1], task_order)
+nonhammer_df = get_percent_table(df[df['hammer']==0], task_order)
+
+# Plot Hammer heatmap
+plt.figure(figsize=(12,6))
+sns.heatmap(hammer_df, annot=True, fmt='.1f', cmap='Blues', cbar_kws={'label':'Percent'})
+plt.xlabel('Shot Type')
+plt.ylabel('End ID')
+plt.title('Percent of Shot Types per End - Hammer')
+plt.show()
+
+# Plot Non-Hammer heatmap
+plt.figure(figsize=(12,6))
+sns.heatmap(nonhammer_df, annot=True, fmt='.1f', cmap='Oranges', cbar_kws={'label':'Percent'})
+plt.xlabel('Shot Type')
+plt.ylabel('End ID')
+plt.title('Percent of Shot Types per End - Non-Hammer')
+plt.show()
+
+```
+
+
+Logistic Regression
+What factors influence whether or not the non-hammer team steals?
+
+Steal = 1  if non hammer scores ≥ 1 (steal)
+Steal = 0  if non hammer scores 0 
+```{python}
+df = df[df['hammer']==0]
+df['steal'] = df.apply(lambda row: '1' if row['result'] >= 1
+                                     else ('0' if row['result']==0 else None), axis=1)
+
+```
+
+```{python}
+freq_table = df['steal'].value_counts(dropna=False).reset_index()
 freq_table.columns = ['steal', 'Frequency']
 freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
 print(freq_table)
 bars = plt.bar(freq_table['steal'].astype(str), freq_table['Frequency'], color='skyblue')
-plt.title('Frequency of Steal Values')
-plt.xlabel('Steal')
+plt.title('Frequency of Steal')
+plt.xlabel('Non hammer steal')
 plt.ylabel('Frequency')
 ```
 
@@ -738,23 +864,28 @@ plt.ylabel('Frequency')
 
 
 
+
 ```{python}
-stone_features = []
-aggregate_features=[]
-numeric_features = ['points','timeout','handle']
+aggregate_features = []
 categorical_features = ["powerplay", "task"]
 
-all_features = stone_features + aggregate_features + categorical_features + numeric_features
+all_features = stone_features + aggregate_features + categorical_features + ["shot_id", "hammer"]
 
 ```
+
 ```{python}
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegressionCV
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
 from sklearn.metrics import classification_report, roc_auc_score
+import pandas as pd
+import numpy as np
 
+# --- Train-test split ---
 X_train, X_test, y_train, y_test = train_test_split(
     df_hammer[all_features],
     df_hammer["steal"],
@@ -763,161 +894,73 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=df_hammer["steal"]
 )
 
-
-
+# --- Preprocessing ---
 preprocessor = ColumnTransformer(
     transformers=[
         ("num", StandardScaler(), numeric_features),
         ("cat", OneHotEncoder(drop="first", handle_unknown="ignore"), categorical_features)
     ]
 )
-auto_lasso = LogisticRegressionCV(
-    Cs=20,
-    penalty="l1",
-    solver="saga",
-    cv=5,
-    scoring="roc_auc",
-    max_iter=5000,
-    n_jobs=-1
-)
-pipeline = Pipeline([
-    ("preprocess", preprocessor),
-    ("clf", auto_lasso)
-])
 
-pipeline.fit(X_train, y_train)
+# --- Define classifiers ---
+classifiers = {
+    "Logistic L2": LogisticRegressionCV(
+        Cs=20,
+        penalty="l2",
+        solver="saga",
+        cv=5,
+        scoring="roc_auc",
+        max_iter=5000,
+        class_weight='balanced',
+        n_jobs=-1
+    ),
+    "Random Forest": RandomForestClassifier(
+        n_estimators=500,
+        class_weight='balanced',
+        n_jobs=-1,
+        random_state=42
+    ),
+    "XGBoost": XGBClassifier(
+        n_estimators=500,
+        max_depth=3,
+        learning_rate=0.05,
+        scale_pos_weight=(y_train==0).sum() / (y_train==1).sum(),
+        eval_metric='auc',
+        n_jobs=-1,
+        random_state=42
+    )
+}
 
-y_pred = pipeline.predict(X_test)
-y_prob = pipeline.predict_proba(X_test)[:,1]
-
-print("ROC-AUC:", roc_auc_score(y_test, y_prob))
-print(classification_report(y_test, y_pred))
-
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```{python}
-import umap
-#categorical_features = ["powerplay"]
-X = pd.get_dummies(df[feature_cols])#, columns=categorical_features, prefix=categorical_features)
-
-reducer = umap.UMAP(
-    n_neighbors= 35,    # controls local vs global structure
-    min_dist=0.8,      # controls spacing of points
-    n_components=2, 
-    random_state=42,
-    low_memory=True,
-)
-
-embedding = reducer.fit_transform(X)
-
-df["umap_x"] = embedding[:, 0]
-df["umap_y"] = embedding[:, 1]
-```
-```{python}
-plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["hammer"],cmap="viridis")
-plt.xlabel("UMAP 1")
-plt.ylabel("UMAP 2")
-plt.colorbar(label="End")
-plt.title("UMAP embedding of curling shot-level board states")
-plt.show()
-
-```
-```{python}
-plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["shot_id"],cmap="viridis")
-plt.xlabel("UMAP 1")
-plt.ylabel("UMAP 2")
-plt.colorbar(label="Shot_id")
-plt.title("UMAP embedding of curling shot-level board states")
-plt.show()
-```
-```{python}
-plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["noc2"],cmap="viridis")
-plt.xlabel("UMAP 1")
-plt.ylabel("UMAP 2")
-plt.colorbar(label="team_id")
-plt.title("UMAP embedding of curling shot-level board states")
-plt.show()
-```
-
-
-
-
-
-```{python}
-stone_features = []
-for i in range(1, num_stones + 1):
-    stone_features += [
-        f"stone_{i}_x_norm",
-        f"stone_{i}_y_norm",
-        f"stone_{i}_in_play",
-        f"stone_{i}_thrown",
-        f"stone_{i}_r_norm",
-        f"stone_{i}_theta_sin",
-        f"stone_{i}_theta_cos",
-    ]
-
-aggregate_features = ["num_stones_in_play", "r_min", "r_max", "r_mean"]
-categorical_features = ["powerplay", "task"]
-
-all_features = stone_features + aggregate_features + categorical_features + ["shot_id", "hammer"]
-
-```
-```{python}
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, roc_auc_score
-
-X_train, X_test, y_train, y_test = train_test_split(
-    df_hammer[all_features],
-    df_hammer["steal"],
-    test_size=0.2,
-    random_state=42,
-    stratify=df_hammer["steal"]
-)
-
-continuous_features = stone_features + aggregate_features + ["shot_id", "hammer"]
-
-preprocessor = ColumnTransformer(
-    transformers=[
-        ("num", StandardScaler(), continuous_features),
-        ("cat", OneHotEncoder(drop="first", handle_unknown="ignore"), categorical_features)
-    ]
-)
-
-pipeline = Pipeline([
-    ("preprocess", preprocessor),
-    ("clf", LogisticRegression(class_weight="balanced", max_iter=1000))
-])
-
-pipeline.fit(X_train, y_train)
-
-y_pred = pipeline.predict(X_test)
-y_prob = pipeline.predict_proba(X_test)[:,1]
-
-print("ROC-AUC:", roc_auc_score(y_test, y_prob))
-print(classification_report(y_test, y_pred))
+# --- Loop through classifiers ---
+for name, clf in classifiers.items():
+    print(f"\n=== {name} ===")
+    pipeline = Pipeline([
+        ("preprocess", preprocessor),
+        ("clf", clf)
+    ])
+    
+    pipeline.fit(X_train, y_train)
+    y_pred = pipeline.predict(X_test)
+    y_prob = pipeline.predict_proba(X_test)[:,1]
+    
+    # Metrics
+    print("ROC-AUC:", roc_auc_score(y_test, y_prob))
+    print(classification_report(y_test, y_pred))
+    
+    # Feature importance / coefficients
+    feature_names = list(numeric_features) + list(preprocessor.named_transformers_['cat'].get_feature_names_out(categorical_features))
+    
+    if name == "Logistic L1":
+        coefs = pipeline.named_steps['clf'].coef_[0]
+        coef_df = pd.Series(coefs, index=feature_names).sort_values(key=abs, ascending=False)
+        print("Top non-zero features:")
+        print(coef_df[coef_df!=0].head(20))
+        
+    elif name in ["Random Forest", "XGBoost"]:
+        importances = pipeline.named_steps['clf'].feature_importances_
+        imp_df = pd.Series(importances, index=feature_names).sort_values(ascending=False)
+        print("Top 20 features by importance:")
+        print(imp_df.head(20))
 
 
 ```
@@ -933,53 +976,3 @@ print(classification_report(y_test, y_pred))
 
 
 
-
-
-
-
-```{python}
-import umap
-#categorical_features = ["powerplay"]
-X = pd.get_dummies(df[feature_cols])#, columns=categorical_features, prefix=categorical_features)
-
-reducer = umap.UMAP(
-    n_neighbors= 35,    # controls local vs global structure
-    min_dist=0.8,      # controls spacing of points
-    n_components=2, 
-    random_state=42,
-    low_memory=True,
-)
-
-embedding = reducer.fit_transform(X)
-
-df["umap_x"] = embedding[:, 0]
-df["umap_y"] = embedding[:, 1]
-```
-```{python}
-plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["hammer"],cmap="viridis")
-plt.xlabel("UMAP 1")
-plt.ylabel("UMAP 2")
-plt.colorbar(label="End")
-plt.title("UMAP embedding of curling shot-level board states")
-plt.show()
-
-```
-```{python}
-plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["shot_id"],cmap="viridis")
-plt.xlabel("UMAP 1")
-plt.ylabel("UMAP 2")
-plt.colorbar(label="Shot_id")
-plt.title("UMAP embedding of curling shot-level board states")
-plt.show()
-```
-```{python}
-plt.figure(figsize=(10,8))
-plt.scatter(df["umap_x"], df["umap_y"], alpha=0.7, c=df["noc2"],cmap="viridis")
-plt.xlabel("UMAP 1")
-plt.ylabel("UMAP 2")
-plt.colorbar(label="team_id")
-plt.title("UMAP embedding of curling shot-level board states")
-plt.show()
-```
