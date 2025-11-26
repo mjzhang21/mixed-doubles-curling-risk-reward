@@ -351,19 +351,20 @@ plt.ylabel('Frequency')
 Logistic Regression
 Outcome Variable: Steal
 ```{python}
-df_hammer = df[df['hammer'] == 0].copy()
-end_df = df_hammer.groupby(['match_id', 'end_id', 'team_id']).agg({
+df_non_hammer = df[df['hammer'] == 0].copy()
+end_df= df_non_hammer.groupby(['match_id', 'end_id', 'team_id']).agg({
     'result': 'first',   # points scored by this team in the end
-    'hammer': 'first'  # which team had the hammer
+    'hammer': 'first',  # which team had the hammer
+
 }).reset_index()
 
 end_df['steal'] = ((end_df['result'] > 0) & (end_df['hammer'] == 0)).astype(int)
 
-if 'steal' in df_hammer.columns:
-    df_hammer = df_hammer.drop(columns=['steal'])
+if 'steal' in df_non_hammer.columns:
+    df_non_hammer = df_non_hammer.drop(columns=['steal'])
 
-df_hammer = df_hammer.merge(
-    end_df[['match_id', 'end_id', 'team_id', 'steal']],
+df_non_hammer = df_non_hammer.merge(
+    end_df[['match_id', 'end_id', 'team_id','steal']],
     on=['match_id', 'end_id', 'team_id'],
     how='left'
 )
@@ -535,3 +536,244 @@ team_agg = non_hammer_ends.groupby(['team_id','competition_id'])['steal'].agg(
 team_agg_sorted = team_agg.sort_values(by='steal_rate', ascending=False).reset_index(drop=True)
 print(team_agg_sorted.head(10))
 ```
+
+
+```{python}
+df_end_all = df.groupby(['match_id','end_id','team_id']).agg({
+    'result':'first',
+    'hammer':'first',
+    'powerplay':'first',
+    'steal':'first',
+
+}).reset_index()
+
+```
+```{python}
+import pandas as pd
+import numpy as np
+
+# --- Sheet constants ---
+button_x, button_y = 750, 800
+centerline_x = 750
+tee_line_y = 800
+hogline_y = 2900
+backline_y = 200
+
+house_radii = {
+    'house_12': 1829,
+    'house_8': 1219,
+    'house_4': 610,
+}
+
+all_new_cols = {}
+
+for i in range(1, 13):
+
+    x = df[f'stone_{i}_x']
+    y = df[f'stone_{i}_y']
+
+    # --- Stone thrown? --- (0 means not thrown)
+    thrown = ((x != 0) & (y != 0))
+
+    # --- Distance to button (set to NaN if not thrown) ---
+    all_new_cols[f'stone{i}_dist'] = np.where(
+        thrown,
+        np.sqrt((x - button_x)**2 + (y - button_y)**2),
+        np.nan
+    )
+
+    # --- Off sheet ---
+    all_new_cols[f'stone{i}_off'] = np.where(
+        thrown,
+        ((x == 4095) | (y == 4095)).astype(int),
+        0
+    )
+
+    # --- In-house flags ---
+    for name, radius in house_radii.items():
+        all_new_cols[f'stone{i}_in_{name}'] = np.where(
+            thrown,
+            (all_new_cols[f'stone{i}_dist'] <= radius).astype(int),
+            0
+        )
+
+    # --- Left/right of centerline ---
+    all_new_cols[f'stone{i}_left'] = np.where(thrown, (x < centerline_x).astype(int), 0)
+    all_new_cols[f'stone{i}_right'] = np.where(thrown, (x > centerline_x).astype(int), 0)
+
+    # --- Above / below tee line ---
+    all_new_cols[f'stone{i}_above_tee'] = np.where(thrown, (y < tee_line_y).astype(int), 0)
+    all_new_cols[f'stone{i}_below_tee'] = np.where(thrown, (y > tee_line_y).astype(int), 0)
+
+    # --- In-play (between backline & hogline) ---
+    all_new_cols[f'stone{i}_in_play'] = np.where(
+        thrown,
+        ((y < hogline_y) & (y > backline_y)).astype(int),
+        0
+    )
+
+    # --- Distance from centerline (traffic measure) ---
+    all_new_cols[f'stone{i}_centerline_dist'] = np.where(thrown, np.abs(x - centerline_x), np.nan)
+
+# --- Add all stone-level columns at once ---
+df = pd.concat([df, pd.DataFrame(all_new_cols, index=df.index)], axis=1)
+```
+
+```{python}
+import pandas as pd
+
+# Boolean columns to sum
+bool_cols = ['off','in_play','in_house_12','in_house_8','in_house_4',
+             'left','right','above_tee','below_tee']
+
+# Team 1: stones 1–6, Team 2: stones 7–12
+team1_stones = range(1,7)
+team2_stones = range(7,13)
+
+def sum_bool_cols(df, stones, prefix):
+    """Sum all bool columns for specified stones"""
+    out = {}
+    for col in bool_cols:
+        cols_to_sum = [f'stone{i}_{col}' for i in stones if f'stone{i}_{col}' in df.columns]
+        out[f'{prefix}_{col}'] = df[cols_to_sum].sum(axis=1).sum()
+    return out
+
+# Aggregate per end
+df_ends = df.groupby(['match_id','end_id']).apply(
+    lambda x: pd.Series({
+        'team1_id': x['team_id1'].iloc[0],
+        'team2_id': x['team_id2'].iloc[0],
+        **sum_bool_cols(x, team1_stones, 'team1'),
+        **sum_bool_cols(x, team2_stones, 'team2')
+    })
+).reset_index()
+df_end_all = df_end_all.merge(
+    df_ends,
+    on=['match_id', 'end_id'],
+    how='left'   # keeps all rows from df_end_all
+)
+```
+```{python}
+df_end_all = df_end_all.sort_values(['match_id','team_id','end_id'])
+df_end_all['prev_result'] = df_end_all.groupby(['team_id','match_id'])['result'].shift(1).fillna(0)
+df_end_all['prev_hammer'] = df_end_all.groupby(['team_id','match_id'])['hammer'].shift(1).fillna(0)
+
+df_shot_stats = df.groupby(['match_id','end_id','team_id']).agg({
+    'task': lambda x: x.mode()[0] if len(x) > 0 else -1,   # most common shot type
+    'points': 'mean',  # average points per stone
+}).reset_index()
+# Sort and cumulative score per team
+
+df_end_all['cum_score'] = df_end_all.groupby(['match_id','team_id'])['result'].cumsum()
+
+# Merge opponent cumulative score
+df_opponent = df_end_all[['match_id','end_id','team_id','cum_score']].rename(
+    columns={'team_id':'hammer_team','cum_score':'hammer_cum_score'}
+)
+df_end_all = df_end_all.merge(df_opponent, on=['match_id','end_id'], how='left')
+df_end_all = df_end_all[df_end_all['team_id'] != df_end_all['hammer_team']]
+
+# Score differential from non-hammer perspective
+df_end_all['score_diff'] = np.where(
+    df_end_all['hammer'] == 0,
+    df_end_all['cum_score'] - df_end_all['hammer_cum_score'],
+    df_end_all['hammer_cum_score'] - df_end_all['cum_score']
+)
+
+df_end_all.head(16)
+
+```
+
+```{python}
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegressionCV
+from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.pipeline import Pipeline
+
+# Filter non-hammer rows
+df_model = df_end_all[df_end_all['hammer'] == 0].copy()
+
+# Rename columns for clarity
+rename_dict = {
+    'team1_off': 'non_hammer_off',
+    'team1_in_play': 'non_hammer_in_play',
+    'team1_in_house_12': 'non_hammer_in_house_12',
+    'team1_in_house_8': 'non_hammer_in_house_8',
+    'team1_in_house_4': 'non_hammer_in_house_4',
+    'team1_left': 'non_hammer_left',
+    'team1_right': 'non_hammer_right',
+    'team1_above_tee': 'non_hammer_above_tee',
+    'team1_below_tee': 'non_hammer_below_tee',
+    'team2_off': 'hammer_off',
+    'team2_in_play': 'hammer_in_play',
+    'team2_in_house_12': 'hammer_in_house_12',
+    'team2_in_house_8': 'hammer_in_house_8',
+    'team2_in_house_4': 'hammer_in_house_4',
+    'team2_left': 'hammer_left',
+    'team2_right': 'hammer_right',
+    'team2_above_tee': 'hammer_above_tee',
+    'team2_below_tee': 'hammer_below_tee'
+}
+df_model.rename(columns=rename_dict, inplace=True)
+
+# Define target and features
+target = 'steal'
+feature_cols = [
+    'non_hammer_off', 'non_hammer_in_play', 'non_hammer_in_house_12',
+    'non_hammer_in_house_8', 'non_hammer_in_house_4', 'non_hammer_left',
+    'non_hammer_right', 'non_hammer_above_tee', 'non_hammer_below_tee',
+    'hammer_off', 'hammer_in_play', 'hammer_in_house_12',
+    'hammer_in_house_8', 'hammer_in_house_4', 'hammer_left',
+    'hammer_right', 'hammer_above_tee', 'hammer_below_tee',
+    'powerplay', 'prev_result', 'prev_hammer','score_diff'
+]
+
+X = df_model[feature_cols]
+y = df_model[target]
+
+# Handle missing target values
+X = X[y.notna()]
+y = y[y.notna()]
+
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# Pipeline with scaling + L1 logistic regression (auto-lasso)
+pipeline = Pipeline([
+    ("scaler", StandardScaler()),
+    ("model", LogisticRegressionCV(
+        Cs=20,
+        penalty="l1",
+        solver="saga",
+        cv=5,
+        scoring="roc_auc",
+        max_iter=5000,
+        n_jobs=-1,
+        class_weight='balanced'
+    ))
+])
+
+pipeline.fit(X_train, y_train)
+
+# Predict & evaluate
+y_pred = pipeline.predict(X_test)
+y_proba = pipeline.predict_proba(X_test)[:,1]
+
+print("Classification Report:\n", classification_report(y_test, y_pred))
+print("ROC AUC Score:", roc_auc_score(y_test, y_proba))
+
+# Get important coefficients
+coef_df = pd.DataFrame({
+    'feature': feature_cols,
+    'coefficient': pipeline.named_steps['model'].coef_[0],
+    'abs_coefficient': abs(pipeline.named_steps['model'].coef_[0])
+}).sort_values('abs_coefficient', ascending=False)
+
+print(coef_df)
+
+```
+
