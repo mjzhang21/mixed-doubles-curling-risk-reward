@@ -1,7 +1,7 @@
 
 
 
-```{python}
+```{python}                                                                     
 import pandas as pd
 import numpy as np
 
@@ -42,7 +42,9 @@ df = pd.merge(
     how="left"
 )
 df.columns = df.columns.str.lower().str.replace('id', '_id')
-df['match_id'] = df['competition_id'].astype(str) + '_' + df['session_id'].astype(str) + '_' + df['game_id'].astype(str)
+match_str = df['competition_id'].astype(str)+ \
+            '_'+df['session_id'].astype(str)
+df['match_id'] = match_str + '_' + df['game_id'].astype(str)
 float_cols = df.select_dtypes(include=['float64']).columns
 df[float_cols] = df[float_cols].astype(np.float32)
 df.head()
@@ -72,7 +74,8 @@ categorical_cols = [
 for col in categorical_cols:
     freq_table = df[col].value_counts(dropna=False).reset_index()
     freq_table.columns = [col, 'Frequency']
-    freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+    freq_table['Percentage'] = (freq_table['Frequency'] / \
+                                freq_table['Frequency'].sum() * 100).round(2)
     
     print(f"Frequency table for {col}:\n", freq_table, "\n")
 ```
@@ -136,7 +139,8 @@ for mid, game in df.groupby(["match_id"]):
         points_team2 = end.loc[end["team_id"] == team2, "result"].iloc[0]
         
         # If hammer team scored, switch hammer for next end
-        if (hammer_val == 1 and points_team1 > 0) or (hammer_val == 0 and points_team2 > 0):
+        if (hammer_val == 1 and points_team1 > 0) or \
+            (hammer_val == 0 and points_team2 > 0):
             hammer_val = 1 - hammer_val 
 
 ```
@@ -266,7 +270,8 @@ categorical_cols = [
 for col in categorical_cols:
     freq_table = df[col].value_counts(dropna=False).reset_index()
     freq_table.columns = [col, 'Frequency']
-    freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+    freq_table['Percentage'] = (freq_table['Frequency'] / \
+                                freq_table['Frequency'].sum() * 100).round(2)
     
     print(f"Frequency table for {col}:\n", freq_table, "\n")
 ```
@@ -325,9 +330,13 @@ We will explore the different types of shots
 ```{python}
 freq_table = df['task'].value_counts().reset_index()
 freq_table.columns = ['Task', 'Frequency']
-freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+freq_table['Percentage'] = (freq_table['Frequency'] / \
+                            freq_table['Frequency'].sum() * 100).round(2)
 print(freq_table)
-bars = plt.bar(freq_table['Task'].astype(str), freq_table['Frequency'], color='skyblue')
+bars = plt.bar(
+    freq_table['Task'].astype(str), 
+    freq_table['Frequency'], color='skyblue'
+)
 plt.title('Frequency of Task Values')
 plt.xlabel('Task')
 plt.ylabel('Frequency')
@@ -340,9 +349,13 @@ How often players perfectly execute their shot?
 ```{python}
 freq_table = df['points'].value_counts().reset_index()
 freq_table.columns = ['Point', 'Frequency']
-freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+freq_table['Percentage'] = (freq_table['Frequency'] / \
+                            freq_table['Frequency'].sum() * 100).round(2)
 print(freq_table)
-bars = plt.bar(freq_table['Point'].astype(str), freq_table['Frequency'], color='skyblue')
+bars = plt.bar(
+    freq_table['Point'].astype(str), 
+    freq_table['Frequency'], color='skyblue'
+)
 plt.title('Frequency of Point Values')
 plt.xlabel('Point')
 plt.ylabel('Frequency')
@@ -358,7 +371,8 @@ end_df= df_non_hammer.groupby(['match_id', 'end_id', 'team_id']).agg({
 
 }).reset_index()
 
-end_df['steal'] = ((end_df['result'] > 0) & (end_df['hammer'] == 0)).astype(int)
+end_df['steal'] = ((end_df['result'] > 0) & \
+                   (end_df['hammer'] == 0)).astype(int)
 
 if 'steal' in df_non_hammer.columns:
     df_non_hammer = df_non_hammer.drop(columns=['steal'])
@@ -374,9 +388,11 @@ df_non_hammer = df_non_hammer.merge(
 ```{python}
 freq_table = df['end_id'].value_counts().reset_index()
 freq_table.columns = ['end_id', 'Frequency']
-freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+freq_table['Percentage'] = (freq_table['Frequency'] / \
+                            freq_table['Frequency'].sum() * 100).round(2)
 print(freq_table)
-bars = plt.bar(freq_table['end_id'].astype(str), freq_table['Frequency'], color='skyblue')
+bars = plt.bar(freq_table['end_id'].astype(str), \
+               freq_table['Frequency'], color='skyblue')
 plt.title('Frequency of end_id Values')
 plt.xlabel('end_id')
 plt.ylabel('Frequency')
@@ -421,15 +437,36 @@ end_df = (
 )
 results = sorted(end_df['result'].unique())
 
-hammer_counts = end_df[end_df['hammer']==1]['result'].value_counts().reindex(results, fill_value=0)
-nonhammer_counts = end_df[end_df['hammer']==0]['result'].value_counts().reindex(results, fill_value=0)
+hammer_counts = (
+    end_df[end_df['hammer'] == 1]['result']
+    .value_counts()
+    .reindex(results, fill_value=0)
+)
+
+nonhammer_counts = (
+    end_df[end_df['hammer'] == 0]['result']
+    .value_counts()
+    .reindex(results, fill_value=0)
+)
 
 x = np.arange(len(results))
 width = 0.35  # width of the bars
 
 fig, ax = plt.subplots(figsize=(8,6))
-ax.bar(x - width/2, hammer_counts, width=width, label='Hammer', color='blue')
-ax.bar(x + width/2, nonhammer_counts, width=width, label='Non-Hammer', color='orange')
+ax.bar(
+    x - width/2, 
+    hammer_counts, 
+    width=width, 
+    label='Hammer', 
+    color='blue'
+)
+ax.bar(
+    x + width/2, 
+    nonhammer_counts, 
+    width=width, 
+    label='Non-Hammer', 
+    color='orange'
+)
 
 ax.set_xticks(x)
 ax.set_xticklabels(results)
@@ -470,10 +507,18 @@ df['task_label'] = df['task_label'].fillna('Other')  # ensure 'Other' exists
 
 # Function to compute percent table per hammer value
 def get_percent_table(df_subset, task_order):
-    freq = df_subset.groupby(['end_id','task_label']).size().unstack(fill_value=0)
+    freq = (
+    df_subset
+    .groupby(['end_id', 'task_label'])
+    .size()
+    .unstack(fill_value=0)
+)
+
     freq_percent = freq.div(freq.sum(axis=1), axis=0) * 100
     # order columns safely
-    column_order = [t for t in task_order if t in freq_percent.columns] + ['Other']
+    column_order = (
+        [t for t in task_order if t in freq_percent.columns] + ['Other']
+    )
     freq_percent = freq_percent[column_order]
     return freq_percent
 
@@ -486,7 +531,13 @@ nonhammer_df = get_percent_table(df[df['hammer']==0], task_order)
 
 # Plot Hammer heatmap
 plt.figure(figsize=(12,6))
-sns.heatmap(hammer_df, annot=True, fmt='.1f', cmap='Blues', cbar_kws={'label':'Percent'})
+sns.heatmap(
+    hammer_df, 
+    annot=True, 
+    fmt='.1f', 
+    cmap='Blues', 
+    cbar_kws={'label':'Percent'}
+)
 plt.xlabel('Shot Type')
 plt.ylabel('End ID')
 plt.title('Percent of Shot Types per End - Hammer')
@@ -494,7 +545,13 @@ plt.show()
 
 # Plot Non-Hammer heatmap
 plt.figure(figsize=(12,6))
-sns.heatmap(nonhammer_df, annot=True, fmt='.1f', cmap='Oranges', cbar_kws={'label':'Percent'})
+sns.heatmap(
+    nonhammer_df, 
+    annot=True, 
+    fmt='.1f', 
+    cmap='Oranges', 
+    cbar_kws={'label':'Percent'}
+)
 plt.xlabel('Shot Type')
 plt.ylabel('End ID')
 plt.title('Percent of Shot Types per End - Non-Hammer')
@@ -509,7 +566,13 @@ shots_per_group.rename(columns={'shot_id': 'num_shots'}, inplace=True)
 
 print(shots_per_group.head())
 print(shots_per_group['num_shots'].describe())
-shots_per_team = df.groupby(['match_id','end_id']).size().reset_index(name='num_shots')
+shots_per_team = (
+    df
+    .groupby(['match_id', 'end_id'])
+    .size()
+    .reset_index(name='num_shots')
+)
+
 
 # Filter rows with less than 5 shots
 short_ends = shots_per_team[shots_per_team['num_shots'] < 10]
@@ -520,12 +583,21 @@ print(short_ends)
 ```
 
 ```{python}
-df['steal'] = np.where(df['hammer'] == 0, (df['result'] > 0).astype(int), np.nan)
+df['steal'] = np.where(
+                df['hammer'] == 0, 
+                (df['result'] > 0).astype(int), 
+                np.nan
+            )
 freq_table = df['steal'].value_counts().reset_index()
 freq_table.columns = ['steal', 'Frequency']
-freq_table['Percentage'] = (freq_table['Frequency'] / freq_table['Frequency'].sum() * 100).round(2)
+freq_table['Percentage'] = (freq_table['Frequency'] / \
+                            freq_table['Frequency'].sum() * 100).round(2)
 print(freq_table)
-bars = plt.bar(freq_table['steal'].astype(str), freq_table['Frequency'], color='skyblue')
+bars = plt.bar(
+    freq_table['steal'].astype(str), 
+    freq_table['Frequency'], 
+    color='skyblue'
+)
 plt.title('Frequency of steal Values')
 plt.xlabel('Non Hammer Steal')
 plt.ylabel('Frequency')
@@ -541,7 +613,10 @@ team_agg = non_hammer_ends.groupby(['team_id','competition_id'])['steal'].agg(
     total_ends='count',      # number of ends
     steals='sum'             # total steals
 ).reset_index()
-team_agg_sorted = team_agg.sort_values(by='steal_rate', ascending=False).reset_index(drop=True)
+team_agg_sorted = team_agg.sort_values(
+                                by='steal_rate', 
+                                ascending=False
+                            ).reset_index(drop=True)
 print(team_agg_sorted.head(10))
 ```
 ```{python}
@@ -568,16 +643,25 @@ def compute_end_features_from_coords(df):
 
         # ---- Non-hammer stones 2-5 ----
         nh = group[group['team_id']==non_hammer_team]
-        nh_stones_x = nh[['stone_2_x','stone_3_x','stone_4_x','stone_5_x']].values.flatten()
-        nh_stones_y = nh[['stone_2_y','stone_3_y','stone_4_y','stone_5_y']].values.flatten()
+        nh_stones_x = (
+            nh[['stone_2_x', 'stone_3_x', 'stone_4_x', 'stone_5_x']]
+            .values
+            .flatten()
+        )
+
+        nh_stones_y = (
+            nh[['stone_2_y', 'stone_3_y', 'stone_4_y', 'stone_5_y']]
+            .values
+            .flatten()
+        )
         nh_dists = dist_to_button(nh_stones_x, nh_stones_y)
 
         end_feat['nh_min_dist_button'] = nh_dists.min()
         end_feat['nh_max_dist_button'] = nh_dists.max()
         end_feat['nh_avg_dist_button'] = nh_dists.mean()
         end_feat['nh_std_dist_button']  = nh_dists.std()   
-        end_feat['nh_stones_in_house'] = np.sum(nh_dists <= 183)  # house radius ~183
-        end_feat['nh_stones_out_of_play'] = np.sum((nh_stones_x == 0) | (nh_stones_y == 0) | (nh_stones_x == 4095) | (nh_stones_y == 4095))
+        end_feat['nh_stones_in_house'] = np.sum(nh_dists <= 183) 
+       
 
         end_feat['nh_avg_horiz_offset'] = np.mean(nh_stones_x - BUTTON_X)
         end_feat['nh_avg_vert_offset'] = np.mean(nh_stones_y - BUTTON_Y)
@@ -589,8 +673,18 @@ def compute_end_features_from_coords(df):
 
         # ---- Hammer stones 8-11 ----
         h = group[group['team_id']==hammer_team]
-        h_stones_x = h[['stone_8_x','stone_9_x','stone_10_x','stone_11_x']].values.flatten()
-        h_stones_y = h[['stone_8_y','stone_9_y','stone_10_y','stone_11_y']].values.flatten()
+        h_stones_x = (
+            h[['stone_8_x', 'stone_9_x', 'stone_10_x', 'stone_11_x']]
+            .values
+            .flatten()
+        )
+
+        h_stones_y = (
+            h[['stone_8_y', 'stone_9_y', 'stone_10_y', 'stone_11_y']]
+            .values
+            .flatten()
+        )
+
         h_dists = dist_to_button(h_stones_x, h_stones_y)
 
         end_feat['h_min_dist_button'] = h_dists.min()
@@ -598,7 +692,7 @@ def compute_end_features_from_coords(df):
         end_feat['h_avg_dist_button'] = h_dists.mean()
         end_feat['h_std_dist_button']  = h_dists.std()  
         end_feat['h_stones_in_house'] = np.sum(h_dists <= 183)
-        end_feat['h_stones_out_of_play'] = np.sum((h_stones_x == 0) | (h_stones_y == 0) | (h_stones_x == 4095) | (h_stones_y == 4095))
+        
 
         end_feat['h_avg_horiz_offset'] = np.mean(h_stones_x - BUTTON_X)
         end_feat['h_avg_vert_offset'] = np.mean(h_stones_y - BUTTON_Y)
@@ -610,12 +704,23 @@ def compute_end_features_from_coords(df):
 
         end_feat['nh_stone_ratio'] = end_feat['nh_stones_in_house'] / (
         end_feat['nh_stones_in_house'] + end_feat['h_stones_in_house'] + 1e-6
-    )
-        end_feat['takeout_diff'] = end_feat['nh_takeout_count'] - end_feat['h_takeout_count']
-        end_feat['draw_diff']    = end_feat['nh_draw_count'] - end_feat['h_draw_count']
-        end_feat['guard_diff']   = end_feat['nh_guard_count'] - end_feat['h_guard_count']
+        )
+        end_feat['takeout_diff'] = (
+            end_feat['nh_takeout_count'] - end_feat['h_takeout_count']
+        )
 
-        end_feat['takeout_guard_interaction'] = end_feat['takeout_diff'] * end_feat['guard_diff']
+        end_feat['draw_diff'] = (
+            end_feat['nh_draw_count'] - end_feat['h_draw_count']
+        )
+
+        end_feat['guard_diff'] = (
+            end_feat['nh_guard_count'] - end_feat['h_guard_count']
+        )
+
+        end_feat['takeout_guard_interaction'] = (
+            end_feat['takeout_diff'] * end_feat['guard_diff']
+        )
+
 
 
         # Powerplay
@@ -623,14 +728,32 @@ def compute_end_features_from_coords(df):
             end_feat['powerplay'] = group['powerplay'].max()
 
         # Target: did non-hammer steal?
+
         if 'result' in group.columns:
-            end_feat['steal'] = int(group.loc[group['team_id']==non_hammer_team, 'result'].iloc[0] > 0)
+            steal_value = (
+                group.loc[group['team_id'] == non_hammer_team, 
+                'result']       
+            ).iloc[0] > 0
+
+            end_feat['steal'] = int(steal_value)
 
         # Distance differences
-        end_feat['min_dist_diff'] = end_feat['nh_min_dist_button'] - end_feat['h_min_dist_button']
-        end_feat['avg_dist_diff'] = end_feat['nh_avg_dist_button'] - end_feat['h_avg_dist_button']
-        end_feat['max_dist_diff'] = end_feat['nh_max_dist_button'] - end_feat['h_max_dist_button']
-        end_feat['std_dist_diff'] = end_feat['nh_std_dist_button'] - end_feat['h_std_dist_button']
+        end_feat['min_dist_diff'] = (
+            end_feat['nh_min_dist_button'] - end_feat['h_min_dist_button']
+        )
+
+        end_feat['avg_dist_diff'] = (
+            end_feat['nh_avg_dist_button'] - end_feat['h_avg_dist_button']
+        )
+
+        end_feat['max_dist_diff'] = (
+            end_feat['nh_max_dist_button'] - end_feat['h_max_dist_button']
+        )
+
+        end_feat['std_dist_diff'] = (
+            end_feat['nh_std_dist_button'] - end_feat['h_std_dist_button']
+        )
+
 
         features.append(end_feat)
 
@@ -729,22 +852,34 @@ for name, clf in classifiers.items():
     # Feature importance / coefficients
     if name == 'Logistic L1':
         coefs = clf.named_steps['model'].coef_[0]
-        feat_df = pd.DataFrame({'feature': feature_cols, 'coef': coefs}).sort_values(
-            by='coef', key=abs, ascending=False
+        feat_df = pd.DataFrame({
+            'feature': feature_cols,
+            'coef': coefs
+        }).sort_values(
+            by='coef',
+            key=abs,
+            ascending=False
         )
+
         print("Top features by absolute coefficient:")
         print(feat_df)
     elif name in ['Random Forest', 'XGBoost']:
         importances = clf.feature_importances_
-        feat_df = pd.DataFrame({'feature': feature_cols, 'importance': importances}).sort_values(
-            by='importance', ascending=False
+        feat_df = pd.DataFrame({
+            'feature': feature_cols,
+            'importance': importances
+        }).sort_values(
+            by='importance',
+            ascending=False
         )
+
         print("Top features by importance:")
         print(feat_df)
 
 ```
 
 ```{python}
+import shap
 rf_model = classifiers['Random Forest']
 explainer = shap.Explainer(rf_model, X_train)  # X_train used as background data
 shap_values = explainer(X_test)  # returns a structured object
