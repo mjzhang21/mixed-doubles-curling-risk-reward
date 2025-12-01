@@ -717,11 +717,6 @@ def compute_end_features_from_coords(df):
             end_feat['nh_guard_count'] - end_feat['h_guard_count']
         )
 
-        end_feat['takeout_guard_interaction'] = (
-            end_feat['takeout_diff'] * end_feat['guard_diff']
-        )
-
-
 
         # Powerplay
         if 'powerplay' in group.columns:
@@ -782,10 +777,9 @@ import numpy as np
 feature_cols = [
     'nh_stone_ratio',
     'takeout_diff','draw_diff','guard_diff',
-    'takeout_guard_interaction', 
 
     'min_dist_diff','avg_dist_diff','max_dist_diff','std_dist_diff',
-    'powerplay', 'end_id',
+    'powerplay',
     'nh_avg_vert_offset', 'h_avg_vert_offset',
     'nh_avg_horiz_offset', 'h_avg_horiz_offset',
 
@@ -818,8 +812,8 @@ classifiers = {
     ]),
     'Random Forest': RandomForestClassifier(
         n_estimators=300,
-        max_depth=6,
-        min_samples_leaf=10,
+        max_depth=12,
+        min_samples_leaf=8,
         max_features=0.7,
         class_weight='balanced',
         random_state=42
@@ -880,11 +874,15 @@ for name, clf in classifiers.items():
 
 ```{python}
 import shap
-rf_model = classifiers['Random Forest']
-explainer = shap.Explainer(rf_model, X_train)  # X_train used as background data
-shap_values = explainer(X_test)  # returns a structured object
 
-# Summary plot for class 1 ("steal")
-shap.summary_plot(shap_values[:,:,1], X_test)
+rf_model = classifiers['Random Forest']
+
+# Generic explainer
+explainer = shap.Explainer(rf_model, X_train)  # X_train as background
+
+shap_values = explainer(X_test, check_additivity=False)
+
+# For class 1 ("steal")
+shap.summary_plot(shap_values[:, :, 1], X_test)
 
 ```
