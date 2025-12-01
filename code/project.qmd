@@ -411,26 +411,34 @@ ax.legend()
 plt.show()
 ```
 ```{python}
-results = sorted(df['result'].unique())
+end_df = (
+    df.sort_values(['match_id','end_id','shot_id'])
+      .groupby(['match_id','end_id','hammer'], as_index=False)
+      .agg({
 
-# Compute frequencies
-hammer_counts = df[df['hammer']==1]['result'].value_counts().reindex(results, fill_value=0)
-nonhammer_counts = df[df['hammer']==0]['result'].value_counts().reindex(results, fill_value=0)
+          'result': 'first'       # end result
+      })
+)
+results = sorted(end_df['result'].unique())
+
+hammer_counts = end_df[end_df['hammer']==1]['result'].value_counts().reindex(results, fill_value=0)
+nonhammer_counts = end_df[end_df['hammer']==0]['result'].value_counts().reindex(results, fill_value=0)
 
 x = np.arange(len(results))
+width = 0.35  # width of the bars
 
-# Plot stacked bars
 fig, ax = plt.subplots(figsize=(8,6))
-ax.bar(x, hammer_counts, label='Hammer', color='blue')
-ax.bar(x, nonhammer_counts, bottom=hammer_counts, label='Non-Hammer', color='orange')
+ax.bar(x - width/2, hammer_counts, width=width, label='Hammer', color='blue')
+ax.bar(x + width/2, nonhammer_counts, width=width, label='Non-Hammer', color='orange')
 
 ax.set_xticks(x)
 ax.set_xticklabels(results)
 ax.set_xlabel('Result')
-ax.set_ylabel('Frequency')
-ax.set_title('Stacked Frequency of Results by Hammer vs Non-Hammer')
+ax.set_ylabel('Number of Ends')
+ax.set_title('Number of Ends by Result: Hammer vs Non-Hammer')
 ax.legend()
 plt.show()
+
 ```
 ```{python}
 import matplotlib.pyplot as plt
@@ -536,244 +544,212 @@ team_agg = non_hammer_ends.groupby(['team_id','competition_id'])['steal'].agg(
 team_agg_sorted = team_agg.sort_values(by='steal_rate', ascending=False).reset_index(drop=True)
 print(team_agg_sorted.head(10))
 ```
-
-
 ```{python}
-df_end_all = df.groupby(['match_id','end_id','team_id']).agg({
-    'result':'first',
-    'hammer':'first',
-    'powerplay':'first',
-    'steal':'first',
-
-}).reset_index()
-
+df = df[df.groupby(['match_id','end_id'])['hammer'].transform('nunique') == 2]
 ```
 ```{python}
-import pandas as pd
-import numpy as np
+BUTTON_X, BUTTON_Y = 750, 800
 
-# --- Sheet constants ---
-button_x, button_y = 750, 800
-centerline_x = 750
-tee_line_y = 800
-hogline_y = 2900
-backline_y = 200
+# Distance to button
+def dist_to_button(x, y):
+    return np.sqrt((x - BUTTON_X)**2 + (y - BUTTON_Y)**2)
 
-house_radii = {
-    'house_12': 1829,
-    'house_8': 1219,
-    'house_4': 610,
-}
+def compute_end_features_from_coords(df):
+    features = []
 
-all_new_cols = {}
+    for (match_id, end_id), group in df.groupby(['match_id','end_id']):
+        end_feat = {'match_id': match_id, 'end_id': end_id}
 
-for i in range(1, 13):
+        # Identify hammer/non-hammer teams
+        hammer_team = group.loc[group['hammer']==1, 'team_id'].iloc[0]
+        non_hammer_team = group.loc[group['hammer']==0, 'team_id'].iloc[0]
+        end_feat['hammer_team'] = hammer_team
+        end_feat['non_hammer_team'] = non_hammer_team
 
-    x = df[f'stone_{i}_x']
-    y = df[f'stone_{i}_y']
+        # ---- Non-hammer stones 2-5 ----
+        nh = group[group['team_id']==non_hammer_team]
+        nh_stones_x = nh[['stone_2_x','stone_3_x','stone_4_x','stone_5_x']].values.flatten()
+        nh_stones_y = nh[['stone_2_y','stone_3_y','stone_4_y','stone_5_y']].values.flatten()
+        nh_dists = dist_to_button(nh_stones_x, nh_stones_y)
 
-    # --- Stone thrown? --- (0 means not thrown)
-    thrown = ((x != 0) & (y != 0))
+        end_feat['nh_min_dist_button'] = nh_dists.min()
+        end_feat['nh_max_dist_button'] = nh_dists.max()
+        end_feat['nh_avg_dist_button'] = nh_dists.mean()
+        end_feat['nh_std_dist_button']  = nh_dists.std()   
+        end_feat['nh_stones_in_house'] = np.sum(nh_dists <= 183)  # house radius ~183
+        end_feat['nh_stones_out_of_play'] = np.sum((nh_stones_x == 0) | (nh_stones_y == 0) | (nh_stones_x == 4095) | (nh_stones_y == 4095))
 
-    # --- Distance to button (set to NaN if not thrown) ---
-    all_new_cols[f'stone{i}_dist'] = np.where(
-        thrown,
-        np.sqrt((x - button_x)**2 + (y - button_y)**2),
-        np.nan
+        end_feat['nh_avg_horiz_offset'] = np.mean(nh_stones_x - BUTTON_X)
+        end_feat['nh_avg_vert_offset'] = np.mean(nh_stones_y - BUTTON_Y)
+
+        end_feat['nh_guard_count'] = np.sum(nh['task'] == 2)
+        end_feat['nh_draw_count'] = np.sum(nh['task'] == 0)
+        end_feat['nh_freeze_count'] = np.sum(nh['task'] == 5)
+        end_feat['nh_takeout_count'] = np.sum(nh['task'].isin([6, 9, 10]))
+
+        # ---- Hammer stones 8-11 ----
+        h = group[group['team_id']==hammer_team]
+        h_stones_x = h[['stone_8_x','stone_9_x','stone_10_x','stone_11_x']].values.flatten()
+        h_stones_y = h[['stone_8_y','stone_9_y','stone_10_y','stone_11_y']].values.flatten()
+        h_dists = dist_to_button(h_stones_x, h_stones_y)
+
+        end_feat['h_min_dist_button'] = h_dists.min()
+        end_feat['h_max_dist_button'] = h_dists.max()
+        end_feat['h_avg_dist_button'] = h_dists.mean()
+        end_feat['h_std_dist_button']  = h_dists.std()  
+        end_feat['h_stones_in_house'] = np.sum(h_dists <= 183)
+        end_feat['h_stones_out_of_play'] = np.sum((h_stones_x == 0) | (h_stones_y == 0) | (h_stones_x == 4095) | (h_stones_y == 4095))
+
+        end_feat['h_avg_horiz_offset'] = np.mean(h_stones_x - BUTTON_X)
+        end_feat['h_avg_vert_offset'] = np.mean(h_stones_y - BUTTON_Y)
+
+
+        end_feat['h_takeout_count'] = np.sum(h['task'].isin([6, 9, 10]))
+        end_feat['h_draw_count'] = np.sum(h['task'] == 0)
+        end_feat['h_guard_count'] = np.sum(h['task'] == 2)
+
+        end_feat['nh_stone_ratio'] = end_feat['nh_stones_in_house'] / (
+        end_feat['nh_stones_in_house'] + end_feat['h_stones_in_house'] + 1e-6
     )
+        end_feat['takeout_diff'] = end_feat['nh_takeout_count'] - end_feat['h_takeout_count']
+        end_feat['draw_diff']    = end_feat['nh_draw_count'] - end_feat['h_draw_count']
+        end_feat['guard_diff']   = end_feat['nh_guard_count'] - end_feat['h_guard_count']
 
-    # --- Off sheet ---
-    all_new_cols[f'stone{i}_off'] = np.where(
-        thrown,
-        ((x == 4095) | (y == 4095)).astype(int),
-        0
-    )
+        end_feat['takeout_guard_interaction'] = end_feat['takeout_diff'] * end_feat['guard_diff']
 
-    # --- In-house flags ---
-    for name, radius in house_radii.items():
-        all_new_cols[f'stone{i}_in_{name}'] = np.where(
-            thrown,
-            (all_new_cols[f'stone{i}_dist'] <= radius).astype(int),
-            0
-        )
 
-    # --- Left/right of centerline ---
-    all_new_cols[f'stone{i}_left'] = np.where(thrown, (x < centerline_x).astype(int), 0)
-    all_new_cols[f'stone{i}_right'] = np.where(thrown, (x > centerline_x).astype(int), 0)
+        # Powerplay
+        if 'powerplay' in group.columns:
+            end_feat['powerplay'] = group['powerplay'].max()
 
-    # --- Above / below tee line ---
-    all_new_cols[f'stone{i}_above_tee'] = np.where(thrown, (y < tee_line_y).astype(int), 0)
-    all_new_cols[f'stone{i}_below_tee'] = np.where(thrown, (y > tee_line_y).astype(int), 0)
+        # Target: did non-hammer steal?
+        if 'result' in group.columns:
+            end_feat['steal'] = int(group.loc[group['team_id']==non_hammer_team, 'result'].iloc[0] > 0)
 
-    # --- In-play (between backline & hogline) ---
-    all_new_cols[f'stone{i}_in_play'] = np.where(
-        thrown,
-        ((y < hogline_y) & (y > backline_y)).astype(int),
-        0
-    )
+        # Distance differences
+        end_feat['min_dist_diff'] = end_feat['nh_min_dist_button'] - end_feat['h_min_dist_button']
+        end_feat['avg_dist_diff'] = end_feat['nh_avg_dist_button'] - end_feat['h_avg_dist_button']
+        end_feat['max_dist_diff'] = end_feat['nh_max_dist_button'] - end_feat['h_max_dist_button']
+        end_feat['std_dist_diff'] = end_feat['nh_std_dist_button'] - end_feat['h_std_dist_button']
 
-    # --- Distance from centerline (traffic measure) ---
-    all_new_cols[f'stone{i}_centerline_dist'] = np.where(thrown, np.abs(x - centerline_x), np.nan)
+        features.append(end_feat)
 
-# --- Add all stone-level columns at once ---
-df = pd.concat([df, pd.DataFrame(all_new_cols, index=df.index)], axis=1)
-```
+    return pd.DataFrame(features)
 
-```{python}
-import pandas as pd
+# Compute features
+end_features = compute_end_features_from_coords(df)
+end_features.head()
 
-# Boolean columns to sum
-bool_cols = ['off','in_play','in_house_12','in_house_8','in_house_4',
-             'left','right','above_tee','below_tee']
-
-# Team 1: stones 1–6, Team 2: stones 7–12
-team1_stones = range(1,7)
-team2_stones = range(7,13)
-
-def sum_bool_cols(df, stones, prefix):
-    """Sum all bool columns for specified stones"""
-    out = {}
-    for col in bool_cols:
-        cols_to_sum = [f'stone{i}_{col}' for i in stones if f'stone{i}_{col}' in df.columns]
-        out[f'{prefix}_{col}'] = df[cols_to_sum].sum(axis=1).sum()
-    return out
-
-# Aggregate per end
-df_ends = df.groupby(['match_id','end_id']).apply(
-    lambda x: pd.Series({
-        'team1_id': x['team_id1'].iloc[0],
-        'team2_id': x['team_id2'].iloc[0],
-        **sum_bool_cols(x, team1_stones, 'team1'),
-        **sum_bool_cols(x, team2_stones, 'team2')
-    })
-).reset_index()
-df_end_all = df_end_all.merge(
-    df_ends,
-    on=['match_id', 'end_id'],
-    how='left'   # keeps all rows from df_end_all
-)
-```
-```{python}
-df_end_all = df_end_all.sort_values(['match_id','team_id','end_id'])
-df_end_all['prev_result'] = df_end_all.groupby(['team_id','match_id'])['result'].shift(1).fillna(0)
-df_end_all['prev_hammer'] = df_end_all.groupby(['team_id','match_id'])['hammer'].shift(1).fillna(0)
-
-df_shot_stats = df.groupby(['match_id','end_id','team_id']).agg({
-    'task': lambda x: x.mode()[0] if len(x) > 0 else -1,   # most common shot type
-    'points': 'mean',  # average points per stone
-}).reset_index()
-# Sort and cumulative score per team
-
-df_end_all['cum_score'] = df_end_all.groupby(['match_id','team_id'])['result'].cumsum()
-
-# Merge opponent cumulative score
-df_opponent = df_end_all[['match_id','end_id','team_id','cum_score']].rename(
-    columns={'team_id':'hammer_team','cum_score':'hammer_cum_score'}
-)
-df_end_all = df_end_all.merge(df_opponent, on=['match_id','end_id'], how='left')
-df_end_all = df_end_all[df_end_all['team_id'] != df_end_all['hammer_team']]
-
-# Score differential from non-hammer perspective
-df_end_all['score_diff'] = np.where(
-    df_end_all['hammer'] == 0,
-    df_end_all['cum_score'] - df_end_all['hammer_cum_score'],
-    df_end_all['hammer_cum_score'] - df_end_all['cum_score']
-)
-
-df_end_all.head(16)
 
 ```
-
 ```{python}
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegressionCV
-from sklearn.metrics import classification_report, roc_auc_score
 from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegressionCV
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import classification_report, roc_auc_score
+import numpy as np
 
-# Filter non-hammer rows
-df_model = df_end_all[df_end_all['hammer'] == 0].copy()
-
-# Rename columns for clarity
-rename_dict = {
-    'team1_off': 'non_hammer_off',
-    'team1_in_play': 'non_hammer_in_play',
-    'team1_in_house_12': 'non_hammer_in_house_12',
-    'team1_in_house_8': 'non_hammer_in_house_8',
-    'team1_in_house_4': 'non_hammer_in_house_4',
-    'team1_left': 'non_hammer_left',
-    'team1_right': 'non_hammer_right',
-    'team1_above_tee': 'non_hammer_above_tee',
-    'team1_below_tee': 'non_hammer_below_tee',
-    'team2_off': 'hammer_off',
-    'team2_in_play': 'hammer_in_play',
-    'team2_in_house_12': 'hammer_in_house_12',
-    'team2_in_house_8': 'hammer_in_house_8',
-    'team2_in_house_4': 'hammer_in_house_4',
-    'team2_left': 'hammer_left',
-    'team2_right': 'hammer_right',
-    'team2_above_tee': 'hammer_above_tee',
-    'team2_below_tee': 'hammer_below_tee'
-}
-df_model.rename(columns=rename_dict, inplace=True)
-
-# Define target and features
-target = 'steal'
+# -------------------
+# Features and target
+# -------------------
 feature_cols = [
-    'non_hammer_off', 'non_hammer_in_play', 'non_hammer_in_house_12',
-    'non_hammer_in_house_8', 'non_hammer_in_house_4', 'non_hammer_left',
-    'non_hammer_right', 'non_hammer_above_tee', 'non_hammer_below_tee',
-    'hammer_off', 'hammer_in_play', 'hammer_in_house_12',
-    'hammer_in_house_8', 'hammer_in_house_4', 'hammer_left',
-    'hammer_right', 'hammer_above_tee', 'hammer_below_tee',
-    'powerplay', 'prev_result', 'prev_hammer','score_diff'
+    'nh_stone_ratio',
+    'takeout_diff','draw_diff','guard_diff',
+    'takeout_guard_interaction', 
+
+    'min_dist_diff','avg_dist_diff','max_dist_diff','std_dist_diff',
+    'powerplay', 'end_id',
+    'nh_avg_vert_offset', 'h_avg_vert_offset',
+    'nh_avg_horiz_offset', 'h_avg_horiz_offset',
+
 ]
+X = end_features[feature_cols]
+y = end_features['steal']
 
-X = df_model[feature_cols]
-y = df_model[target]
-
-# Handle missing target values
-X = X[y.notna()]
-y = y[y.notna()]
-
-# Train/test split
+# Train-test split
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# Pipeline with scaling + L1 logistic regression (auto-lasso)
-pipeline = Pipeline([
-    ("scaler", StandardScaler()),
-    ("model", LogisticRegressionCV(
-        Cs=20,
-        penalty="l1",
-        solver="saga",
-        cv=5,
-        scoring="roc_auc",
-        max_iter=5000,
-        n_jobs=-1,
-        class_weight='balanced'
-    ))
-])
+# -------------------
+# Classifiers to test
+# -------------------
+classifiers = {
+    'Logistic L1': Pipeline([
+        ('scaler', StandardScaler()),
+        ('model', LogisticRegressionCV(
+            Cs=10,
+            penalty='l1',
+            solver='saga',
+            cv=5,
+            scoring='roc_auc',
+            max_iter=5000,
+            class_weight='balanced',
+            n_jobs=-1,
+            random_state=42
+        ))
+    ]),
+    'Random Forest': RandomForestClassifier(
+        n_estimators=300,
+        max_depth=6,
+        min_samples_leaf=10,
+        max_features=0.7,
+        class_weight='balanced',
+        random_state=42
+    ),
+    'XGBoost': XGBClassifier(
+        n_estimators=200,
+        max_depth=4,
+        learning_rate=0.05,
+        subsample=0.8,
+        colsample_bytree=1,
+        scale_pos_weight = (sum(y_train == 0)) / (sum(y_train == 1)),
+        use_label_encoder=False,
+        eval_metric='aucpr',
+        random_state=42
+    )
+}
 
-pipeline.fit(X_train, y_train)
-
-# Predict & evaluate
-y_pred = pipeline.predict(X_test)
-y_proba = pipeline.predict_proba(X_test)[:,1]
-
-print("Classification Report:\n", classification_report(y_test, y_pred))
-print("ROC AUC Score:", roc_auc_score(y_test, y_proba))
-
-# Get important coefficients
-coef_df = pd.DataFrame({
-    'feature': feature_cols,
-    'coefficient': pipeline.named_steps['model'].coef_[0],
-    'abs_coefficient': abs(pipeline.named_steps['model'].coef_[0])
-}).sort_values('abs_coefficient', ascending=False)
-
-print(coef_df)
+# -------------------
+# Training loop
+# -------------------
+for name, clf in classifiers.items():
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
+    y_prob = clf.predict_proba(X_test)[:,1]
+    
+    print(f"\n=== {name} ===")
+    print(classification_report(y_test, y_pred))
+    print("ROC-AUC:", roc_auc_score(y_test, y_prob))
+    
+    # Feature importance / coefficients
+    if name == 'Logistic L1':
+        coefs = clf.named_steps['model'].coef_[0]
+        feat_df = pd.DataFrame({'feature': feature_cols, 'coef': coefs}).sort_values(
+            by='coef', key=abs, ascending=False
+        )
+        print("Top features by absolute coefficient:")
+        print(feat_df)
+    elif name in ['Random Forest', 'XGBoost']:
+        importances = clf.feature_importances_
+        feat_df = pd.DataFrame({'feature': feature_cols, 'importance': importances}).sort_values(
+            by='importance', ascending=False
+        )
+        print("Top features by importance:")
+        print(feat_df)
 
 ```
 
+```{python}
+rf_model = classifiers['Random Forest']
+explainer = shap.Explainer(rf_model, X_train)  # X_train used as background data
+shap_values = explainer(X_test)  # returns a structured object
+
+# Summary plot for class 1 ("steal")
+shap.summary_plot(shap_values[:,:,1], X_test)
+
+```
