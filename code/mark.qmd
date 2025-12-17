@@ -1,0 +1,7 @@
+
+
+
+```{r}
+data <- read.csv("data/merged_stones.csv",header=TRUE)
+head(data)
+```
