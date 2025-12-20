@@ -1,7 +1,4 @@
-
-
-
 ```{r}
-data <- read.csv("data/merged_stones.csv",header=TRUE)
-head(data)
+df <- read.csv("../data/end_level.csv")
+head(df)
 ```
