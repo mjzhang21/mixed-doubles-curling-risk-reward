@@ -119,7 +119,8 @@ def _load_ends() -> pd.DataFrame:
         + "_"
         + ends["game_id"].astype(str)
     )
-    # result 9 is a concession so i map to NA instead
+    # result 9 marks a conceded end; keep a flag but map to NA for score math
+    ends["conceded_end"] = ends["result"] == 9
     ends["result"] = ends["result"].replace(9, np.nan)
     return ends
 
@@ -253,6 +254,8 @@ def _summarize_match_ends(
         else:
             score_diff = (score_hammer or 0) - (score_nonhammer or 0)
 
+        conceded_end = bool(end_df["conceded_end"].any())
+
         rows.append(
             {
                 "match_id": game_row.match_id,
@@ -267,6 +270,7 @@ def _summarize_match_ends(
                 "score_hammer": score_hammer,
                 "score_nonhammer": score_nonhammer,
                 "score_diff": score_diff,
+                "conceded_end": conceded_end,
                 # cumulative scores entering this end (not including current end results)
                 "cumulative_score_hammer": cumulative_hammer,
                 "cumulative_score_nonhammer": cumulative_nonhammer,
@@ -282,7 +286,8 @@ def _summarize_match_ends(
                 "powerplay_by_hammer": powerplay_team == hammer_team
                 if powerplay_team is not None
                 else False,
-                "blank_end": total_points == 0,
+                # blank only when scores are recorded and sum to zero
+                "blank_end": bool(clean_scores) and total_points == 0,
             }
         )
 
