@@ -1,4 +1,0 @@
-```{r}
-df <- read.csv("../data/end_level.csv")
-head(df)
-```
