@@ -5,32 +5,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 df = pd.read_csv("../data/end_level.csv")
 df = df[~df['conceded_end']]
-df.info()
-```
 
-```{python}
-df['steal'] = (df['score_nonhammer'] > df['score_hammer']).astype(int)
 df['powerplay_value'] = df['powerplay_value'].fillna(0)
-counts = df['steal'].value_counts()
-percentages = df['steal'].value_counts(normalize=True) * 100
-
-result = pd.DataFrame({
-    'count': counts,
-    'percentage': percentages.round(2)
-})
-
-result
-
+df.info()
+df.head()
 ```
- Hammer scores 2+ (Hammer Efficiency numerator)
-df['hammer_2plus'] = ((df['score_hammer'] >= 2)).astype(int)
 
- Force: opponent (hammer) scores 0 or 1
- Includes blanks (0) by design
-df['force_success'] = ((df['score_hammer'] <= 1)).astype(int)
 
- Steal: non-hammer scores at least 1
-df['steal_success'] = ((df['score_nonhammer'] >= 1)).astype(int)
 
 ```{python}
 # Hammer scores 2+ (Hammer Efficiency numerator)
@@ -85,80 +66,253 @@ team_noc_map = (
 
 efficiency_df = efficiency_df.merge(team_noc_map, on='team_id', how='left')
 efficiency_df['weighted_score'] = (
-    0.5*efficiency_df['HE'] +
-    0.3*efficiency_df['FE'] +
+    0.56*efficiency_df['HE'] +
+    0.24*efficiency_df['FE'] +
     0.2*efficiency_df['SE']
 )
 
 efficiency_df.sort_values('weighted_score', ascending=False)
 ```
 
-# Questions:
-what factors influence the number of takeouts the nonhammer or hammer team
-hits in an end?
+```{python}
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Sort by weighted_score descending
+efficiency_df_sorted = efficiency_df.sort_values('weighted_score', ascending=False)
+
+# Select columns to plot
+plot_cols = ['HE', 'FE', 'SE', 'weighted_score']
+
+sns.set(style="whitegrid")
+plt.figure(figsize=(12,6))
+sns.heatmap(
+    efficiency_df_sorted.set_index('noc')[plot_cols],
+    annot=True,
+    cmap='coolwarm',
+    fmt=".2f"
+)
+plt.title('Team Efficiency Metrics (HE, FE, SE, Weighted Score)')
+plt.ylabel('Team')
+plt.show()
+
+```
+```{python}
+# -------------------
+# Merge hammer team metrics
+# -------------------
+ends_df = df.merge(
+    efficiency_df[['team_id', 'HE', 'FE', 'SE', 'weighted_score']],
+    left_on='hammer_team_id',
+    right_on='team_id',
+    how='left'
+).rename(columns={
+    'HE': 'hammer_HE',
+    'FE': 'hammer_FE',
+    'SE': 'hammer_SE',
+    'weighted_score': 'hammer_weighted_score'
+}).drop(columns='team_id')
+
+# -------------------
+# Merge non-hammer team metrics
+# -------------------
+ends_df = ends_df.merge(
+    efficiency_df[['team_id', 'HE', 'FE', 'SE', 'weighted_score']],
+    left_on='nonhammer_team_id',
+    right_on='team_id',
+    how='left'
+).rename(columns={
+    'HE': 'nonhammer_HE',
+    'FE': 'nonhammer_FE',
+    'SE': 'nonhammer_SE',
+    'weighted_score': 'nonhammer_weighted_score'
+}).drop(columns='team_id')
+
+# -------------------
+# Compute differences
+# -------------------
+ends_df['HE_diff'] = ends_df['hammer_HE'] - ends_df['nonhammer_HE']
+ends_df['FE_diff'] = ends_df['hammer_FE'] - ends_df['nonhammer_FE']
+ends_df['SE_diff'] = ends_df['hammer_SE'] - ends_df['nonhammer_SE']
+ends_df['weighted_score_diff'] = ends_df['hammer_weighted_score'] - ends_df['nonhammer_weighted_score']
+
+
+```
+```{python}
+import pandas as pd
+
+tasks = list(range(12))  # 0 to 11
+
+# Collect data in a list
+task_data = []
+
+for k in tasks:
+    hammer_col = f'hammer_task_{k}'
+    nonhammer_col = f'nonhammer_task_{k}'
+    
+    hammer_total = ends_df[hammer_col].sum()
+    nonhammer_total = ends_df[nonhammer_col].sum()
+    
+    hammer_mean = ends_df[hammer_col].mean()
+    nonhammer_mean = ends_df[nonhammer_col].mean()
+    
+    task_data.append({
+        'task': k,
+        'hammer_total': hammer_total,
+        'nonhammer_total': nonhammer_total,
+        'hammer_mean': hammer_mean,
+        'nonhammer_mean': nonhammer_mean
+    })
+
+# Convert list of dicts to DataFrame
+task_counts = pd.DataFrame(task_data)
+
+# Sort by hammer_total for easier visualization
+task_counts = task_counts.sort_values(by='hammer_total', ascending=False)
+
+print(task_counts)
+```
+```{python}
+import pandas as pd
+import numpy as np
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, PolynomialFeatures
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegressionCV
+from sklearn.metrics import classification_report, roc_auc_score, average_precision_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.model_selection import train_test_split
+
+# -------------------
+# Sort by match_id and end_id to avoid leakage
+# -------------------
+ends_df=ends_df[ends_df['powerplay_value']!=0]
+ends_df = ends_df.sort_values(['match_id', 'end_id'])
+
+# Compute task_diff features
+high_impact_tasks = [0,1,2,3,4,5,6,7,8,9,10,11]
+for k in high_impact_tasks:
+    ends_df[f'task_diff_{k}'] = ends_df[f'hammer_task_{k}'] - ends_df[f'nonhammer_task_{k}']
+
+# -------------------
+# Chronological train-test split by match
+# -------------------
+matches = ends_df['match_id'].unique()
+num_train_matches = int(0.7 * len(matches))
+train_matches = matches[:num_train_matches]
+test_matches  = matches[num_train_matches:]
+
+train_df = ends_df[ends_df['match_id'].isin(train_matches)]
+test_df  = ends_df[ends_df['match_id'].isin(test_matches)]
+
+# -------------------
+# Features
+# -------------------
+numeric_features = ['weighted_score_diff', 'cumulative_score_diff', 'end_id'] + [f'task_diff_{k}' for k in high_impact_tasks]
+categorical_features = ['powerplay_value']
+
+X_train = train_df[numeric_features + categorical_features]
+y_train = (train_df['score_hammer'] > 1).astype(int)
+
+X_test = test_df[numeric_features + categorical_features]
+y_test = (test_df['score_hammer'] > 1).astype(int)
+
+# -------------------
+# Preprocessing (no polynomial for now)
+# -------------------
+preprocessor = ColumnTransformer(transformers=[
+    ('num', StandardScaler(), numeric_features),
+    ('cat', OneHotEncoder(drop='first'), categorical_features)
+])
+
+# -------------------
+# Pipeline with ElasticNet Logistic RegressionCV
+# -------------------
+pipe = Pipeline([
+    ('preprocessor', preprocessor),
+    ('logit', LogisticRegressionCV(
+        Cs = np.logspace(-3,-1, 20),
+        cv=5,
+        penalty='elasticnet',
+        solver='saga',            # required for elasticnet
+        l1_ratios=[0.5],          # mix of L1 and L2
+        scoring='roc_auc',
+        class_weight='balanced',
+        max_iter=5000,
+        random_state=42,
+        refit=True
+    ))
+])
+
+# -------------------
+# Fit model
+# -------------------
+pipe.fit(X_train, y_train)
+
+# -------------------
+# Predictions and evaluation
+# -------------------
+y_pred = pipe.predict(X_test)
+y_prob = pipe.predict_proba(X_test)[:, 1]
+logit_cv = pipe.named_steps['logit']
+
+# Best C chosen by cross-validation
+best_C = logit_cv.C_[0]
+print(f"Best C selected: {best_C}")
+
+print(classification_report(y_test, y_pred))
+
+cm = confusion_matrix(y_test, y_pred)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0,1])
+disp.plot(cmap='Blues')
+disp.ax_.set_title('Logistic Regression Confusion Matrix')
+disp.ax_.set_xlabel('Predicted')
+disp.ax_.set_ylabel('Actual')
+
+# ROC AUC
+roc_auc = roc_auc_score(y_test, y_prob)
+# PR AUC
+pr_auc = average_precision_score(y_test, y_prob)
+print(f"ROC AUC: {roc_auc:.3f}")
+print(f"PR AUC:  {pr_auc:.3f}")
+
+# -------------------
+# Feature coefficients
+# -------------------
+# Numeric feature names
+num_features = numeric_features
+# Categorical feature names after one-hot
+cat_feature_names = pipe.named_steps['preprocessor'].named_transformers_['cat'].get_feature_names_out(categorical_features)
+all_features = list(num_features) + list(cat_feature_names)
+
+coef_df = pd.Series(pipe.named_steps['logit'].coef_[0], index=all_features)
+coef_df_sorted = coef_df.reindex(coef_df.abs().sort_values(ascending=False).index)
+
+print("Top features by absolute coefficient:")
+print(coef_df_sorted.head(20))
+
+# -------------------
+# Optional: add polynomial features back
+# -------------------
+# Uncomment if needed
+# poly = PolynomialFeatures(degree=2, interaction_only=True, include_bias=False)
+# preprocessor = ColumnTransformer(transformers=[
+#     ('num', Pipeline([
+#         ('poly', poly),
+#         ('scaler', StandardScaler())
+#     ]), numeric_features),
+#     ('cat', OneHotEncoder(drop='first'), categorical_features)
+# ])
+
+```
+
+
 # Exploration
 
-## All ends
-```{python}
-numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
 
-# Plot histograms
-for col in numeric_cols:
-    plt.figure(figsize=(6,4))
-    df[col].value_counts().sort_index().plot(kind='bar')  # bar for discrete counts
-    plt.title(f'Value Counts of {col}')
-    plt.xlabel('Value')
-    plt.ylabel('Count')
-    plt.tight_layout()
-    plt.show()
-```
-```{python}
-
-
-
-```
 ## Powerplay ends
 
-```{python}
-df_pp = df[df["powerplay_value"]!=0]
-df_pp.head()
 
-df_pp = df_pp.copy()
 
-df_pp['hammer_win'] = (df_pp['score_hammer'] > df_pp['score_nonhammer']).astype(int)
-df_pp['nonhammer_win'] = (df_pp['score_nonhammer'] > df_pp['score_hammer']).astype(int)
-hammer_rows = df_pp[['hammer_noc', 'hammer_win']].rename(
-    columns={'hammer_noc': 'nation', 'hammer_win': 'win'}
-)
-
-nonhammer_rows = df_pp[['nonhammer_noc', 'nonhammer_win']].rename(
-    columns={'nonhammer_noc': 'nation', 'nonhammer_win': 'win'}
-)
-
-long_df = pd.concat([hammer_rows, nonhammer_rows], ignore_index=True)
-
-nation_win_pct = (
-    long_df
-    .groupby('nation')['win']
-    .mean()
-    .mul(100)
-    .round(2)
-)
-```
-
-```{python}
-numeric_cols = df_pp.select_dtypes(include=['int64', 'float64']).columns
-
-# Plot histograms
-for col in numeric_cols:
-    plt.figure(figsize=(6,4))
-    df_pp[col].value_counts().sort_index().plot(kind='bar')  # bar for discrete counts
-    plt.title(f'Value Counts of {col}')
-    plt.xlabel('Value')
-    plt.ylabel('Count')
-    plt.tight_layout()
-    plt.show()
-```
 ```{python}
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -235,16 +389,6 @@ plt.show()
 
 ```
 
-```{python}
-percentages = df_pp['steal'].value_counts(normalize=True) * 100
-
-result = pd.DataFrame({
-    'count': counts,
-    'percentage': percentages.round(2)
-})
-
-result
-```
 
 
 ```{python}
@@ -325,83 +469,41 @@ plt.show()
 
 ```
 ```{python}
-# 1️⃣ Add hammer_win, Powerplay_Status to full df
-df['hammer_win'] = (df['score_hammer'] > df['score_nonhammer']).astype(int)
-df['nonhammer_win'] = (df['score_nonhammer'] > df['score_hammer']).astype(int)
+# 1️⃣ Add hammer_2plus flag and Powerplay_Status to full df
+df['hammer_2plus'] = (df['score_hammer'] >= 2).astype(int)
 df['Powerplay_Status'] = df['powerplay_value'].apply(lambda x: 'Powerplay' if x != 0 else 'No Powerplay')
 
 # 2️⃣ Filter to ends 6 and 7
-df_subset = df[df['end_id'].isin([6, 7])].copy()
+df_subset = df.copy()
 
 # 3️⃣ Apply bins to df_subset
-bins = [-float('inf'), 0, 2, float('inf')]
-labels = ['Behind/Level', 'Slightly Ahead 1-2', 'Ahead > 2']
-df_subset['score_diff_bin'] = pd.cut(df_subset['cumulative_score_diff'], bins=bins, labels=labels)
+bins = [-float('inf'), -2, 0, 2, float('inf')]
+labels = [
+    'Behind (≤ -2)',
+    'Tied or Down 1',
+    'Up 1–2',
+    'Up ≥ 3'
+]
 
-# 4️⃣ Aggregate hammer win %
+df_subset['score_diff_bin'] = pd.cut(
+    df_subset['cumulative_score_diff'],
+    bins=bins,
+    labels=labels
+)
+
+# 4️⃣ Aggregate hammer 2+ %
 win_stats = (
-    df_subset.groupby(['end_id', 'score_diff_bin', 'Powerplay_Status'])
+    df_subset.groupby(['score_diff_bin', 'Powerplay_Status'])
     .agg(
-        hammer_win_pct=('hammer_win', lambda x: round(x.mean()*100,2)),
-        n_ends=('hammer_win', 'count')
+        hammer_2plus_pct=('hammer_2plus', lambda x: round(x.mean()*100,2)),
+        n_ends=('hammer_2plus', 'count')
     )
     .reset_index()
 )
 
-win_stats_sorted = win_stats.sort_values(by='hammer_win_pct', ascending=False)
+win_stats_sorted = win_stats.sort_values(by='hammer_2plus_pct', ascending=False)
 win_stats_sorted
 
-
-```
-
-```{python}
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# Assume your DataFrame is win_stats_sorted or win_stats with new bins
-# Example columns: ['end_id', 'score_diff_bin', 'Powerplay_Status', 'hammer_win_pct', 'n_ends']
-
-# Set seaborn style
-sns.set_style("whitegrid")
-
-# Create a separate plot for each end
-for end in sorted(win_stats_sorted['end_id'].unique()):
-    df_end = win_stats_sorted[win_stats_sorted['end_id'] == end]
-    
-    plt.figure(figsize=(10,6))
-    ax = sns.barplot(
-        data=df_end,
-        x='score_diff_bin',
-        y='hammer_win_pct',
-        hue='Powerplay_Status',
-        palette='pastel'
-    )
-    
-    # Annotate number of ends on top of bars
-    for p, n in zip(ax.patches, df_end['n_ends'].values):
-        height = p.get_height()
-        ax.annotate(f'{n}', 
-                    (p.get_x() + p.get_width() / 2., height), 
-                    ha='center', va='bottom', fontsize=10)
-    
-    plt.ylim(0, 100)
-    plt.ylabel('Hammer Win Percentage (%)')
-    plt.xlabel('Score Difference Bin')
-    plt.title(f'Hammer Win % by Score Diff and Powerplay Status - End {end}')
-    plt.legend(title='Powerplay Status')
-    plt.tight_layout()
-    plt.show()
-
-
-```
-• Hammer Efficiency (HE): Proportion of ends with hammer where a team scores 2 or more points.
-• Force Efficiency (FE): Proportion of ends without hammer where a team holds the opponent to one or zero points.
-Unlike traditional curling, we include blanked ends in this definition as the change in hammer possession benefits the
-team without hammer, although these rarely occur in mixed doubles.
-• Steal Efficiency (SE): Proportion of ends where a team scores at least one point without hammer.
-
-```{python}
-
 ```
 
 
@@ -420,159 +522,4 @@ team without hammer, although these rarely occur in mixed doubles.
 
 
 
-
-
-
-# Modeling
-
-```{python}
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
-from sklearn.compose import ColumnTransformer
-
-# -------------------
-# Features and target
-# -------------------
-for k in range(12):
-    df[f'task_diff_{k}'] = df[f'hammer_task_{k}'] - df[f'nonhammer_task_{k}']
-
-numeric_features = ['cumulative_score_diff', 'end_id'] + [f'task_diff_{k}' for k in range(12)]
-categorical_features = ["powerplay_value"]
-
-X = df[numeric_features + categorical_features]
-y = df['steal']
-
-# -------------------
-# Train-test split
-# -------------------
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.3, random_state=42, stratify=y
-)
-
-# -------------------
-# Preprocessor
-# -------------------
-preprocessor = ColumnTransformer([
-    ('num', StandardScaler(), numeric_features),
-    ('cat', OneHotEncoder(drop='first'), categorical_features)
-])
-
-# -------------------
-# Logistic Regression Pipeline
-# -------------------
-clf = Pipeline([
-    ('preprocess', preprocessor),
-    ('model', LogisticRegression(
-        C=1.0,
-        penalty='l2',
-        solver='lbfgs',
-        max_iter=500,
-        class_weight='balanced',
-        n_jobs=-1,
-        random_state=42
-    ))
-])
-
-# -------------------
-# Fit model
-# -------------------
-clf.fit(X_train, y_train)
-
-# -------------------
-# Predictions and evaluation
-# -------------------
-y_pred = clf.predict(X_test)
-y_prob = clf.predict_proba(X_test)[:, 1]
-
-print(classification_report(y_test, y_pred, target_names=["no steal", "steal"]))
-print(f"ROC AUC: {roc_auc_score(y_test, y_prob):.3f}")
-print(f"PR AUC:  {average_precision_score(y_test, y_prob):.3f}")
-
-# -------------------
-# Feature coefficients
-# -------------------
-# Get numeric feature names
-num_features_transformed = numeric_features
-
-# Get categorical feature names after one-hot encoding
-cat_features_transformed = clf.named_steps['preprocess'].named_transformers_['cat'].get_feature_names_out(categorical_features)
-
-# Combine all feature names
-all_features = list(num_features_transformed) + list(cat_features_transformed)
-
-# Coefficients
-coefs = clf.named_steps['model'].coef_[0]
-
-# DataFrame of features and coefficients
-feat_df = pd.DataFrame({
-    'feature': all_features,
-    'coef': coefs
-}).sort_values(by='coef', key=abs, ascending=False)
-
-print("Top features by absolute coefficient:")
-print(feat_df)
-
-```
-```{python}
-from sklearn.metrics import roc_curve
-import matplotlib.pyplot as plt
-
-plt.figure()
-
-for name, clf in classifiers.items():
-    y_prob = clf.predict_proba(X_test)[:, 1]
-    fpr, tpr, _ = roc_curve(y_test, y_prob)
-    auc = roc_auc_score(y_test, y_prob)
-    plt.plot(fpr, tpr, label=f"{name} (AUC={auc:.2f})")
-
-plt.plot([0,1], [0,1], 'k--')
-plt.xlabel("False Positive Rate")
-plt.ylabel("True Positive Rate")
-plt.legend()
-plt.title("ROC Curves")
-plt.show()
-```
-
-```{python}
-from sklearn.metrics import precision_recall_curve
-
-plt.figure()
-
-for name, clf in classifiers.items():
-    y_prob = clf.predict_proba(X_test)[:, 1]
-    precision, recall, _ = precision_recall_curve(y_test, y_prob)
-    pr_auc = average_precision_score(y_test, y_prob)
-    plt.plot(recall, precision, label=f"{name} (AP={pr_auc:.2f})")
-
-baseline = y_test.mean()
-plt.hlines(baseline, 0, 1, linestyles='dashed', label='Baseline')
-
-plt.xlabel("Recall")
-plt.ylabel("Precision")
-plt.legend()
-plt.title("Precision–Recall Curves")
-plt.show()
-
-```
-
-
-```{python}
-from sklearn.calibration import calibration_curve
-for name, clf in classifiers.items():
-    y_prob = clf.predict_proba(X_test)[:, 1]
-    frac_pos, mean_pred = calibration_curve(y_test, y_prob, n_bins=10)
-    plt.plot(mean_pred, frac_pos, marker='o', label=name)
-
-plt.plot([0,1], [0,1], 'k--')
-plt.xlabel("Predicted probability")
-plt.ylabel("Observed frequency")
-plt.legend()
-plt.title("Calibration Curves")
-plt.show()
-
-```
 

@@ -1,0 +1,450 @@
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+
+stones_df = pd.read_csv("../data/Stones.csv")
+end_level = pd.read_csv("../data/end_level.csv")
+
+end_level = end_level[~end_level['conceded_end']]
+end_level['powerplay_value'] = end_level['powerplay_value'].fillna(0)
+
+end_level.info()
+end_level.head()
+```
+
+
+# Stone Level
+```{python}
+df_competition = pd.read_csv("../data/Competition.csv")
+df_competitors  = pd.read_csv("../data/Competitors.csv")
+df_games        = pd.read_csv("../data/Games.csv")
+df_teams        = pd.read_csv("../data/Teams.csv")
+df_ends         = pd.read_csv("../data/Ends.csv")
+df_stones       = pd.read_csv("../data/Stones.csv")
+merged = pd.merge(
+    df_stones,
+    df_ends,
+    on=["CompetitionID","SessionID","GameID","EndID","TeamID"],
+    how="left"
+)
+
+df = pd.merge(
+    merged,
+    df_games,
+    on=["CompetitionID","SessionID","GameID"],
+    how="left"
+)
+df = pd.merge(
+    df,
+    df_teams,
+    on=["CompetitionID","TeamID"],
+    how="left"
+)
+df = pd.merge(
+    df,
+    df_competition,
+    on=["CompetitionID"],
+    how="left"
+)
+df.columns = df.columns.str.lower().str.replace('id', '_id')
+match_str = df['competition_id'].astype(str)+ \
+            '_'+df['session_id'].astype(str)
+df['match_id'] = match_str + '_' + df['game_id'].astype(str)
+df.insert(0, 'match_id', df.pop('match_id'))
+
+float_cols = df.select_dtypes(include=['float64']).columns
+df[float_cols] = df[float_cols].astype(np.float32)
+```
+
+
+
+```{python}
+# Sort data to ensure correct end order
+df = df.sort_values(["match_id", "end_id"])
+
+# Initialize hammer indicator (1 = team1, 0 = team2)
+df["hammer"] = -1
+
+# Process each match independently
+for mid, game in df.groupby("match_id"):
+    # Ensure ends are processed in order
+    game = game.sort_values("end_id")
+
+    # Identify teams for this match
+    team1 = game["team_id1"].iloc[0]
+    team2 = game["team_id2"].iloc[0]
+
+    # Assign hammer in end 1 based on LSFE (LSFE team takes hammer)
+    hammer_team = team1 if game["lsfe"].iloc[0] == 1 else team2
+
+    # Iterate through ends in the match
+    for eid, end in game.groupby("end_id"):
+        # Mark which team has hammer in this end
+        df.loc[end.index, "hammer"] = (end["team_id"] == hammer_team).astype(int)
+
+        # Get points scored by each team in this end
+        pts1 = end.loc[end["team_id"] == team1, "result"].iloc[0]
+        pts2 = end.loc[end["team_id"] == team2, "result"].iloc[0]
+
+        # If the end is blank, hammer switches
+        if pts1 == 0 and pts2 == 0:
+            hammer_team = team2 if hammer_team == team1 else team1
+
+        # If team1 scores, team2 gets hammer next end
+        elif pts1 > 0:
+            hammer_team = team2
+
+        # If team2 scores, team1 gets hammer next end
+        else:
+            hammer_team = team1
+
+```
+
+```{python}
+# Make nonhammer shots have the same value as hammer shots for powerplay
+df["powerplay"] = df.groupby(['match_id','end_id'])["powerplay"].transform('first')
+
+# Fill missing values that can be replaced with 0
+df['powerplay'] = df['powerplay'].fillna(0)
+df['timeout'] = df['timeout'].fillna(0)
+
+# Remove rows without shot level datass
+df = df.dropna(subset=["stone_3_x"])
+```
+
+```{python}
+df.info()
+```
+
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+df_pp = df[df["powerplay"] != 0]
+df_non_pp = df[df["powerplay"] == 0]
+
+cols_to_plot = ["end_id"]
+
+for col in cols_to_plot:
+    # counts per value
+    counts_pp = df_pp[col].value_counts().sort_index()
+    counts_non_pp = df_non_pp[col].value_counts().sort_index()
+    
+    # all unique values
+    values = sorted(df[col].dropna().unique())
+    
+    # proportions
+    props_pp = [counts_pp.get(v, 0) / counts_pp.sum() for v in values]
+    props_non_pp = [counts_non_pp.get(v, 0) / counts_non_pp.sum() for v in values]
+    
+    # positions for grouped bars
+    x = np.arange(len(values))
+    width = 0.4
+    
+    plt.bar(x - width/2, props_non_pp, width, label="Non-Powerplay")
+    plt.bar(x + width/2, props_pp, width, label="Powerplay")
+    
+    plt.xticks(x, values)
+    plt.xlabel(col)
+    plt.ylabel("Proportion")
+    plt.title(f"{col}: Powerplay vs Non-Powerplay")
+    plt.legend()
+    plt.show()
+
+
+```
+
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Columns
+col_to_plot = "result"
+
+# Split datasets
+df_pp = df[df["powerplay"] != 0]
+df_non_pp = df[df["powerplay"] == 0]
+
+def plot_result_proportions(df_subset, title):
+    # Compute proportions for hammer and non-hammer
+    props = df_subset.groupby('hammer')[col_to_plot].value_counts(normalize=True).unstack()
+    
+    # Plot
+    props.T.plot(kind='bar', figsize=(8,5))
+    plt.title(title)
+    plt.xlabel(col_to_plot)
+    plt.ylabel("Proportion")
+    plt.xticks(rotation=0)
+    plt.legend(title="Hammer", labels=["Non-Hammer", "Hammer"])
+    plt.show()
+
+# Powerplay ends
+plot_result_proportions(df_pp, "Powerplay Ends: Hammer vs Non-Hammer")
+
+# Non-Powerplay ends
+plot_result_proportions(df_non_pp, "Non-Powerplay Ends: Hammer vs Non-Hammer")
+
+```
+
+```{python}
+task_labels = {
+    "0": "Draw",
+    "1": "Front",
+    "2": "Guard",
+    "3": "Raise / Tap-back",
+    "4": "Wick / Soft Peeling",
+    "5": "Freeze",
+    "6": "Take-out",
+    "7": "Hit and Roll",
+    "8": "Clearing",
+    "9": "Double Take-out",
+    "10": "Promotion Take-out",
+    "11": "through",
+    "13": "no statistics"
+}
+col_to_plot = "task"  # your single task column
+
+def plot_task_proportions(df_subset, title):
+    # Map task codes to labels
+    df_subset = df_subset.copy()
+    df_subset[col_to_plot] = df_subset[col_to_plot].astype(str).map(task_labels)
+    
+    # Compute proportions for hammer and non-hammer
+    props = df_subset.groupby('hammer')[col_to_plot].value_counts(normalize=True).unstack()
+    
+    # Sort by total counts (sum across hammer/non-hammer)
+    props = props.T
+    props['total'] = props.sum(axis=1)
+    props = props.sort_values('total', ascending=False)
+    props = props.drop(columns='total')
+    
+    # Plot horizontal bars
+    props.plot(kind='barh', figsize=(8,6))
+    plt.title(title)
+    plt.xlabel("Proportion")
+    plt.ylabel(col_to_plot)
+    plt.legend(title="Hammer", labels=["Non-Hammer", "Hammer"])
+    plt.gca().invert_yaxis()  # optional: largest on top
+    plt.show()
+
+# Powerplay ends
+plot_task_proportions(df_pp, "Powerplay Ends: Hammer vs Non-Hammer (Task)")
+
+# Non-Powerplay ends
+plot_task_proportions(df_non_pp, "Non-Powerplay Ends: Hammer vs Non-Hammer (Task)")
+
+
+```
+
+
+```{python}
+# Count occurrences of each nation
+counts = df['noc'].value_counts()
+
+# Plot horizontal bar chart
+counts.plot(kind='barh', edgecolor='black')
+plt.xlabel('Count')
+plt.ylabel('Nation')
+plt.title('Shot Counts of Different Nations')
+plt.show()
+```
+
+```{python}
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+sns.boxplot(x='powerplay_value', y='score_hammer', data=end_level)
+plt.ylabel("Hammer Score per End")
+plt.xlabel("Powerplay Type")
+plt.title("Hammer Score by Powerplay Type")
+plt.show()
+
+```
+
+```{python}
+summary = end_level.groupby('powerplay_value')['score_hammer'].agg(
+    count='count',
+    mean='mean',
+    std='std',
+    var='var',
+    min='min',
+    q25=lambda x: x.quantile(0.25),
+    median='median',
+    q75=lambda x: x.quantile(0.75),
+    max='max'
+)
+
+print(summary)
+
+
+```
+
+
+```{python}
+from scipy.stats import mannwhitneyu
+
+# Group points
+none_points = end_level[end_level['powerplay_value']==0]['score_hammer']
+right_points = end_level[end_level['powerplay_value']==1]['score_hammer']
+left_points = end_level[end_level['powerplay_value']==2]['score_hammer']
+
+# Test left vs none
+stat, p_left = mannwhitneyu(left_points, none_points, alternative='greater')
+print("Left vs None p-value:", p_left)
+
+# Test right vs none
+stat, p_right = mannwhitneyu(right_points, none_points, alternative='greater')
+print("Right vs None p-value:", p_right)
+
+
+```
+
+
+```{python}
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
+# Poisson regression
+model = smf.glm(
+    formula="score_hammer ~ C(powerplay_value) + cumulative_score_diff + end_id",
+    data=end_level,
+    family=sm.families.Poisson()  
+).fit()
+
+print(model.summary())
+
+```
+
+
+# Analyzing First 
+
+```{python}
+df_fs = df[df['shot_id']==7]
+
+stones_to_drop = [3, 4, 5, 6, 9, 10, 11, 12]
+
+# Generate column names
+cols_to_drop = []
+for n in stones_to_drop:
+    cols_to_drop.append(f'stone_{n}_x')
+    cols_to_drop.append(f'stone_{n}_y')
+
+# Drop columns
+df_fs = df_fs.drop(columns=cols_to_drop)
+
+condition = (df['stone_2_x'] == 0) & (df['stone_2_y'] == 0)
+#df_fs.loc[condition, ['stone_2_x', 'stone_8_x']] = df_fs.loc[condition, ['stone_8_x', 'stone_2_x']].values
+#df_fs.loc[condition, ['stone_2_y', 'stone_8_y']] = df_fs.loc[condition, ['stone_8_y', 'stone_2_y']].values
+df_fs.loc[:, 'stone_8_x'] = df_fs['stone_8_x'].replace(4095, 0)
+df_fs.loc[:, 'stone_8_y'] = df_fs['stone_8_y'].replace(4095, 0)
+
+
+```
+
+```{python}
+import matplotlib.pyplot as plt
+
+# Coordinates
+CENTERLINE_X = 750
+BACKLINE_Y = 200
+HOGLINE_Y = 2900
+BUTTON_X, BUTTON_Y = 750, 800
+
+# House radii in coordinate units
+FOUR_FOOT_RADIUS = 200
+EIGHT_FOOT_RADIUS = 400
+TWELVE_FOOT_RADIUS = 600
+BUTTON_RADIUS = 50  # small visible dot for the button
+
+# Sheet width (15 ft, scale: 100 units/ft)
+SIDELINE_LEFT = 0
+SIDELINE_RIGHT = 1500
+
+# ---- Plot ----
+fig, ax = plt.subplots(figsize=(6,12))
+
+# Sidelines
+ax.axvline(SIDELINE_LEFT, linestyle='-', linewidth=1, color='green')
+ax.axvline(SIDELINE_RIGHT, linestyle='-', linewidth=1, color='green')
+ax.text(SIDELINE_LEFT + 10, 3400, "Left Sideline", color='green')
+ax.text(SIDELINE_RIGHT - 150, 3400, "Right Sideline", color='green')
+
+# Centerline
+ax.axvline(CENTERLINE_X, linestyle='--', linewidth=1, color='gray')
+ax.text(CENTERLINE_X + 10, 3400, "Centerline", color='gray')
+
+# T-line
+ax.axhline(BUTTON_Y, linestyle='--', linewidth=1, color='gray')
+ax.text(SIDELINE_LEFT + 10, BUTTON_Y + 20, "T-Line", color='gray')
+
+# Backline
+ax.axhline(BACKLINE_Y, linestyle='-', linewidth=1, color='red')
+ax.text(CENTERLINE_X + 10, BACKLINE_Y + 20, "Back Line", color='red')
+
+# Hogline
+ax.axhline(HOGLINE_Y, linestyle='-', linewidth=1, color='blue')
+ax.text(CENTERLINE_X + 10, HOGLINE_Y + 20, "Hog Line", color='blue')
+
+# House circles
+for r, label in zip([TWELVE_FOOT_RADIUS, EIGHT_FOOT_RADIUS, FOUR_FOOT_RADIUS],
+                    ["12 ft", "8 ft", "4 ft"]):
+    circle = plt.Circle((BUTTON_X, BUTTON_Y), r, fill=False, color='black', linewidth=1.5)
+    ax.add_patch(circle)
+    ax.text(BUTTON_X + r + 10, BUTTON_Y, label)
+
+# Button
+ax.scatter(BUTTON_X, BUTTON_Y, s=50, color='red', zorder=5)
+ax.text(BUTTON_X + 10, BUTTON_Y, "Button", color='red')
+
+# Formatting
+ax.set_aspect('equal')
+ax.set_xlim(0, 1500)
+ax.set_ylim(0, 3500)
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_title('Curling Sheet Schematic')
+
+plt.show()
+
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(6,12))
+
+# ---- Sheet again ----
+ax.axvline(CENTERLINE_X, linestyle='--', linewidth=1)
+ax.axhline(BUTTON_Y, linestyle='--', linewidth=1)
+ax.axhline(BACKLINE_Y, linewidth=1)
+ax.axhline(HOGLINE_Y, linewidth=1)
+
+for r in [TWELVE_FOOT_RADIUS, EIGHT_FOOT_RADIUS, FOUR_FOOT_RADIUS, BUTTON_RADIUS]:
+    ax.add_patch(plt.Circle((BUTTON_X, BUTTON_Y), r, fill=False))
+
+ax.scatter(BUTTON_X, BUTTON_Y, s=20)
+
+# ---- Stones ----
+for val in df_fs['powerplay'].unique():
+    mask = df_fs['powerplay'] == val
+    ax.scatter(
+        df_fs.loc[mask, 'stone_1_x'],
+        df_fs.loc[mask, 'stone_1_y'],
+        s=50,
+        alpha=0.6   ,
+        label=f'Powerplay {val}'
+    )
+
+ax.set_aspect('equal')
+ax.set_xlim(0, 1500)
+ax.set_ylim(0, 3500)
+
+ax.set_title('Curling Sheet with Stone Positions')
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.legend(title='Powerplay Status', loc='upper right')
+
+plt.show()
+
+```
