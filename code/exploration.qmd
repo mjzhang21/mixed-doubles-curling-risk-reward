@@ -322,129 +322,521 @@ print(model.summary())
 # Analyzing First 
 
 ```{python}
-df_fs = df[df['shot_id']==7]
+import numpy as np
+import pandas as pd
 
-stones_to_drop = [3, 4, 5, 6, 9, 10, 11, 12]
+def build_df_fs(df):
+    """
+    Build the shot-7 curling dataframe with stone cleanup,
+    stone swapping, and powerplay reassignment.
 
-# Generate column names
-cols_to_drop = []
-for n in stones_to_drop:
-    cols_to_drop.append(f'stone_{n}_x')
-    cols_to_drop.append(f'stone_{n}_y')
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Original raw dataframe
 
-# Drop columns
-df_fs = df_fs.drop(columns=cols_to_drop)
+    Returns
+    -------
+    df_fs : pandas.DataFrame
+        Processed dataframe for shot_id == 7
+    """
 
-condition = (df['stone_2_x'] == 0) & (df['stone_2_y'] == 0)
-#df_fs.loc[condition, ['stone_2_x', 'stone_8_x']] = df_fs.loc[condition, ['stone_8_x', 'stone_2_x']].values
-#df_fs.loc[condition, ['stone_2_y', 'stone_8_y']] = df_fs.loc[condition, ['stone_8_y', 'stone_2_y']].values
-df_fs.loc[:, 'stone_8_x'] = df_fs['stone_8_x'].replace(4095, 0)
-df_fs.loc[:, 'stone_8_y'] = df_fs['stone_8_y'].replace(4095, 0)
+    # Filter to shot 7
+    df_fs = df[df['shot_id'] == 7].copy()
+
+    # Stones to drop
+    stones_to_drop = [3, 4, 5, 6, 9, 10, 11, 12]
+
+    cols_to_drop = []
+    for n in stones_to_drop:
+        cols_to_drop.append(f'stone_{n}_x')
+        cols_to_drop.append(f'stone_{n}_y')
+
+    df_fs = df_fs.drop(columns=cols_to_drop)
+
+    # Swap stone 2 and 8 if stone 2 is missing
+    condition = (df_fs['stone_2_x'] == 0)
+
+    df_fs.loc[condition, ['stone_2_x', 'stone_8_x']] = (
+        df_fs.loc[condition, ['stone_8_x', 'stone_2_x']].values
+    )
+    df_fs.loc[condition, ['stone_2_y', 'stone_8_y']] = (
+        df_fs.loc[condition, ['stone_8_y', 'stone_2_y']].values
+    )
+
+    # Drop stone 8
+    df_fs = df_fs.drop(columns=['stone_8_x', 'stone_8_y'])
+
+    # Replace sentinel values with NaN
+    cols = [
+        'stone_1_x', 'stone_1_y',
+        'stone_2_x', 'stone_2_y',
+        'stone_7_x', 'stone_7_y'
+    ]
+    df_fs[cols] = df_fs[cols].replace([4095, 0], np.nan)
+
+    # Powerplay reassignment
+    coords_to_2 = [(350, 850), (411, 1916)]
+    coords_to_1 = [(1150, 850), (1089, 1916)]
+
+    stone1 = df_fs[['stone_1_x', 'stone_1_y']].apply(tuple, axis=1)
+    stone7 = df_fs[['stone_7_x', 'stone_7_y']].apply(tuple, axis=1)
+
+    mask_2 = stone1.isin(coords_to_2) | stone7.isin(coords_to_2)
+    mask_1 = stone1.isin(coords_to_1) | stone7.isin(coords_to_1)
+
+    df_fs.loc[(df_fs['powerplay'] == 1) & mask_2, 'powerplay'] = 2
+    df_fs.loc[(df_fs['powerplay'] == 2) & mask_1, 'powerplay'] = 1
+
+    return df_fs
 
 
 ```
+
+```{python}
+df_fs = build_df_fs(df)
+```
+
+Preplaced stone coords:
+Left: (350,850), (411, 1916)
+Right: (1150,850), (1089, 1916)
+
 
 ```{python}
 import matplotlib.pyplot as plt
+import pandas as pd
 
-# Coordinates
-CENTERLINE_X = 750
-BACKLINE_Y = 200
-HOGLINE_Y = 2900
-BUTTON_X, BUTTON_Y = 750, 800
+def plot_curling_sheet(df, pre=['stone_1','stone_7'], shot=['stone_2'],
+                       pre_color='red', shot_color='blue'):
+    """
+    Plots a curling sheet with stones from a DataFrame.
 
-# House radii in coordinate units
-FOUR_FOOT_RADIUS = 200
-EIGHT_FOOT_RADIUS = 400
-TWELVE_FOOT_RADIUS = 600
-BUTTON_RADIUS = 50  # small visible dot for the button
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The dataframe containing stone coordinates.
+        Must have columns like 'stone_1_x', 'stone_1_y', etc.
+    pre : list of str, optional
+        List of preplaced stone column prefixes (default ['stone_1','stone_7']).
+    shot : list of str, optional
+        List of shot stone column prefixes (default ['stone_2']).
+    pre_color : str, optional
+        Color for preplaced stones (default 'red').
+    shot_color : str, optional
+        Color for shot stones (default 'blue').
 
-# Sheet width (15 ft, scale: 100 units/ft)
-SIDELINE_LEFT = 0
-SIDELINE_RIGHT = 1500
+    Notes
+    -----
+    - The function automatically draws the curling sheet lines and house circles.
+    - Preplaced stones are plotted as a single color with one legend entry.
+    - Shot stones are plotted individually with separate labels.
+    """
+    
+    # Sheet coordinates and house radii
+    CENTER_X, BUTTON_Y, BACK_Y, HOG_Y = 750, 800, 200, 2900
+    radii = [600, 400, 200, 50]  # house circles
+    
+    fig, ax = plt.subplots(figsize=(6,12))
+    
+    # Draw sheet lines
+    ax.axvline(CENTER_X, linestyle='--', linewidth=1)
+    ax.axhline(BUTTON_Y, linestyle='--', linewidth=1)
+    ax.axhline(BACK_Y, linewidth=1)
+    ax.axhline(HOG_Y, linewidth=1)
+    
+    # Draw house circles
+    for r in radii:
+        ax.add_patch(plt.Circle((CENTER_X, BUTTON_Y), r, fill=False))
+    
+    # Plot preplaced stones
+    pre_x = pd.concat([df[f'{s}_x'] for s in pre])
+    pre_y = pd.concat([df[f'{s}_y'] for s in pre])
+    ax.scatter(pre_x, pre_y, s=50, alpha=0.5, color=pre_color, label='Preplaced')
+    
+    # Plot shot stones
+    for s in shot:
+        ax.scatter(df[f'{s}_x'], df[f'{s}_y'], s=50, alpha=0.5, color=shot_color, label=s.capitalize())
+    
+    # Formatting
+    ax.set_aspect('equal')
+    ax.set_xlim(0,1500)
+    ax.set_ylim(0,3000)
+    ax.set_title('Curling Sheet')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.legend(title='Stone')
+    
+    plt.show()
 
-# ---- Plot ----
-fig, ax = plt.subplots(figsize=(6,12))
+```
 
-# Sidelines
-ax.axvline(SIDELINE_LEFT, linestyle='-', linewidth=1, color='green')
-ax.axvline(SIDELINE_RIGHT, linestyle='-', linewidth=1, color='green')
-ax.text(SIDELINE_LEFT + 10, 3400, "Left Sideline", color='green')
-ax.text(SIDELINE_RIGHT - 150, 3400, "Right Sideline", color='green')
 
-# Centerline
-ax.axvline(CENTERLINE_X, linestyle='--', linewidth=1, color='gray')
-ax.text(CENTERLINE_X + 10, 3400, "Centerline", color='gray')
+```{python}
+df_plot = df_fs[df_fs['powerplay'] == 0]
+print("No powerplay")
+plot_curling_sheet(df_plot)
 
-# T-line
-ax.axhline(BUTTON_Y, linestyle='--', linewidth=1, color='gray')
-ax.text(SIDELINE_LEFT + 10, BUTTON_Y + 20, "T-Line", color='gray')
+df_plot = df_fs[df_fs['powerplay'] == 1]
+print("powerplay - right")
+plot_curling_sheet(df_plot)
 
-# Backline
-ax.axhline(BACKLINE_Y, linestyle='-', linewidth=1, color='red')
-ax.text(CENTERLINE_X + 10, BACKLINE_Y + 20, "Back Line", color='red')
+df_plot = df_fs[df_fs['powerplay'] == 2]
+print("powerplay - left")
+plot_curling_sheet(df_plot)
+```
 
-# Hogline
-ax.axhline(HOGLINE_Y, linestyle='-', linewidth=1, color='blue')
-ax.text(CENTERLINE_X + 10, HOGLINE_Y + 20, "Hog Line", color='blue')
+```{python}
+cols = [
+        'stone_1_x', 'stone_1_y',
+        'stone_2_x', 'stone_2_y',
+        'stone_7_x', 'stone_7_y'
+    ]
+df_plot = df_fs[(df_fs[cols].isna()).any(axis=1)]
+plot_curling_sheet(df_plot)
+```
+When any stones are knocked out, most of the time, the preplaced stones are still
+on the board while the first shot is knocked out of bounds.
 
-# House circles
-for r, label in zip([TWELVE_FOOT_RADIUS, EIGHT_FOOT_RADIUS, FOUR_FOOT_RADIUS],
-                    ["12 ft", "8 ft", "4 ft"]):
-    circle = plt.Circle((BUTTON_X, BUTTON_Y), r, fill=False, color='black', linewidth=1.5)
-    ax.add_patch(circle)
-    ax.text(BUTTON_X + r + 10, BUTTON_Y, label)
+Lets focus on powerplay left:
 
-# Button
-ax.scatter(BUTTON_X, BUTTON_Y, s=50, color='red', zorder=5)
-ax.text(BUTTON_X + 10, BUTTON_Y, "Button", color='red')
+```{python}
+ends_df = pd.read_csv("../data/ends_df.csv")
+df_pp2 = df_fs[df_fs['powerplay'] == 2]
+df_pp2 = df_pp2.merge(
+    ends_df[['match_id','end_id','cumulative_score_diff','weighted_score_diff']],
+    on=['match_id', 'end_id'],
+    how='left'
+)
 
-# Formatting
-ax.set_aspect('equal')
-ax.set_xlim(0, 1500)
-ax.set_ylim(0, 3500)
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_title('Curling Sheet Schematic')
+df_pp2[['stone_1_x','stone_2_x','stone_7_x']] = (
+    df_pp2[['stone_1_x','stone_2_x','stone_7_x']].fillna(-100)
+)
+df_pp2[['stone_1_y','stone_2_y','stone_7_y']] = (
+    df_pp2[['stone_1_y','stone_2_y','stone_7_y']].fillna(-100)
+)
 
+df_pp2.info()
+```
+
+
+# Clustering
+```{python}
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Select features
+categorical_features = ['task']  # treat as categorical
+numeric_features = [
+    'stone_1_x', 'stone_1_y', 
+    'stone_2_x', 'stone_2_y', 
+    'stone_7_x', 'stone_7_y', 
+    'weighted_score_diff', 'points','end_id'
+]
+
+# One-hot encode categorical features
+X_cat = pd.get_dummies(df_pp2[categorical_features], columns=categorical_features, prefix=categorical_features)
+X_num = df_pp2[numeric_features].copy()
+
+# Combine numeric and one-hot features
+X_combined = pd.concat([X_num, X_cat], axis=1)
+
+# Standardize only numeric columns (keep one-hot as 0/1)
+scaler = StandardScaler()
+X_scaled_num = scaler.fit_transform(X_num)
+X_scaled = pd.concat([pd.DataFrame(X_scaled_num, columns=numeric_features, index=df_pp2.index), X_cat], axis=1)
+
+```
+```{python}
+# Import the PCA module
+from sklearn.decomposition import PCA
+import numpy as np
+
+# Initialize PCA without specifying the number of components
+pca = PCA()
+X_pca = pca.fit_transform(X_scaled)
+
+# Calculate the explained variance ratio for each component
+explained_variance = pca.explained_variance_ratio_
+cumulative_variance = np.cumsum(explained_variance)
+
+# Plot variance contributions
+fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+
+# Individual explained variance
+axes[0].plot(
+    np.arange(1, len(explained_variance) + 1),
+    explained_variance,
+    marker="o"
+)
+axes[0].set_xlabel("Principal Component")
+axes[0].set_ylabel("Explained Variance Ratio")
+axes[0].set_title("Variance by Component")
+
+
+# Cumulative explained variance
+axes[1].plot(
+    np.arange(1, len(cumulative_variance) + 1),
+    cumulative_variance,
+    marker="o"
+)
+axes[1].set_xlabel("Number of Components")
+axes[1].set_ylabel("Cumulative Explained Variance")
+axes[1].set_title("Cumulative Variance")
+
+fig.tight_layout()
+plt.show()
+```
+
+```{python}
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+
+# Range of cluster numbers to try
+k_values = range(1, 10)
+inertia = []
+
+for k in k_values:
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    kmeans.fit(X_scaled)
+    inertia.append(kmeans.inertia_)
+
+# Plot
+plt.figure(figsize=(6,4))
+plt.plot(k_values, inertia, marker='o')
+plt.xlabel('Number of clusters (k)')
+plt.ylabel('Inertia (Sum of squared distances)')
+plt.title('Elbow Method to Choose k')
+plt.xticks(k_values)
+plt.show()
+```
+
+```{python}
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+import numpy as np
+
+sil_scores = []
+K_range = range(2, 11)
+
+for k in K_range:
+    km = KMeans(
+        n_clusters=k,
+        n_init=10,
+        random_state=42
+    ).fit(X_scaled)  # use scaled data
+    sil = silhouette_score(X_scaled, km.labels_)
+    sil_scores.append(sil)
+
+# Find best K
+best_k = K_range[np.argmax(sil_scores)]
+print(f"Best K by silhouette score: {best_k}")
+
+# Print scores
+print("Silhouette Scores by K:")
+for k, s in zip(K_range, sil_scores):
+    print(f"K = {k}: {s:.3f}")
+
+# Plot
+plt.figure(figsize=(6,4))
+plt.plot(list(K_range), sil_scores, marker="o")
+plt.title("Silhouette Score vs K")
+plt.xlabel("Number of clusters (K)")
+plt.ylabel("Silhouette Score")
+
+# Mark the best K
+plt.axvline(best_k, color="tab:red", ls="--", label=f"Best K ≈ {best_k}")
+plt.scatter(best_k, max(sil_scores), color="red", s=80, zorder=5)
+
+# Optional: annotate best K
+plt.text(best_k + 0.2, max(sil_scores)-0.02, f"K={best_k}", color="black", fontsize=10)
+
+plt.legend()
+plt.grid(alpha=0.3)
 plt.show()
 
 ```
 
+
+
 ```{python}
-fig, ax = plt.subplots(figsize=(6,12))
+from sklearn.cluster import KMeans
 
-# ---- Sheet again ----
-ax.axvline(CENTERLINE_X, linestyle='--', linewidth=1)
-ax.axhline(BUTTON_Y, linestyle='--', linewidth=1)
-ax.axhline(BACKLINE_Y, linewidth=1)
-ax.axhline(HOGLINE_Y, linewidth=1)
+kmeans = KMeans(n_clusters=5, random_state=42)  # choose number of clusters
+clusters = kmeans.fit_predict(X_scaled)
 
-for r in [TWELVE_FOOT_RADIUS, EIGHT_FOOT_RADIUS, FOUR_FOOT_RADIUS, BUTTON_RADIUS]:
-    ax.add_patch(plt.Circle((BUTTON_X, BUTTON_Y), r, fill=False))
+# Add cluster labels to the DataFrame
+df_pp2['cluster'] = clusters
+```
+```{python}
+from mpl_toolkits.mplot3d import Axes3D
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
 
-ax.scatter(BUTTON_X, BUTTON_Y, s=20)
+# Apply PCA for 2D and 3D projections
+pca_2d = PCA(n_components=2)
+X_pca_2d = pca_2d.fit_transform(X_scaled)
 
-# ---- Stones ----
-for val in df_fs['powerplay'].unique():
-    mask = df_fs['powerplay'] == val
-    ax.scatter(
-        df_fs.loc[mask, 'stone_1_x'],
-        df_fs.loc[mask, 'stone_1_y'],
-        s=50,
-        alpha=0.6   ,
-        label=f'Powerplay {val}'
-    )
-
-ax.set_aspect('equal')
-ax.set_xlim(0, 1500)
-ax.set_ylim(0, 3500)
-
-ax.set_title('Curling Sheet with Stone Positions')
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.legend(title='Powerplay Status', loc='upper right')
-
+# 2D projection
+plt.figure(figsize=(8, 6))
+scatter = plt.scatter(X_pca_2d[:, 0], X_pca_2d[:, 1], c=df_pp2['cluster'],
+                      s=15, alpha=0.7)
+plt.xlabel("Principal Component 1")
+plt.ylabel("Principal Component 2")
+plt.title("2D PCA Projection of Curling Data")
+plt.colorbar(scatter, label="Cluster Label")
 plt.show()
 
+
+```
+
+
+
+```{python}
+from sklearn.decomposition import PCA
+import pandas as pd
+import numpy as np
+
+# Apply PCA (e.g., 2 components)
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_scaled)
+
+# Loadings: how each original variable contributes to each PC
+loadings = pd.DataFrame(
+    pca.components_.T,
+    columns=[f'PC{i+1}' for i in range(pca.n_components_)],
+    index=X_scaled.columns
+)
+pd.options.display.float_format = '{:.3f}'.format
+# Sort by absolute contribution to PC1
+print("Top contributors to PC1:")
+print(loadings['PC1'].abs().sort_values(ascending=False))
+
+# Sort by absolute contribution to PC2
+print("\nTop contributors to PC2:")
+print(loadings['PC2'].abs().sort_values(ascending=False))
+
+# Explained variance ratio
+print("\nExplained variance ratio per PC:")
+print(pca.explained_variance_ratio_)
+```
+
+```{python}
+
+import hdbscan
+
+# Create the HDBSCAN model
+clusterer = hdbscan.HDBSCAN(
+    min_cluster_size=20,   # smallest size a cluster can be
+    min_samples=5,         # controls how conservative the clustering is
+)
+
+# Fit on your scaled data
+clusterer.fit(X_scaled)
+
+# Extract labels
+df_pp2['hdbscan_cluster'] = clusterer.labels_
+n_clusters = len(set(clusterer.labels_)) - (1 if -1 in clusterer.labels_ else 0)
+print(f"Estimated clusters: {n_clusters}")
+df_pp2['hdbscan_cluster'].value_counts()
+```
+```{python}
+from sklearn.metrics import silhouette_score
+import numpy as np
+
+# Only include non-noise points
+mask = df_pp2['hdbscan_cluster'] != -1
+sil_score = silhouette_score(X_scaled[mask], df_pp2.loc[mask, 'hdbscan_cluster'])
+print(f"Silhouette Score: {sil_score:.3f}")
+```
+
+```{python}
+from umap.umap_ import UMAP
+import matplotlib.pyplot as plt
+
+# Create a UMAP object
+umap_2d = UMAP(
+    n_components=2,        # 2D projection
+    n_neighbors=30,        # how many neighbors to consider for local structure
+    min_dist=0.6,          # controls spacing between points in the embedding
+    random_state=42
+)
+
+# Fit and transform
+X_umap_2d = umap_2d.fit_transform(X_scaled)
+plt.figure(figsize=(8,6))
+plt.scatter(
+    X_umap_2d[:, 0], 
+    X_umap_2d[:, 1],
+    c=df_pp2['hdbscan_cluster'],  # color by HDBSCAN clusters
+    cmap='tab20',
+    s=20,
+    alpha=0.7
+)
+plt.colorbar(label='HDBSCAN Cluster')
+plt.title('HDBSCAN Clusters Visualized with UMAP')
+plt.xlabel('UMAP 1')
+plt.ylabel('UMAP 2')
+plt.show()
+```
+
+
+
+```{python}
+import pandas as pd
+import numpy as np
+from sklearn.metrics import silhouette_samples, silhouette_score
+
+# Assuming HDBSCAN is already fit and labels are in df_pp2['hdbscan_cluster']
+labels = df_pp2['hdbscan_cluster'].values
+X = X_scaled  # your scaled feature matrix
+
+# 1. Cluster sizes
+cluster_sizes = pd.Series(labels).value_counts().sort_index()
+print("Cluster sizes:")
+print(cluster_sizes)
+
+# 2. Fraction of noise
+noise_fraction = np.sum(labels == -1) / len(labels)
+print(f"\nFraction of points labeled as noise: {noise_fraction:.3f}")
+
+# 3. Silhouette scores
+# Only compute for non-noise points
+mask = labels != -1
+sil_vals = silhouette_samples(X[mask], labels[mask])
+avg_silhouette = sil_vals.mean()
+print(f"\nAverage silhouette score (non-noise points): {avg_silhouette:.3f}")
+
+# 4. Silhouette per cluster
+sil_per_cluster = pd.Series(sil_vals, index=pd.Series(labels[mask]))
+print("\nAverage silhouette per cluster:")
+print(sil_per_cluster.groupby(sil_per_cluster.index).mean().sort_values(ascending=False))
+
+# 5. Optional: cluster probability stats (from HDBSCAN)
+if hasattr(clusterer, 'probabilities_'):
+    probs = clusterer.probabilities_
+    avg_prob_per_cluster = pd.Series(probs[mask], index=pd.Series(labels[mask])).groupby(level=0).mean()
+    print("\nAverage cluster membership probability per cluster:")
+    print(avg_prob_per_cluster.sort_values(ascending=False))
+
+```
+
+```{python}
+from sklearn.manifold import TSNE
+tsne = TSNE(
+    n_components=2,
+    perplexity=60,
+    learning_rate='auto',
+    init='random',
+    random_state=42
+)
+X_tsne = tsne.fit_transform(X_scaled)
+plt.figure(figsize=(8, 4))
+plt.scatter(X_tsne[:, 0], X_tsne[:, 1], c=df_pp2['hdbscan_cluster'], cmap='viridis')
+plt.title("Clusters visualized with t-SNE")
+plt.xlabel("t-SNE Component 1")
+plt.ylabel("t-SNE Component 2")
+plt.show()
 ```
