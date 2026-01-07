@@ -114,34 +114,45 @@ Create hammer column that alternates according to curling rules.
 ```{python}
 import pandas as pd
 
-df = df.sort_values(["match_id"])
+df = df.sort_values(["match_id", "end_id"])
 
-df["hammer"] = -1 
+df["hammer"] = -1  # 1 = team1, 0 = team2
 
-for mid, game in df.groupby(["match_id"]):
+for mid, game in df.groupby("match_id"):
     game = game.sort_values("end_id")
-    
+
     team1 = game["team_id1"].iloc[0]
     team2 = game["team_id2"].iloc[0]
 
-    lsfe = game["lsfe"].iloc[0] 
-    hammer_val = lsfe  
-    
-    # Loop through ends
+    # ----- End 1 -----
+    # lsfe indicates which team has the choice
+    # assume choice team TAKES hammer
+    hammer_team = team1 if game["lsfe"].iloc[0] == 1 else team2
+
     for eid, end in game.groupby("end_id"):
         # Assign hammer for this end
         df.loc[end.index, "hammer"] = end["team_id"].apply(
-        lambda tid: hammer_val if tid == team1 else (1 - hammer_val)
-    )
-        
-        # Compute points for each team in this end
-        points_team1 = end.loc[end["team_id"] == team1, "result"].iloc[0]
-        points_team2 = end.loc[end["team_id"] == team2, "result"].iloc[0]
-        
-        # If hammer team scored, switch hammer for next end
-        if (hammer_val == 1 and points_team1 > 0) or \
-            (hammer_val == 0 and points_team2 > 0):
-            hammer_val = 1 - hammer_val 
+            lambda tid: 1 if tid == hammer_team else 0
+        )
+
+        # Points scored
+        pts1 = end.loc[end["team_id"] == team1, "result"].iloc[0]
+        pts2 = end.loc[end["team_id"] == team2, "result"].iloc[0]
+
+        # ----- Determine choice team for NEXT end -----
+        if pts1 == 0 and pts2 == 0:
+            # Blank end: hammer team loses hammer → opponent gets choice
+            choice_team = team2 if hammer_team == team1 else team1
+        else:
+            # Scoring end: non-scoring team gets choice
+            if pts1 > 0:
+                choice_team = team2
+            else:
+                choice_team = team1
+
+        # ----- Choice team decides hammer for next end -----
+        # Assumption: choice team takes hammer
+        hammer_team = choice_team
 
 ```
 ```{python}
@@ -310,6 +321,7 @@ for (mid, eid), game in df_match.groupby(['match_id', 'end_id']):
     if count >= 10:
         break
 ```
+
 
 EXPLORATION
 
@@ -884,5 +896,14 @@ shap_values = explainer(X_test, check_additivity=False)
 
 # For class 1 ("steal")
 shap.summary_plot(shap_values[:, :, 1], X_test)
+xgb_model = classifiers['XGBoost']
+
+# Generic explainer
+explainer = shap.Explainer(xgb_model, X_train)  # X_train as background
+
+shap_values = explainer(X_test, check_additivity=False)
+
+# For class 1 ("steal")
+shap.summary_plot(shap_values, X_test)
 
 ```
