@@ -521,58 +521,56 @@ df_fs.loc[
     (df_fs['match_id'] == '24250026_4_5') & (df_fs['end_id'] == 6),
     'powerplay'
 ] = 1
-df_pp2 = df_fs[(df_fs['powerplay'] == 2)]
 
-```
-```{python}
-df_pp2_na = df_pp2[df_pp2[cols].isna().any(axis=1)]
-df_pp2 = df_pp2.dropna(subset=cols)
+# --- All powerplay ends ---
+df_pp = df_fs.loc[df_fs['powerplay'] != 0].copy()
 
+# --- Merge end-level variables ---
+end_vars = [
+    'match_id', 'end_id',
+    'cumulative_score_diff',
+    'score_hammer',
+    'score_nonhammer'
+]
 
-```
-```{python}
-df_pp2 = df_pp2.merge(
-    end_level[['match_id','end_id','cumulative_score_diff',
-    'score_hammer','score_nonhammer']],
+df_pp = df_pp.merge(
+    end_level[end_vars],
     on=['match_id', 'end_id'],
     how='left'
 )
 
-df_pp2[['stone_1_x','stone_2_x','stone_7_x']] = (
-    df_pp2[['stone_1_x','stone_2_x','stone_7_x']].fillna(-100)
-)
-df_pp2[['stone_1_y','stone_2_y','stone_7_y']] = (
-    df_pp2[['stone_1_y','stone_2_y','stone_7_y']].fillna(-100)
-)
 
-df_pp2.info()
 ```
 
 ```{python}
+# --- Sentinel masks (on df_pp) ---
+mask_1 = (df_pp['stone_1_x'] == 350) & (df_pp['stone_1_y'] == 850)
+mask_7 = (df_pp['stone_7_x'] == 411) & (df_pp['stone_7_y'] == 1916)
 
-s1x = df_pp2['stone_1_x'].copy()
-s1y = df_pp2['stone_1_y'].copy()
-s7x = df_pp2['stone_7_x'].copy()
-s7y = df_pp2['stone_7_y'].copy()
-
-# Masks for sentinel positions
-mask_1 = (s1x == 350) & (s1y == 850)
-mask_7 = (s7x == 411) & (s7y == 1916)
-
-# Combine: swap if EITHER condition holds
 swap_mask = mask_1 | mask_7
 
-# Swap coordinates
-df_pp2.loc[swap_mask, 'stone_1_x'] = s7x[swap_mask]
-df_pp2.loc[swap_mask, 'stone_1_y'] = s7y[swap_mask]
-df_pp2.loc[swap_mask, 'stone_7_x'] = s1x[swap_mask]
-df_pp2.loc[swap_mask, 'stone_7_y'] = s1y[swap_mask]
+# --- Swap stone 1 and stone 7 coordinates ---
+cols_1 = ['stone_1_x', 'stone_1_y']
+cols_7 = ['stone_7_x', 'stone_7_y']
 
-# How many rows were swapped
+df_pp.loc[swap_mask, cols_1 + cols_7] = (
+    df_pp.loc[swap_mask, cols_7 + cols_1].values
+)
+
 swap_mask.sum()
+
 ```
 
+```{python}
+# --- Subset: powerplay = 2 ---
+df_pp2 = df_pp.loc[df_pp['powerplay'] == 2].copy()
 
+# --- Drop rows with missing stone data ---
+df_pp2 = df_pp2.dropna(subset=cols)
+
+df_pp2.info()
+
+```
 # K-Means
 
 ```{python}
@@ -981,6 +979,7 @@ plt.legend(
 plt.show()
 ```
 
+````
 ```{python}
 import umap
 import matplotlib.pyplot as plt
@@ -1006,6 +1005,7 @@ plt.legend(
 )
 plt.show()
 ```
+````
 
 ```{python}
 mask = clusters != -1
@@ -1060,17 +1060,24 @@ for cluster_id in sorted(df_pp2['hdbscan_cluster'].dropna().unique()):
 
 ```
 
+```{python}
+df_pp2['nonhammer_win'] = (df_pp2['score_nonhammer']>0).astype(int)
+df_pp2['hammer_2plus'] = (df_pp2['score_hammer']>1).astype(int)
+df_pp2['end_score_diff'] = (df_pp2['score_hammer']-df_pp2['score_nonhammer'])
 
+df_pp['nonhammer_win'] = (df_pp['result']>0).astype(int)
+df_pp['hammer_2plus'] = (df_pp['score_hammer']>1).astype(int)
+df_pp['end_score_diff'] = (df_pp['score_hammer']-df_pp['score_nonhammer'])
+```
 
 ```{python}
 import seaborn as sns
 import matplotlib.pyplot as plt
-df_pp2['nonhammer_win'] = (df_pp2['result']>0).astype(int)
 
 features = [
     'task', 'points','cumulative_score_diff','end_id',
     'result','nonhammer_win',
-    'score_hammer','score_nonhammer'
+    'score_hammer','score_nonhammer','end_score_diff'
 ]
 df_plot = df_pp2[df_pp2['hdbscan_cluster'] != -1]
 for feature in features:
@@ -1095,7 +1102,6 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-df_pp2['nonhammer_win'] = (df_pp2['result']>0).astype(int)
 
 # Features to plot
 features = [
@@ -1173,7 +1179,88 @@ for feature in features:
     plt.show()
 
 ```
+```{python}
+import pandas as pd
+import numpy as np
+from scipy.stats import t
+import matplotlib.pyplot as plt
 
+# ----------------------------
+# Function to compute mean ± 95% CI
+# ----------------------------
+def mean_ci(mean, std, n, alpha=0.05):
+    """Return mean and 95% CI. Handles n < 2."""
+    if n < 2:
+        return mean, np.nan, np.nan
+    se = std / np.sqrt(n)
+    h = se * t.ppf(1 - alpha/2, n-1)
+    return mean, mean - h, mean + h
+
+# ----------------------------
+# Main function
+# ----------------------------
+def forest_plot_summary(df, group_var, metrics, exclude=None):
+    """
+    Compute mean ± 95% CI for metrics grouped by group_var and plot forest plots.
+    
+    Parameters:
+        df : pd.DataFrame
+        group_var : str, column to group by (e.g., 'task' or 'hdbscan_cluster')
+        metrics : list of str, columns to summarize and plot
+        exclude : list, optional, group values to exclude
+    Returns:
+        cluster_summary_ci : pd.DataFrame with mean, lower, upper for all metrics
+    """
+    # Filter excluded groups
+    if exclude is not None:
+        df = df[~df[group_var].isin(exclude)]
+    
+    # Compute summary
+    summary_list = []
+    for group_id, group in df.groupby(group_var):
+        d = {group_var: group_id, 'n': len(group)}
+        for var in metrics:
+            mean = group[var].mean()
+            std = group[var].std(ddof=1)
+            m, lower, upper = mean_ci(mean, std, len(group))
+            d[f'{var}_mean'] = m
+            d[f'{var}_lower'] = lower
+            d[f'{var}_upper'] = upper
+        summary_list.append(d)
+    
+    summary_df = pd.DataFrame(summary_list).sort_values(group_var).reset_index(drop=True)
+    print(summary_df)
+    
+    # ----------------------------
+    # Minimal forest plots
+    # ----------------------------
+    groups = summary_df[group_var].astype(str)
+    y_pos = np.arange(len(groups))
+    
+    for var in metrics:
+        means = summary_df[f'{var}_mean']
+        lower = summary_df[f'{var}_lower']
+        upper = summary_df[f'{var}_upper']
+        
+        xerr = np.vstack([means - lower, upper - means])
+        
+        fig, ax = plt.subplots(figsize=(6, len(groups)*0.5 + 1))
+        ax.errorbar(means, y_pos, xerr=xerr, fmt='o', color='black', capsize=3)
+        
+        # Reference line for difference metrics
+        if var in ['cumulative_score_diff', 'end_score_diff']:
+            ax.axvline(0, color='gray', linestyle='--', linewidth=1)
+        
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(groups)
+        ax.set_xlabel('Mean ± 95% CI')
+        ax.set_title(var, fontsize=12)
+        plt.gca().invert_yaxis()
+        plt.tight_layout()
+        plt.show()
+    
+    return summary_df
+```
 ```{python}
 cluster_summary = (
     df_pp2[df_pp2['hdbscan_cluster'] != -1]
@@ -1181,6 +1268,9 @@ cluster_summary = (
     .agg(
         nonhammer_win_rate_mean=('nonhammer_win', 'mean'),
         nonhammer_win_rate_std=('nonhammer_win', 'std'),
+
+        hammer_2plus_mean=('hammer_2plus', 'mean'),
+        hammer_2plus_std=('hammer_2plus', 'std'),
 
         cumulative_score_diff_mean=('cumulative_score_diff', 'mean'),
         cumulative_score_diff_std=('cumulative_score_diff', 'std'),
@@ -1203,6 +1293,23 @@ cluster_summary = (
 
 print(cluster_summary)
 ```
+
+```{python}
+metrics = [
+    'nonhammer_win',
+    'hammer_2plus',
+    'cumulative_score_diff',
+    'score_hammer',
+    'score_nonhammer',
+    'points',
+    'end_score_diff'
+
+]
+cluster_summary = forest_plot_summary(df_pp2[df_pp2['hdbscan_cluster'] != -1],
+                                      'hdbscan_cluster', metrics)
+
+
+```
 ```{python}
 
 import seaborn as sns
@@ -1211,14 +1318,12 @@ import matplotlib.pyplot as plt
 # exclude noise
 df_plot = df_pp2[df_pp2['hdbscan_cluster'] != -1]
 
-metrics = [
-    
+cont = [
     'cumulative_score_diff',
-    'end_id',
-    'weighted_score_diff'
+
 ]
 
-for m in metrics:
+for m in cont:
     plt.figure(figsize=(6, 4))
     sns.boxplot(
         data=df_plot,
@@ -1238,12 +1343,12 @@ cluster_summary = (
     .groupby('hdbscan_cluster')
     .agg(
         nonhammer_win_rate=('nonhammer_win', 'mean'),
+        hammer_2plus_mean=('hammer_2plus', 'mean'),
         avg_cumulative_score_diff=('cumulative_score_diff', 'mean'),
         avg_score_hammer=('score_hammer', 'mean'),
         avg_score_nonhammer=('score_nonhammer', 'mean'),
         avg_end_id=('end_id', 'mean'),
         avg_points=('points', 'mean'),
-        avg_weighted_score_diff=('weighted_score_diff', 'mean'),
         n=('nonhammer_win', 'count')
     )
 )
@@ -1259,12 +1364,12 @@ cluster_summary = (
     .groupby('hdbscan_cluster')
     .agg(
         nonhammer_win_rate=('nonhammer_win', 'mean'),
+        hammer_2plus_mean=('hammer_2plus', 'mean'),
         avg_cumulative_score_diff=('cumulative_score_diff', 'mean'),
         avg_score_hammer=('score_hammer', 'mean'),
         avg_score_nonhammer=('score_nonhammer', 'mean'),
         avg_end_id=('end_id', 'mean'),
         avg_points=('points', 'mean'),
-        avg_weighted_score_diff=('weighted_score_diff', 'mean'),
         n=('nonhammer_win', 'count')
     )
 )
@@ -1293,14 +1398,19 @@ plt.show()
 ```
 
 # Descriptive Stats per task
+
+Without stones knocked off
 ```{python}
-df_pp2['nonhammer_win'] = (df_pp2['result']>0).astype(int)
+
 cluster_summary = (
     df_pp2
     .groupby('task')
     .agg(
         nonhammer_win_rate_mean=('nonhammer_win', 'mean'),
         nonhammer_win_rate_std=('nonhammer_win', 'std'),
+
+        hammer_2plus_mean=('hammer_2plus', 'mean'),
+        hammer_2plus_std=('hammer_2plus', 'std'),
 
         cumulative_score_diff_mean=('cumulative_score_diff', 'mean'),
         cumulative_score_diff_std=('cumulative_score_diff', 'std'),
@@ -1317,10 +1427,226 @@ cluster_summary = (
         points_mean=('points', 'mean'),
         points_std=('points', 'std'),
 
-
-        n=('points', 'count')
+        n=('nonhammer_win', 'count')
     )
 )
 
 print(cluster_summary)
 ```
+
+```{python}
+
+task_summary = forest_plot_summary(df_pp2, 'task', metrics, exclude=[5, 10])
+```
+
+
+
+
+# ALL powerplay
+
+
+```{python}
+
+import matplotlib.pyplot as plt
+
+df_pp['task'].value_counts().plot(kind='bar')
+plt.xlabel("Task")
+plt.ylabel("Count")
+plt.title("Task counts")
+plt.tight_layout()
+plt.show()
+
+```
+```{python}
+
+cluster_summary = (
+    df_pp
+    .groupby('task')
+    .agg(
+        nonhammer_win_rate_mean=('nonhammer_win', 'mean'),
+        nonhammer_win_rate_std=('nonhammer_win', 'std'),
+
+        hammer_2plus_mean=('hammer_2plus', 'mean'),
+        hammer_2plus_std=('hammer_2plus', 'std'),
+
+        cumulative_score_diff_mean=('cumulative_score_diff', 'mean'),
+        cumulative_score_diff_std=('cumulative_score_diff', 'std'),
+
+        score_hammer_mean=('score_hammer', 'mean'),
+        score_hammer_std=('score_hammer', 'std'),
+
+        score_nonhammer_mean=('score_nonhammer', 'mean'),
+        score_nonhammer_std=('score_nonhammer', 'std'),
+
+        end_id_mean=('end_id', 'mean'),
+        end_id_std=('end_id', 'std'),
+
+        points_mean=('points', 'mean'),
+        points_std=('points', 'std'),
+
+        n=('nonhammer_win', 'count')
+    )
+)
+
+print(cluster_summary)
+```
+```{python}
+
+task_summary = forest_plot_summary(df_pp, 'task', metrics,[5, 6,8,10])
+```
+
+```{python}
+import matplotlib.pyplot as plt
+import pandas as pd
+
+skip_tasks = [5, 6, 8, 10]
+
+# Filter out skipped tasks
+df_filtered = df_pp[~df_pp['task'].isin(skip_tasks)]
+
+# Get all NOCs
+nocs = df_filtered['noc'].unique()
+
+for noc in nocs:
+    sub = df_filtered[df_filtered['noc'] == noc]
+    
+    # Skip countries with fewer than 20 shots
+    if len(sub) < 20:
+        continue
+    
+    # Count shots per task
+    counts = sub['task'].value_counts().sort_index()
+    
+    # Convert to proportion within the country
+    prop = counts / counts.sum()
+    
+    plt.figure(figsize=(8, 4))
+    plt.bar(prop.index.astype(str), prop.values)
+    plt.title(f"Proportion of Shots by Task for {noc} (n={len(sub)})")
+    plt.xlabel("Task")
+    plt.ylabel("Proportion of Shots")
+    plt.ylim(0, 1)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+```
+
+```{python}
+import pandas as pd
+
+skip_tasks = [5, 6, 8, 10]
+
+# Filter out skipped tasks
+df_filtered = df_pp[~df_pp['task'].isin(skip_tasks)]
+
+# Only keep countries with ≥20 shots
+df_filtered = df_filtered.groupby('noc').filter(lambda x: len(x) >= 25)
+
+# Calculate proportions per country for each task
+prop_table = df_filtered.groupby(['noc', 'task']).size().unstack(fill_value=0)
+
+# Convert to proportion within the country
+prop_table = prop_table.div(prop_table.sum(axis=1), axis=0)
+
+# For each task, sort countries by proportion
+for task in prop_table.columns:
+    top_countries = prop_table[task].sort_values(ascending=False)
+    print(f"\nTask {task} - countries with highest proportion of shots:")
+    print(top_countries.head(5))  # show top 5 countries
+
+```
+```{python}
+df_filtered['noc'].value_counts()
+```
+
+```{python}
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+from statsmodels.stats.anova import anova_lm
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+import matplotlib.pyplot as plt
+
+skip_tasks = [5,6,8,10]
+
+# Filter out skipped tasks
+df_filtered = df_pp[~df_pp['task'].isin(skip_tasks)]
+
+model = ols('points ~ C(task)', data=df_filtered).fit()
+
+# Welch ANOVA (robust to unequal variances)
+anova_results = anova_lm(model, typ=2, robust='hc3')
+print("Welch ANOVA results for points:")
+print(anova_results)
+
+# Post-hoc pairwise comparisons (Tukey-Kramer)
+tukey = pairwise_tukeyhsd(endog=df_filtered['points'], groups=df_filtered['task'], alpha=0.05)
+print("Tukey-Kramer post-hoc for points:")
+print(tukey.summary())
+```
+
+```{python}
+df_filter = df_filtered[['task','cumulative_score_diff']].dropna()
+model = ols('cumulative_score_diff ~ C(task)', data=df_filter).fit()
+
+# Welch ANOVA (robust to unequal variances)
+anova_results = anova_lm(model, typ=2, robust='hc3')
+print("Welch ANOVA results for cumulative_score_diff:")
+print(anova_results)
+
+# Post-hoc pairwise comparisons (Tukey-Kramer)
+tukey = pairwise_tukeyhsd(endog=df_filter['cumulative_score_diff'], groups=df_filter['task'], alpha=0.05)
+print("Tukey-Kramer post-hoc for cumulative_score_diff:")
+print(tukey.summary())
+
+```
+
+
+```{python}
+model = ols('score_nonhammer ~ C(task)', data=df_filtered).fit()
+
+# Welch ANOVA (robust to unequal variances)
+anova_results = anova_lm(model, typ=2, robust='hc3')
+print("Welch ANOVA results for points:")
+print(anova_results)
+
+# Post-hoc pairwise comparisons (Tukey-Kramer)
+tukey = pairwise_tukeyhsd(endog=df_filtered['score_nonhammer'], groups=df_filtered['task'], alpha=0.05)
+print("Tukey-Kramer post-hoc for points:")
+print(tukey.summary())
+
+```
+
+```{python}
+model = ols('end_score_diff ~ C(task)', data=df_filtered).fit()
+
+# Welch ANOVA (robust to unequal variances)
+anova_results = anova_lm(model, typ=2, robust='hc3')
+print("Welch ANOVA results for points:")
+print(anova_results)
+
+# Post-hoc pairwise comparisons (Tukey-Kramer)
+tukey = pairwise_tukeyhsd(endog=df_filtered['points'], groups=df_filtered['task'], alpha=0.05)
+print("Tukey-Kramer post-hoc for points:")
+print(tukey.summary())
+
+```
+
+```{python}
+from scipy.stats import chi2_contingency
+
+# Create contingency table
+contingency = pd.crosstab(df_filtered['task'], df_filtered['nonhammer_win'])
+chi2, p, dof, expected = chi2_contingency(contingency)
+print(f"Chi-square test for nonhammer_win by task: chi2={chi2:.2f}, p={p:.4f}")
+```
+
+```{python}
+from scipy.stats import chi2_contingency
+
+# Create contingency table
+contingency = pd.crosstab(df_filtered['task'], df_filtered['hammer_2plus'])
+chi2, p, dof, expected = chi2_contingency(contingency)
+print(f"Chi-square test for nonhammer_win by task: chi2={chi2:.2f}, p={p:.4f}")
+```
+
