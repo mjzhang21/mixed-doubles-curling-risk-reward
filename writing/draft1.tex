@@ -1,6 +1,6 @@
 \documentclass{article}
 \usepackage{amsmath}
-\usepackage{fullpage}
+\usepackage[margin=1in]{geometry}
 \usepackage{graphicx}
 \usepackage[utf8]{inputenc}
 \usepackage{natbib}
@@ -8,8 +8,7 @@
 
 \title{Placeholder Title\\
   \large [Subtitle (optional)]}
-\author{[Mark Zhang]\thanks{Department of Statistics, University of Connecticut.} \and
-  [Alejandro Haerter]\thanks{Department of Statistics, University of Connecticut.}}
+
 \date{[15 January 2026]}
 
 
@@ -29,6 +28,7 @@
 \section{Abstract}
 
 \section{Introduction}
+As shown by \citet{PARK2013391}
 
 \section{Data}
 
@@ -47,8 +47,8 @@
 
 %\section{Appendices}
 %if there is a need for code appendix or otherwise, we'll put it at the botton. 
-
-\bibliography{../references.bib}
+\bibliographystyle{plainnat}
+\bibliography{../references}
 %i have my latex in vscode compiled to use natbib, not bibtex. it will work for you
 % but i havent got mine working yet, once i set it back we will use APA
 \end{document}
