@@ -27,47 +27,52 @@ and end-level context required for downstream modelling.
 
 #### Game Level Data
 
-- `MatchID` - unique ID for each Match in the dataset.
-- `GroupID` - In competitions where teams are split into group for play, the ID
+- `match_id` - unique ID for each Match in the dataset.
+- `group_id` - In competitions where teams are split into group for play, the ID
 of the group for the teams in this match.
-- `Sheet` - The name of the sheet on which the match is played.
-- `NOC1` - National Olympic Committee of the first competing team.
-- `NOC2` - National Olympic Committee of the second competing team.
-- `TeamID1` – ID for the team corresponding to NOC1 and ResultsStr1.
-- `TeamID2` - ID for the team corresponding to NOC2 and ResultsStr2.
-- `ResultStr1` – Final Score of Team 1.
-- `ResultStr2` – Final Score of Team 2.
-- `LSFE` - Last Stone First End. Indicates which team threw the last stone in
+- `sheet` - The name of the sheet on which the match is played.
+- `noc1` - National Olympic Committee of the first competing team.
+- `noc2` - National Olympic Committee of the second competing team.
+- `team_id1` – ID for the team corresponding to NOC1 and ResultsStr1.
+- `team_id2` - ID for the team corresponding to NOC2 and ResultsStr2.
+- `resultstr1` – Final Score of Team 1.
+- `resultstr2` – Final Score of Team 2.
+- `lsfe` - Last Stone First End. Indicates which team threw the last stone in
 the first end of the match, i.e., starting with the hammer.
     - 0 means `NOC2` threw the LSFE.
     - 1 means `NOC1` threw the LSFE.
-- `Winner` – Indicates the winning team. 0 indicates that `NOC2` won the match, 1 indicates that `NOC1` won the match.
+- `winner` – Indicates the winning team. 0 indicates that `NOC2` won the match, 1 indicates that `NOC1` won the match.
 
 #### End-Level Context
 
-- `EndID` - ID for an end of the match. 8 ends are typical
+- `end_id` - ID for an end of the match. 8 ends are typical
 in mixed doubles curling, but concession can lead to only 6
 or 7 ends being played and overtime can lead to a 9th.
-- `Result` - The points scored by the skipping team in that end.
-- `Powerplay` - A flag for when a team using their power play in an end. A value 
-of 1 corresponds to pre-palced stones being moved to the right side, 2 being pre-placed stones are moved to the left side. 0 means the team is not using their
+- `result` - The points scored by the skipping team in that end.
+- `powerplay` - A flag for when a team using their power play in an end. A value 
+of 1 corresponds to pre-palced stones being moved to the right side
+2 being pre-placed stones are moved to the left side. 0 means the team is not using their
 powerplay.
-- `HammerTeamID_C` - Which `TeamID` in the end has the hammer.
-- `HasHammer_C` - Boolean for whether the skipping team has the hammer.
+- `pre_end_score` - Running score of the team throwing the stone before the current end.
+- `opp_pre_end_score` - Running score of the opponent team before the current end.
+- `pre_end_score_diff` - Pre-end score differntial computed as
+`pre_end_score` - `opp_pre_end_score`. 
+- `hammer_team_id` - Which `TeamID` in the end has the hammer.
+- `has_hammer` - Boolean for whether the skipping team has the hammer.
 
 #### Shot-By-Shot Data
 
-- `ShotID` - ID for the shot. Within a particular match and end, shots occur in
+- `shot_id` - ID for the shot. Within a particular match and end, shots occur in
 ascending order of the ShotID values (i.e. lower ShotIDs are thrown first).
-    - `ShotID` begins at 7 and ascends to 22, skipping 10 through
+    - `shot_id` begins at 7 and ascends to 22, skipping 10 through
     15.
     - My understanding is that 10-15 are unused "shot slots" from
     traditional 16 shot curling, and this is an artifact from curlit.
-- `TeamID` - ID for the Team which threw the shot for the row.
-- `PlayerID` - ID for the player taking the shot (1 or 2)
+- `team_id` - ID for the Team which threw the shot for the row.
+- `player_id` - ID for the player taking the shot (1 or 2)
     - 5 Instances of value 3, all corresponding with `ShotID == 7`.
     Curlit says this is a data entry error.
-- Task - The type of shot that the player is throwing,
+- `task` - The type of shot that the player is throwing,
 or the objective of the shot.
     - Tasks 0-5 are considered "Slow Stones", as they are focused on precise positioning
     of the skipped stone.
@@ -126,18 +131,18 @@ or the objective of the shot.
         I.e., a complete miss to off the sheet.
         - Awarded 9 points; null value in practice.
     - -1: Shot not attempted due to concession (filler value).
-- `Handle` - The turn of the stone as it is thrown. A 0 value means the shot
+- `handle` - The turn of the stone as it is thrown. A 0 value means the shot
 is turning clockwise, a 1 indicates counterclockwise. -1 means the shot wasn't
 thrown due to concession.
-- `Points` - An assessment of the execution of the shot, ranging from 0 to 4. A 4-point
+- `timeout` - Binary variable for whether a time was called before the shot.
+- `points` - An assessment of the execution of the shot, ranging from 0 to 4. A 4-point
 shot is one that has been ascertained to have been perfectly executed to the
 player's intention, while a 0 is a shot that totally failed in its intended result.
--1 means the shot wasn't attempted due to concession.
+    -1 means the shot wasn't attempted due to concession.
     - Intended to be an objective metric which would be graded the same by every analyst;
     each shot type must meet specific criteria for point awards.
     - Points are awarded solely based on intent, not outcome.
     - The decision to make the skip type (whether good or bad) is not in the criteria.
-- `TimeOut` - Binary variable for whether a time was called before the shot.
 - `Stone_{i}_x` - The x position of stone `i` on the on the sheet, after
 the stone for the row has been thrown.
     - Stones can take x values in (0, 1500).
