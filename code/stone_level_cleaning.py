@@ -1,41 +1,40 @@
----
-title: "CSAS 2026: Reconstructing an End"
-author: "Alejandro Haerter"
-date: "2026-01-01"
-format:
-  pdf:
-    colorlinks: true
-    linkcolor: blue
-    number-sections: true
-    geometry: margin=1in
-    fontsize: 11pt 
----
 
-# Data Assembly and Cleaning
 
-Import modules and data.
+# Import modules and data.
 
-```{python}
+from pathlib import Path
 import pandas as pd
 import numpy as np
 
-competition_df = pd.read_csv('../data/Competition.csv')
+#change the data directory if the folder is called something other than "data"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+OUTPUT_PATH = DATA_DIR / "stones_master_1.csv"
 
-competitors_df = pd.read_csv('../data/Competitors.csv')
+# games = pd.read_csv(DATA_DIR / "Games.csv")
 
-ends_df = pd.read_csv('../data/Ends.csv')
+ends_df = pd.read_csv(DATA_DIR / "Ends.csv")
 
-games_df = pd.read_csv('../data/Games.csv')
+ends_df['PowerPlay'] = ends_df['PowerPlay'].fillna(0)
+ends_df['PowerPlay'] = ends_df['PowerPlay'].astype("Int64")
 
-stones_df = pd.read_csv('../data/Stones.csv')
+games_df = pd.read_csv(DATA_DIR / "Games.csv")
 
-teams_df = pd.read_csv('../data/Teams.csv')
-```
+stones_df = pd.read_csv(DATA_DIR / "Stones.csv")
 
-Make `MatchID` out of a combination of `CompetitionID`, `SessionID`, and `GameID`.
-This is the unique key going forward.
+# cast stone coordinates to integer (they are float for some reason.)
+stone_cols = [c for c in stones_df.columns if c.startswith("stone_")]
+stones_df[stone_cols] = stones_df[stone_cols].astype("Int64")
 
-```{python}
+
+
+stones_df['TimeOut'] = stones_df['TimeOut'].fillna(0)
+stones_df['TimeOut'] = stones_df['TimeOut'].astype("Int64")
+
+
+#Make `MatchID` out of a combination of `CompetitionID`, `SessionID`, and `GameID`.
+#This is the unique key going forward.
+
+
 games_df["MatchID"] = (
     games_df["CompetitionID"].astype(str) + "_" +
     games_df["SessionID"].astype(str) + "_" +
@@ -47,12 +46,12 @@ ends_df["MatchID"] = (
     ends_df["SessionID"].astype(str) + "_" +
     ends_df["GameID"].astype(str)
 )
-```
 
-Create `game_ends` via merger of `ends_df` and `games_df`.
-This will attach game level information to each end.
 
-```{python}
+#Create `game_ends` via merger of `ends_df` and `games_df`.
+#This will attach game level information to each end.
+
+
 game_ends = (
     ends_df
     .merge(
@@ -62,12 +61,12 @@ game_ends = (
         validate="many_to_one"
     )
 )
-```
 
-That merger duplicates the redundant ID columns, affixing them with `_y`, and affixes the existing ones with
-`_x`.
 
-```{python}
+#That merger duplicates the redundant ID columns,
+# affixing them with `_y`, and affixes the existing ones with`_x`.
+
+
 # remove duplicate key columns from the right side
 game_ends = game_ends.drop(columns=["CompetitionID_y", "SessionID_y", "GameID_y"])
 game_ends.rename(
@@ -78,33 +77,33 @@ game_ends.rename(
     },
     inplace=True
 )
-```
 
-While a `PowerPlay` column exists, for any end which Power Play was not used,
-there is no information on which team has the hammer. We need to create a
-column `HasHammer` which gives us this useful information.
 
-There are two ways to identify whether a team has the hammer in a given end.
-- **Iteratively:** Start with the first End in a game. The team with the Last
-stone first end (LSFE) has the hammer the first end. Depending on which
-team scores, the hammer will be kept or transferred. This way, the hammer can be
-followed through the length of the game.
-- **Contextually:** The team which throws the first stone, ie. the `TeamID` for
-which `ShotID == 7` must *not* have the hammer.
+#While a `PowerPlay` column exists, for any end which Power Play was not used,
+#there is no information on which team has the hammer. We need to create a
+#column `HasHammer` which gives us this useful information.
 
-Both of these approaches should correctly track the Hammer in theory. I opt to
-implement both as a data validation measure. If there are discrepancies, the
-particular End has bad data.
+#There are two ways to identify whether a team has the hammer in a given end.
+#- **Iteratively:** Start with the first End in a game. The team with the Last
+#stone first end (LSFE) has the hammer the first end. Depending on which
+#team scores, the hammer will be kept or transferred. This way, the hammer can be
+#followed through the length of the game.
+#- **Contextually:** The team which throws the first stone, ie. the `TeamID` for
+#which `ShotID == 7` must *not* have the hammer.
+
+#Both of these approaches should correctly track the Hammer in theory. I opt to
+#implement both as a data validation measure. If there are discrepancies, the
+#particular End has bad data.
 
 ### Iterative approach: HasHammer_I
 
-Per the CSAS2026 data dictionary:
-"`LSFE` – Last Stone First End. This column indicates which team threw the last
-stone in the first end of the match. In curling parlance, this is called
-starting with “the hammer”. A 0 value means that NOC2 threw the last stone in
-the first end, a 1 means that NOC1 threw last.""
+#Per the CSAS2026 data dictionary:
+#"`LSFE` – Last Stone First End. This column indicates which team threw the last
+#stone in the first end of the match. In curling parlance, this is called
+#starting with “the hammer”. A 0 value means that NOC2 threw the last stone in
+#the first end, a 1 means that NOC1 threw last.""
 
-```{python}
+
 # helper: map LSFE (0 means NOC2, 1 means NOC1) to TeamID that starts with hammer in End 1
 def initial_hammer_teamid(row):
     return row["TeamID1"] if row["LSFE"] == 1 else row["TeamID2"]
@@ -145,11 +144,11 @@ game_ends = (
         validate="one_to_one"
     )
 )
-```
+
 
 ### Contextual approach: HasHammer_C
-The team that throws the first stone (ShotID == 7) does *not* have the hammer.
-```{python}
+# The team that throws the first stone (ShotID == 7) does *not* have the hammer.
+
 if "MatchID" not in stones_df.columns:
     stones_df["MatchID"] = (
         stones_df["CompetitionID"].astype(str) + "_" +
@@ -184,11 +183,11 @@ game_ends = (
         validate="one_to_one"
     )
 )
-```
 
-Quick checks for missing hammer info and disagreements between methods.
 
-```{python}
+#Quick checks for missing hammer info and disagreements between methods.
+
+
 hammer_check = game_ends[["MatchID", "EndID", "TeamID", "HasHammer_I", "HasHammer_C"]].copy()
 
 missing_i = hammer_check["HasHammer_I"].isna().sum()
@@ -203,16 +202,16 @@ print("Missing HasHammer_C rows:", missing_c)
 print("End-level mismatches (I vs C):", mismatch_ends)
 
 mismatch.head()
-```
 
-There are five cases where they do not match. Once stone-level information is fully merged,
-I will defer to each case invidually.
+
+#There are five cases where they do not match. Once stone-level information is fully merged,
+#I will defer to each case invidually.
 
 ### Stone-Level Data
 
-Build a master stone-level table (one row per stone toss) by merging stone, end, and game context.
+#Build a master stone-level table (one row per stone toss) by merging stone, end, and game context.
 
-```{python}
+
 if "MatchID" not in stones_df.columns:
     stones_df["MatchID"] = (
         stones_df["CompetitionID"].astype(str) + "_" +
@@ -235,11 +234,11 @@ stones_master = stones_master.drop(['CompetitionID', 'GameID', 'SessionID',
                                     'CompetitionID_end', 'GameID_end', 'SessionID_end']
                                     , axis=1)
 stones_master.head()
-```
 
-Add pre-shot (pre-end) team score and score differential.
 
-```{python}
+#Add pre-shot (pre-end) team score and score differential.
+
+
 score_progress = game_ends[["MatchID", "EndID", "TeamID", "Result"]].copy()
 score_progress = score_progress.sort_values(["MatchID", "TeamID", "EndID"])
 
@@ -270,11 +269,11 @@ stones_master = stones_master.merge(
     how="left",
     validate="many_to_one"
 )
-```
 
-Check that the team throwing first (ShotID == 7) does not have the hammer.
 
-```{python}
+#Check that the team throwing first (ShotID == 7) does not have the hammer.
+
+
 first_shot = stones_master.loc[stones_master["ShotID"] == 7].copy()
 first_shot["HasHammer_I"] = first_shot["HasHammer_I"].fillna(False)
 first_shot["HasHammer_C"] = first_shot["HasHammer_C"].fillna(False)
@@ -282,30 +281,28 @@ first_shot["HasHammer_C"] = first_shot["HasHammer_C"].fillna(False)
 print("ShotID==7 with HasHammer_I:", first_shot["HasHammer_I"].sum())
 print("ShotID==7 with HasHammer_C:", first_shot["HasHammer_C"].sum())
 first_shot[(first_shot["HasHammer_I"]) | (first_shot["HasHammer_C"])].head()
-```
 
-When `ShotID == 7`, the team which threw the stone cannot have the hammer. `HasHammer_C`
-has no such instances but `HasHammer_I` has five, which are the same from the earlier mismatch.
-I defer to `HasHammer_C` for a more reliable tracker, then.
 
-These exceptions are unlikely a data quality issue and probably stem from an issue
-with the iterative method code, but this does not warrant a fix as the contextual
-method seems completely fine.
+#When `ShotID == 7`, the team which threw the stone cannot have the hammer. `HasHammer_C`
+#has no such instances but `HasHammer_I` has five, which are the same from the earlier mismatch.
+#I defer to `HasHammer_C` for a more reliable tracker, then.
 
-The `stones_master` dataframe is finalized below.
+#These exceptions are unlikely a data quality issue and probably stem from an issue
+#with the iterative method code, but this does not warrant a fix as the contextual
+#method seems completely fine.
 
-```{python}
+#The `stones_master` dataframe is finalized below.
+
+
 stones_master = stones_master.drop(['HasHammer_I', 'HammerTeamID_I'], axis=1)
-stones_master['HammerTeamID_C'] = stones_master['HammerTeamID_C'].astype(int)
-stones_master['TimeOut'] = stones_master['TimeOut'].fillna(0)
-stones_master['PowerPlay'] = stones_master['PowerPlay'].fillna(0)
-```
+stones_master['HammerTeamID_C'] = stones_master['HammerTeamID_C'].astype("Int64")
 
-```{python}
+
 new_order = [
     "MatchID","GroupID","Sheet",
     "NOC1","NOC2","TeamID1","TeamID2","ResultStr1","ResultStr2","LSFE","Winner",
     "EndID","Result","PowerPlay",
+    "PreEndScore","OppPreEndScore","PreEndScoreDiff",
     "HammerTeamID_C","HasHammer_C",
     "ShotID","TeamID","PlayerID","Task","Handle","TimeOut","Points",
     "stone_1_x","stone_1_y","stone_2_x","stone_2_y","stone_3_x","stone_3_y",
@@ -314,8 +311,46 @@ new_order = [
     "stone_10_x","stone_10_y","stone_11_x","stone_11_y","stone_12_x","stone_12_y",
 ]
 stones_master = stones_master[new_order]
-```
 
-```{python}
-stones_master.to_csv('../data/stones_master_1.csv', index=False)
-```
+stones_master = stones_master.rename(
+    columns={
+        "MatchID": "match_id",
+        "GroupID": "group_id",
+        "Sheet": "sheet",
+        "NOC1": "noc1",
+        "NOC2": "noc2",
+        "TeamID1": "team_id1",
+        "TeamID2": "team_id2",
+        "ResultStr1": "resultstr1",
+        "ResultStr2": "resultstr2",
+        "LSFE": "lsfe",
+        "Winner": "winner",
+        "EndID": "end_id",
+        "Result": "result",
+        "PowerPlay": "powerplay",
+        "PreEndScore": "pre_end_score",
+        "OppPreEndScore": "opp_pre_end_score",
+        "PreEndScoreDiff": "pre_end_score_diff",
+        "HammerTeamID_C": "hammer_team_id",
+        "HasHammer_C": "has_hammer",
+        "ShotID": "shot_id",
+        "TeamID": "team_id",
+        "PlayerID": "player_id",
+        "Task": "task",
+        "Handle": "handle",
+        "TimeOut": "timeout",
+        "Points": "points",
+        # stone_* already good!!!!
+    }
+)
+
+stone_cols = [c for c in stones_master.columns if c.startswith("stone_")]
+stones_master[stone_cols] = stones_master[stone_cols].astype("Int64")
+
+def main(output_path: Path = OUTPUT_PATH) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    stones_master.to_csv(output_path, index=False)
+
+
+if __name__ == "__main__":
+    main()
