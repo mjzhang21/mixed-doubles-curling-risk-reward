@@ -1,0 +1,29 @@
+# First Shot Defense of the Powerplay
+    In mixed doubles curling, the powerplay can be played by the team with
+the hammer once an end. In the default position, the preplaced stones
+are placed with the hammer stone on top of the button and the non-hammer
+stone as a guard. However in the powerplay, both stones are shifted
+left or right, clearing the center-line of the board. Teams with the 
+hammer or the last stone advantage typically win the end in regular
+and powerplay ends. However, in regular ends, analysts have observed
+mixed doubles is a game focused on execution. With the positioning
+of the preplaced stones, most of the non-hammer team's success is 
+determined by how well they execute their first shot, usually a draw
+around the center guard. In the powerplay, there is much more variety in
+how the non-hammer team plays the first shot of the end. Some common shots 
+include a draw around the guard and tick shot which collides with the hammer
+guard.
+    While analysts have observed certain teams tend to apply different
+shots when countering the powerplay, there is a lack of literature about the 
+powerplay in general and the circumstances and effects playing certain shots
+during a powerplay end. Thus, it is important to compare the different board 
+positions and types of shots
+
+
+# Methods/Data
+
+
+# Results
+
+
+# Discussion
