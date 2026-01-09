@@ -299,10 +299,22 @@ stones_master = stones_master.drop(['HasHammer_I', 'HammerTeamID_I'], axis=1)
 stones_master['HammerTeamID_C'] = stones_master['HammerTeamID_C'].astype(int)
 stones_master['TimeOut'] = stones_master['TimeOut'].fillna(0)
 stones_master['PowerPlay'] = stones_master['PowerPlay'].fillna(0)
-stones_master.insert(0, "MatchID", stones_master.pop("MatchID"))
 ```
 
-
+```{python}
+new_order = [
+    "MatchID","GroupID","Sheet",
+    "NOC1","NOC2","TeamID1","TeamID2","ResultStr1","ResultStr2","LSFE","Winner",
+    "EndID","Result","PowerPlay",
+    "HammerTeamID_C","HasHammer_C",
+    "ShotID","TeamID","PlayerID","Task","Handle","TimeOut","Points",
+    "stone_1_x","stone_1_y","stone_2_x","stone_2_y","stone_3_x","stone_3_y",
+    "stone_4_x","stone_4_y","stone_5_x","stone_5_y","stone_6_x","stone_6_y",
+    "stone_7_x","stone_7_y","stone_8_x","stone_8_y","stone_9_x","stone_9_y",
+    "stone_10_x","stone_10_y","stone_11_x","stone_11_y","stone_12_x","stone_12_y",
+]
+stones_master = stones_master[new_order]
+```
 
 ```{python}
 stones_master.to_csv('../data/stones_master_1.csv', index=False)
