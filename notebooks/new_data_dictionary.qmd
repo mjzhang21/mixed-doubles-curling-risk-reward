@@ -1,0 +1,61 @@
+---
+title: "Revised Data Dictionary"
+author: "Alejandro Haerter"
+date: "2026-01-01"
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt 
+---
+
+*This data dictionary is for the master working dataframe* `stones_master_1.csv`. *Some notes about data quirks are also
+included.*
+
+```{python}
+import pandas as pd
+stones_master = pd.read_csv('../data/stones_master_1.csv')
+stones_master.head()
+```
+
+This dataframe contains shot-by-shot level information as well
+as some game and end level context attached.
+
+- `MatchID` - unique ID for each Match in the dataset.
+- `EndID` - ID for an end of the match. 8 ends are typical
+in mixed doubles curling, but concession can lead to only 6
+or 7 ends being played and overtime can lead to a 9th.
+- `ShotID` - ID for the shot. Within a particular match and end, shots occur in ascending order of the ShotID values (i.e. lower
+ShotIDs are thrown first).
+    - `ShotID` begins at 7 and ascends to 22, skipping 10 through
+    15.
+    - My understanding is that 10-15 are unused "shot slots" from
+    traditional 16 shot curling, and this is an artifact from curlit.
+- `TeamID` - ID for the Team which threw the shot for the row.
+    - This should take value 1 or 2 but has 5 instances of value 3.
+    Curlit says this is a data entry error.
+- Task - The type of shot that the player is throwing,
+or the objective of the shot.
+    - "-1": Shot not attempted due to concession.
+    - "0": "Draw"
+        - Meant to be for scoring position; close proximity to the
+        button
+    - "1": "Front"
+        - Most likely front guard, i.e., guard placed in front of the
+        house to protect stones and blockopponents.
+    - "2": "Guard"
+        - Meant to protect stones in curling position. Typically stop short of button
+        to protect scoring stones.
+    - "3": "Raise / Tap-back"
+        - Throw pushes another stone forward into a new position. I.e., this
+        moves a stone already in play with the new stone.
+    - "4": "Wick / Soft peeling"
+        - Light contact shot where by just grazing another stone, there's
+        a slight direction change in the stone. Useful for bypassing guards, etc.
+    - "5": "Freeze"
+        - Form of draw which stops right in front of another stone. This makes it
+        more difficult for the opponents to remove.
+    - "6":
+        - 
