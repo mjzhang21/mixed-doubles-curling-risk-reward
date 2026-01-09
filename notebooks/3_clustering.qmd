@@ -1503,7 +1503,7 @@ skip_tasks = [5, 6, 8, 10]
 
 # Filter out skipped tasks
 df_filtered = df_pp[~df_pp['task'].isin(skip_tasks)]
-
+df_filtered = df_filtered.dropna(subset=['task', 'cumulative_score_diff'])
 # Get all NOCs
 nocs = df_filtered['noc'].unique()
 
@@ -1586,8 +1586,8 @@ print(tukey.summary())
 ```
 
 ```{python}
-df_filter = df_filtered[['task','cumulative_score_diff']].dropna()
-model = ols('cumulative_score_diff ~ C(task)', data=df_filter).fit()
+
+model = ols('cumulative_score_diff ~ C(task)', data=df_filtered).fit()
 
 # Welch ANOVA (robust to unequal variances)
 anova_results = anova_lm(model, typ=2, robust='hc3')
@@ -1595,7 +1595,7 @@ print("Welch ANOVA results for cumulative_score_diff:")
 print(anova_results)
 
 # Post-hoc pairwise comparisons (Tukey-Kramer)
-tukey = pairwise_tukeyhsd(endog=df_filter['cumulative_score_diff'], groups=df_filter['task'], alpha=0.05)
+tukey = pairwise_tukeyhsd(endog=df_filtered['cumulative_score_diff'], groups=df_filtered['task'], alpha=0.05)
 print("Tukey-Kramer post-hoc for cumulative_score_diff:")
 print(tukey.summary())
 
