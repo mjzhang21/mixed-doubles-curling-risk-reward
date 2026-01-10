@@ -1168,91 +1168,113 @@ for feature in features:
 ```
 
 ```{python}
-
 import numpy as np
-from arch.bootstrap import IIDBootstrap
-from scipy.stats import kruskal
+from scipy.stats import kruskal, ttest_ind
 import scikit_posthocs as sp
-
-# ----------------------------
-# BCa Bootstrap function
-# ----------------------------
-def bootstrap_mean_ci(data, n_boot=10000, ci=95):
-    data = np.array(data)
-    data = data[~np.isnan(data)]
-    n = len(data)
-    if n == 0:
-        return np.nan, np.nan, np.nan
-
-    bs = IIDBootstrap(data)
-    lower, upper = bs.conf_int(np.mean, reps=n_boot, method='bca')
-    # convert arrays to floats
-    mean_val = float(np.mean(data))
-    lower = lower.item()
-    upper = upper.item()
-    return mean_val, lower, upper
-
-# ----------------------------
-# Classical mean ± 95% CI
-# ----------------------------
 from scipy.stats import t as t_dist
+from statsmodels.formula.api import ols
+from statsmodels.stats.anova import anova_lm
+from statsmodels.stats.multitest import multipletests
+from itertools import combinations
+
+# ----------------------------
+# Descriptive statistics
+# ----------------------------
+def median_iqr(data):
+    data = np.array(data)
+    return (
+        np.median(data),
+        np.percentile(data, 25),
+        np.percentile(data, 75)
+    )
+
 def mean_ci(data, alpha=0.05):
     data = np.array(data)
     n = len(data)
     if n < 2:
-        return float(np.mean(data)), np.nan, np.nan
-    mean_val = float(np.mean(data))
+        return np.mean(data), np.nan, np.nan
+    mean_val = np.mean(data)
     std_val = np.std(data, ddof=1)
     se = std_val / np.sqrt(n)
-    h = se * t_dist.ppf(1 - alpha/2, n-1)
+    h = se * t_dist.ppf(1 - alpha/2, n - 1)
     return mean_val, mean_val - h, mean_val + h
 
 # ----------------------------
-# Analyze variable function (updated)
+# Pairwise Welch post-hoc
 # ----------------------------
-def analyze_variable(df, var, group_var, groups_to_use, use_bootstrap=True, dunn_adjust='holm'):
+def pairwise_welch(df, var, group_var, groups):
+    results = []
+
+    for g1, g2 in combinations(groups, 2):
+        x1 = df[df[group_var] == g1][var].values
+        x2 = df[df[group_var] == g2][var].values
+        stat, p = ttest_ind(x1, x2, equal_var=False)
+        results.append((g1, g2, p))
+
+    raw_p = [r[2] for r in results]
+    _, p_adj, _, _ = multipletests(raw_p, method="holm")
+
+    print("Pairwise Welch t-tests (Holm-adjusted):")
+    for (g1, g2, _), p in zip(results, p_adj):
+        print(f"{g1} vs {g2}: p={p:.4f}")
+
+# ----------------------------
+# Main analysis function
+# ----------------------------
+def analyze_variable(df, var, group_var, groups_to_use, method="kw", dunn_adjust="holm"):
     df_var = df[df[group_var].isin(groups_to_use)][[group_var, var]].dropna()
-    print(f"\n=== Variable: {var} grouped by {group_var} ===")
+    print(f"\n=== Variable: {var} grouped by {group_var} ({method}) ===")
 
-    # Descriptive CI
+    # ----------------------------
+    # DESCRIPTIVES
+    # ----------------------------
     for g in groups_to_use:
-        data = df_var[df_var[group_var]==g][var].values
-        if use_bootstrap:
-            mean_val, lower, upper = bootstrap_mean_ci(data)
-        else:
+        data = df_var[df_var[group_var] == g][var].values
+        n = len(data)
+
+        if method == "kw":
+            med, q1, q3 = median_iqr(data)
+            print(f"{group_var} {g}: median={med:.2f}, IQR=({q1:.2f}, {q3:.2f}), n={n}")
+        elif method == "welch":
             mean_val, lower, upper = mean_ci(data)
-        print(f"{group_var} {g}: mean={mean_val:.2f}, 95% CI=({lower:.2f}, {upper:.2f}), n={len(data)}")
+            print(f"{group_var} {g}: mean={mean_val:.2f}, 95% CI=({lower:.2f}, {upper:.2f}), n={n}")
 
-    # If using bootstrap → Kruskal-Wallis + Dunn
-    if use_bootstrap:
-        # Kruskal-Wallis
-        groups = [df_var[df_var[group_var]==g][var].values for g in groups_to_use]
+    # ----------------------------
+    # INFERENCE
+    # ----------------------------
+    if method == "kw":
+        groups = [df_var[df_var[group_var] == g][var].values for g in groups_to_use]
         kw_stat, kw_p = kruskal(*groups)
-        print(f"Kruskal-Wallis H={kw_stat:.3f}, p={kw_p:.3f}")
+        print(f"Kruskal–Wallis H={kw_stat:.3f}, p={kw_p:.3f}")
 
-        # Dunn post-hoc if significant
         if kw_p <= 0.05 and len(groups_to_use) > 1:
             print("Pairwise comparisons (Dunn test):")
-            dunn_results = sp.posthoc_dunn(df_var, val_col=var, group_col=group_var, p_adjust=dunn_adjust)
-            print(dunn_results)
-    else:
-        # Welch ANOVA
-        from statsmodels.formula.api import ols
-        from statsmodels.stats.anova import anova_lm
-        model = ols(f'{var} ~ C({group_var})', data=df_var).fit()
-        anova_res = anova_lm(model, typ=2, robust='hc3')
-        welch_p = anova_res['PR(>F)'][f'C({group_var})']
-        print(f"Welch ANOVA p={welch_p:.3f}")
+            dunn = sp.posthoc_dunn(
+                df_var,
+                val_col=var,
+                group_col=group_var,
+                p_adjust=dunn_adjust
+            )
+            print(dunn)
+
+    elif method == "welch":
+        model = ols(f"{var} ~ C({group_var})", data=df_var).fit()
+        anova_res = anova_lm(model, typ=2, robust="hc3")
+        pval = anova_res["PR(>F)"].iloc[0]
+        print(f"Welch ANOVA p={pval:.3f}")
+
+        if pval <= 0.05 and len(groups_to_use) > 1:
+            pairwise_welch(df_var, var, group_var, groups_to_use)
+
 ```
 
 ```{python}
 group_var = 'hdbscan_cluster'
 groups_to_use = [0,1,3]  # choose which groups to include
-variables = ['cumulative_score_diff','end_score_diff','nonhammer_win','hammer_2plus','handle']
+variables = ['cumulative_score_diff','end_score_diff','handle']
 
-use_bootstrap = False
 for var in variables:
-    analyze_variable(df_pp2, var, group_var, groups_to_use)
+    analyze_variable(df_pp2, var, group_var, groups_to_use,method="welch")
 
 ```
 
@@ -1261,21 +1283,21 @@ group_var = 'hdbscan_cluster'
 groups_to_use = [0,1,3]
 variables = ['points','score_hammer','score_nonhammer']
 
-use_bootstrap = True
+
 for var in variables:
-    analyze_variable(df_pp2, var, group_var, groups_to_use)
+    analyze_variable(df_pp2, var, group_var, groups_to_use,method="kw")
 
 ```
 
 ```{python}
 group_var = 'task'
 groups_to_use = [0,1,2,3,4]
-variables = ['cumulative_score_diff','end_score_diff','nonhammer_win','hammer_2plus','handle']
+variables = ['cumulative_score_diff','end_score_diff','handle']
 
-use_bootstrap = False
+
 
 for var in variables:
-    analyze_variable(df_pp, var, group_var, groups_to_use)
+    analyze_variable(df_pp, var, group_var, groups_to_use,method="welch")
 
 ```
 
@@ -1284,9 +1306,8 @@ group_var = 'task'
 groups_to_use = [0,1,2,3,4]
 variables = ['points','score_hammer','score_nonhammer']
 
-use_bootstrap = True
 for var in variables:
-    analyze_variable(df_pp, var, group_var, groups_to_use)
+    analyze_variable(df_pp, var, group_var, groups_to_use,method="kw")
 
 ```
 
