@@ -56,12 +56,6 @@ metrics.
 
 ### Data
 
-The figure show teams with the hammer tend to score more in powerplay ends than
-in normal ends. This emphasizes the importance of deciding and executing a plan
-as the non-hammer team. In the whole end, non hammer teams hit more takeouts in
-powerplay ends, showing an overall defensive behavior. In non-powerplay ends,
-the hammer team hits more draws and guards.
-
 By plotting the board positions of each stone after the first shot, we can see
 in the normal end, stones are densely located near the button, which some shots
 which could be raise/tapbacks or fronts. The preplaced stones largely go
@@ -97,12 +91,26 @@ the non-hammer guard and stone 7 is the hammer stone at the top of the button.
 
 ### Methods
 
-After preparing the data for clustering, we decided to use HDBSCAN due to noisy
-and non-circular clusters from PCA and t-SNE visualizations. We clustered six
-columns `stone_1_x`, `stone_1_x`, `stone_1_x`, `stone_1_x`, `stone_1_x`,
-`stone_1_x` with `minimum_cluster_size`=9 and `min_samples`=1. Cluster quality
-was determined using coverage, Density-Based-Clustering-Validation score, and
-cluster stability and interpretation.
+After coordinates were standardized to mean 0 standard deviation 1, HDBSAN was
+used due to noisy and non-circular clusters from PCA and t-SNE visualizations.
+We clustered six columns `stone_1_x`, `stone_1_x`, `stone_1_x`, `stone_1_x`,
+`stone_1_x`, `stone_1_x` with `minimum_cluster_size`=9 and `min_samples`=1.
+Cluster quality was determined using coverage,
+Density-Based-Clustering-Validation score, and cluster stability and
+interpretation.
+
+PCA and t-SNE were used to visualize the 6-dimensional data in 2d space.
+Plotting the clusters on the first 2 PCAs and first to t-SNE components showed
+clear separations in clusters with litte overlap. Histograms were created for
+each cluster to examine distributions of key traits before computing summary
+statistics and confidence intervals. Also, 95% confidence intervals, mean and
+standard deviation are created for each cluster. We conduct multiple hypothesis
+tests to see if points, hammer score, non-hammer score, or cumulative score
+difference differs across clusters.
+
+The data is then grouped by task, a key variable associated with the clusters.
+Confidence intervals are calculated with a greater sample size and we test the
+same hypothesis to compare with the clusters formed on the right powerplay data.
 
 ## Results
 
