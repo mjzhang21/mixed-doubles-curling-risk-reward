@@ -1,0 +1,117 @@
+---
+title: "Mark Quarto Draft"
+
+format:
+  pdf:
+    documentclass: article
+    fig_caption: true
+    fig-pos: t
+    toc: true
+fontsize: 11pt
+geometry: margin=1in
+number-sections: true
+---
+
+## First Shot Defense of the Powerplay
+
+In mixed doubles curling, the powerplay can be played by the team with the
+hammer once an end. In the default position, the preplaced stones are placed
+with the hammer stone on top of the button, and the non-hammer stone as a guard.
+In the powerplay, both stones are shifted left or right, clearing the center
+line of the board. Teams with the hammer or the last stone advantage typically
+win the end in regular and power play ends. However, in regular ends, analysts
+have observed that mixed doubles is a game focused on execution. With the
+positioning of the preplaced stones, most of the non-hammer team's success is
+determined by how well they execute their first shot, usually a draw around the
+center guard, where the stone is delivered to rest behind the guard. In the
+powerplay, there is much more variety in how the non-hammer team plays the first
+shot of the end. Some common shots include a draw around the guard and a tick
+shot, which is intended to move the hammer team's guard stone while keeping the
+shooter's stone in play.
+
+While analysts note teams use various shots to counter the power play, there is
+little literature on power play strategies or outcomes. Thus, it is important to
+compare how board positions and shot types affect metrics such as non-hammer win
+percentage and points. Also, determining contexts in which teams use different
+shots is meaningful.
+
+The purpose of this section is to identify and analyze first shots against the
+power play and the scenarios in which teams choose specific plays. We will use a
+subset of the stone level data merged with end level features containing only
+the first shot of the end. We are first going to cluster board positions with
+HDBSCAN on a subset with only powerplay right ends to identify unique board
+positons. We will analyze these clusters and group a larger powerplay dataset by
+task, creating confidence intervals and ANOVA to determine differences in
+metrics.
+
+## Methods/Data
+
+We narrow down the merged stone level data to the first shot of the right
+powerplay end. This data combines the task, end score for both teams, end id and
+coordinates of each stone after the first shot. We first cluster the coordinate
+data using HDBSCAN and analyze the mean for different metrics. Then to narrow
+down confidence intervals and compare means we expand our data to both powerplay
+types and group by task, using welch one-way ANOVA to determine differences in
+metrics.
+
+### Data
+
+By plotting the board positions of each stone after the first shot, we can see
+in the normal end, stones are densely located near the button, which some shots
+which could be raise/tapbacks or fronts. The preplaced stones largely go
+unmoved. In both the left and right powerplay board positions, we can see all
+the stones preplaced and the first throw are scattered all across the board.
+Compared to the normal ends, powerplay ends show great variety in the
+positioning of the board, as many teams throw significantly different shots and
+have unique strategies in dealing with the powerplay.
+
+Thus, in typical ends where the hammer team does not opt to use powerplay, the
+primary response in the first shot is a draw around the center guard. In
+powerplay ends, teams have more variety in their first shot. While many shots
+are still a draw around the side guard, teams throw more guards, raise/tapbacks
+and wick/soft peel shots to counter the powerplay.
+
+By plotting only the rows with knocked out stones, it is shown that nearly all
+of the time a stone gets knocked out, it is the first stone thrown in the end.
+The thrown stone bumps their own team's non-hammer guard diagonally at many
+different strengths shown by the varying lengths it travels. The pre-placed
+stones are rarely knocked out and remain in their starting position.
+
+In preparation for clustering, we performed several data cleaning steps. We
+first dropped irrelevant columns such as the x-y coordinates for stones 3-7 and
+9-12. Values of 4095 and 0 were replaced with N/A, signifying stones that were
+knocked out of play. Columns for stones 2 and 8 both contained coordinates for
+the first shot. When one column was missing it was present in the other. Thus I
+combined the coordinates into one column for the x-y coordinates for stone 2.
+Next, we addressed the issue of stone 1 and 7 not corresponding to the
+non-hammer and hammer teams preplaced stones, respectively. To fix this, if a
+column in stone 1 contained a coordinate for a preplaced hammer stone, it was
+swapped for the values in stone 7, and vice versa. This way stone 1 always is
+the non-hammer guard and stone 7 is the hammer stone at the top of the button.
+
+### Methods
+
+After coordinates were standardized to mean 0 standard deviation 1, HDBSAN was
+used due to noisy and non-circular clusters from PCA and t-SNE visualizations.
+We clustered six columns `stone_1_x`, `stone_1_x`, `stone_1_x`, `stone_1_x`,
+`stone_1_x`, `stone_1_x` with `minimum_cluster_size`=9 and `min_samples`=1.
+Cluster quality was determined using coverage,
+Density-Based-Clustering-Validation score, and cluster stability and
+interpretation.
+
+PCA and t-SNE were used to visualize the 6-dimensional data in 2d space.
+Plotting the clusters on the first 2 PCAs and first to t-SNE components showed
+clear separations in clusters with litte overlap. Histograms were created for
+each cluster to examine distributions of key traits before computing summary
+statistics and confidence intervals. Also, 95% confidence intervals, mean and
+standard deviation are created for each cluster. We conduct multiple hypothesis
+tests to see if points, hammer score, non-hammer score, or cumulative score
+difference differs across clusters.
+
+The data is then grouped by task, a key variable associated with the clusters.
+Confidence intervals are calculated with a greater sample size and we test the
+same hypothesis to compare with the clusters formed on the right powerplay data.
+
+## Results
+
+## Discussion

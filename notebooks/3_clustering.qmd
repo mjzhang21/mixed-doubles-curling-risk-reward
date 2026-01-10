@@ -14,8 +14,8 @@ end_level.info()
 end_level.head()
 ```
 
-
 # Stone Level
+
 ```{python}
 
 df_competition = pd.read_csv("../data/Competition.csv")
@@ -57,8 +57,6 @@ df.insert(0, 'match_id', df.pop('match_id'))
 
 
 ```
-
-
 
 ```{python}
 # Sort data to ensure correct end order
@@ -118,7 +116,6 @@ df = df.dropna(subset=["stone_3_x"])
 df.info()
 ```
 
-
 ```{python}
 import matplotlib.pyplot as plt
 import numpy as np
@@ -132,21 +129,21 @@ for col in cols_to_plot:
     # counts per value
     counts_pp = df_pp[col].value_counts().sort_index()
     counts_non_pp = df_non_pp[col].value_counts().sort_index()
-    
+
     # all unique values
     values = sorted(df[col].dropna().unique())
-    
+
     # proportions
     props_pp = [counts_pp.get(v, 0) / counts_pp.sum() for v in values]
     props_non_pp = [counts_non_pp.get(v, 0) / counts_non_pp.sum() for v in values]
-    
+
     # positions for grouped bars
     x = np.arange(len(values))
     width = 0.4
-    
+
     plt.bar(x - width/2, props_non_pp, width, label="Non-Powerplay")
     plt.bar(x + width/2, props_pp, width, label="Powerplay")
-    
+
     plt.xticks(x, values)
     plt.xlabel(col)
     plt.ylabel("Proportion")
@@ -171,7 +168,7 @@ df_non_pp = df[df["powerplay"] == 0]
 def plot_result_proportions(df_subset, title):
     # Compute proportions for hammer and non-hammer
     props = df_subset.groupby('hammer')[col_to_plot].value_counts(normalize=True).unstack()
-    
+
     # Plot
     props.T.plot(kind='bar', figsize=(8,5))
     plt.title(title)
@@ -211,16 +208,16 @@ def plot_task_proportions(df_subset, title):
     # Map task codes to labels
     df_subset = df_subset.copy()
     df_subset[col_to_plot] = df_subset[col_to_plot].astype(str).map(task_labels)
-    
+
     # Compute proportions for hammer and non-hammer
     props = df_subset.groupby('hammer')[col_to_plot].value_counts(normalize=True).unstack()
-    
+
     # Sort by total counts (sum across hammer/non-hammer)
     props = props.T
     props['total'] = props.sum(axis=1)
     props = props.sort_values('total', ascending=False)
     props = props.drop(columns='total')
-    
+
     # Plot horizontal bars
     props.plot(kind='barh', figsize=(8,6))
     plt.title(title)
@@ -238,7 +235,6 @@ plot_task_proportions(df_non_pp, "Non-Powerplay Ends: Hammer vs Non-Hammer (Task
 
 
 ```
-
 
 ```{python}
 # Count occurrences of each nation
@@ -282,7 +278,6 @@ print(summary)
 
 ```
 
-
 ```{python}
 from scipy.stats import mannwhitneyu
 
@@ -302,7 +297,6 @@ print("Right vs None p-value:", p_right)
 
 ```
 
-
 ```{python}
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
@@ -311,15 +305,14 @@ import statsmodels.formula.api as smf
 model = smf.glm(
     formula="score_hammer ~ C(powerplay_value) + cumulative_score_diff + end_id",
     data=end_level,
-    family=sm.families.Poisson()  
+    family=sm.families.Poisson()
 ).fit()
 
 print(model.summary())
 
 ```
 
-
-# Analyzing First 
+# Analyzing First
 
 ```{python}
 import numpy as np
@@ -397,10 +390,8 @@ def build_df_fs(df):
 df_fs = build_df_fs(df)
 ```
 
-Preplaced stone coords:
-Left: (350,850), (411, 1916)
-Right: (1150,850), (1089, 1916)
-
+Preplaced stone coords: Left: (350,850), (411, 1916) Right: (1150,850),
+(1089, 1916)
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -436,7 +427,6 @@ def plot_curling_sheet():
     return ax
 
 ```
-
 
 ```{python}
 # Filter for no powerplay
@@ -511,8 +501,9 @@ ax.scatter(
 ax.legend()
 plt.show()
 ```
-When any stones are knocked out, most of the time, the preplaced stones are still
-on the board while the first shot is knocked out of bounds.
+
+When any stones are knocked out, most of the time, the preplaced stones are
+still on the board while the first shot is knocked out of bounds.
 
 Lets focus on powerplay left:
 
@@ -521,57 +512,56 @@ df_fs.loc[
     (df_fs['match_id'] == '24250026_4_5') & (df_fs['end_id'] == 6),
     'powerplay'
 ] = 1
-df_pp2 = df_fs[(df_fs['powerplay'] == 2)]
 
-```
-```{python}
-df_pp2_na = df_pp2[df_pp2[cols].isna().any(axis=1)]
-df_pp2 = df_pp2.dropna(subset=cols)
+# --- All powerplay ends ---
+df_pp = df_fs.loc[df_fs['powerplay'] != 0].copy()
 
+# --- Merge end-level variables ---
+end_vars = [
+    'match_id', 'end_id',
+    'cumulative_score_diff',
+    'score_hammer',
+    'score_nonhammer'
+]
 
-```
-```{python}
-df_pp2 = df_pp2.merge(
-    end_level[['match_id','end_id','cumulative_score_diff',
-    'score_hammer','score_nonhammer']],
+df_pp = df_pp.merge(
+    end_level[end_vars],
     on=['match_id', 'end_id'],
     how='left'
 )
 
-df_pp2[['stone_1_x','stone_2_x','stone_7_x']] = (
-    df_pp2[['stone_1_x','stone_2_x','stone_7_x']].fillna(-100)
-)
-df_pp2[['stone_1_y','stone_2_y','stone_7_y']] = (
-    df_pp2[['stone_1_y','stone_2_y','stone_7_y']].fillna(-100)
-)
 
-df_pp2.info()
 ```
 
 ```{python}
+# --- Sentinel masks (on df_pp) ---
+mask_1 = (df_pp['stone_1_x'] == 350) & (df_pp['stone_1_y'] == 850)
+mask_7 = (df_pp['stone_7_x'] == 411) & (df_pp['stone_7_y'] == 1916)
 
-s1x = df_pp2['stone_1_x'].copy()
-s1y = df_pp2['stone_1_y'].copy()
-s7x = df_pp2['stone_7_x'].copy()
-s7y = df_pp2['stone_7_y'].copy()
-
-# Masks for sentinel positions
-mask_1 = (s1x == 350) & (s1y == 850)
-mask_7 = (s7x == 411) & (s7y == 1916)
-
-# Combine: swap if EITHER condition holds
 swap_mask = mask_1 | mask_7
 
-# Swap coordinates
-df_pp2.loc[swap_mask, 'stone_1_x'] = s7x[swap_mask]
-df_pp2.loc[swap_mask, 'stone_1_y'] = s7y[swap_mask]
-df_pp2.loc[swap_mask, 'stone_7_x'] = s1x[swap_mask]
-df_pp2.loc[swap_mask, 'stone_7_y'] = s1y[swap_mask]
+# --- Swap stone 1 and stone 7 coordinates ---
+cols_1 = ['stone_1_x', 'stone_1_y']
+cols_7 = ['stone_7_x', 'stone_7_y']
 
-# How many rows were swapped
+df_pp.loc[swap_mask, cols_1 + cols_7] = (
+    df_pp.loc[swap_mask, cols_7 + cols_1].values
+)
+
 swap_mask.sum()
+
 ```
 
+```{python}
+# --- Subset: powerplay = 2 ---
+df_pp2 = df_pp.loc[df_pp['powerplay'] == 2].copy()
+
+# --- Drop rows with missing stone data ---
+df_pp2 = df_pp2.dropna(subset=cols)
+
+df_pp2.info()
+
+```
 
 # K-Means
 
@@ -755,12 +745,12 @@ results = []
 for k in k_values:
     kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
     clusters = kmeans.fit_predict(X_scaled)
-    
+
     sil = silhouette_score(X_scaled, clusters)
     db = davies_bouldin_score(X_scaled, clusters)
     ch = calinski_harabasz_score(X_scaled, clusters)
     wcss = kmeans.inertia_
-    
+
     results.append({
         'k': k,
         'silhouette': sil,
@@ -854,8 +844,8 @@ print(pca.explained_variance_ratio_)
 ```
 ````
 
-
 # HDBSCAN
+
 ```{python}
 import hdbscan
 import numpy as np
@@ -866,7 +856,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 # Define the parameter grid
 min_cluster_sizes = range(5,10)     # 5,10,15,20,25,30
-min_samples_list = range(1,10) 
+min_samples_list = range(1,10)
 
 results = []
 
@@ -877,14 +867,14 @@ for mcs, ms in product(min_cluster_sizes, min_samples_list):
         gen_min_span_tree=True
     )
     clusters = clusterer.fit_predict(X_scaled)
-    
+
     # Skip if no clusters formed
     if np.all(clusters == -1):
         continue
-    
+
     coverage = np.sum(clusters != -1) / X_scaled.shape[0]
     dbcv = clusterer.relative_validity_
-    
+
     results.append({
         'min_cluster_size': mcs,
         'min_samples': ms,
@@ -981,6 +971,7 @@ plt.legend(
 plt.show()
 ```
 
+````
 ```{python}
 import umap
 import matplotlib.pyplot as plt
@@ -1006,6 +997,7 @@ plt.legend(
 )
 plt.show()
 ```
+````
 
 ```{python}
 mask = clusters != -1
@@ -1021,13 +1013,10 @@ print(f"Calinski-Harabasz Index: {ch_score}")
 
 ```
 
-
-
-
 ```{python}
 for cluster_id in sorted(df_pp2['hdbscan_cluster'].dropna().unique()):
 
-    
+
     df_plot = df_pp2[
         (df_pp2['powerplay'] == 2) &
         (df_pp2['hdbscan_cluster'] == cluster_id)
@@ -1060,17 +1049,24 @@ for cluster_id in sorted(df_pp2['hdbscan_cluster'].dropna().unique()):
 
 ```
 
+```{python}
+df_pp2['nonhammer_win'] = (df_pp2['score_nonhammer']>0).astype(int)
+df_pp2['hammer_2plus'] = (df_pp2['score_hammer']>1).astype(int)
+df_pp2['end_score_diff'] = (df_pp2['score_hammer']-df_pp2['score_nonhammer'])
 
+df_pp['nonhammer_win'] = (df_pp['result']>0).astype(int)
+df_pp['hammer_2plus'] = (df_pp['score_hammer']>1).astype(int)
+df_pp['end_score_diff'] = (df_pp['score_hammer']-df_pp['score_nonhammer'])
+```
 
 ```{python}
 import seaborn as sns
 import matplotlib.pyplot as plt
-df_pp2['nonhammer_win'] = (df_pp2['result']>0).astype(int)
 
 features = [
     'task', 'points','cumulative_score_diff','end_id',
     'result','nonhammer_win',
-    'score_hammer','score_nonhammer'
+    'score_hammer','score_nonhammer','end_score_diff'
 ]
 df_plot = df_pp2[df_pp2['hdbscan_cluster'] != -1]
 for feature in features:
@@ -1088,20 +1084,17 @@ for feature in features:
 
 ```
 
-
-
 ```{python}
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-df_pp2['nonhammer_win'] = (df_pp2['result']>0).astype(int)
 
 # Features to plot
 features = [
     'task', 'points','end_id',
     'nonhammer_win',
-    'score_hammer','score_nonhammer'
+    'score_hammer','score_nonhammer','end_score_diff'
 ]
 # Filter out noise clusters
 df_plot = df_pp2[df_pp2['hdbscan_cluster'] != -1]
@@ -1175,12 +1168,159 @@ for feature in features:
 ```
 
 ```{python}
+import numpy as np
+from scipy.stats import kruskal, ttest_ind
+import scikit_posthocs as sp
+from scipy.stats import t as t_dist
+from statsmodels.formula.api import ols
+from statsmodels.stats.anova import anova_lm
+from statsmodels.stats.multitest import multipletests
+from itertools import combinations
+
+# ----------------------------
+# Descriptive statistics
+# ----------------------------
+def median_iqr(data):
+    data = np.array(data)
+    return (
+        np.median(data),
+        np.percentile(data, 25),
+        np.percentile(data, 75)
+    )
+
+def mean_ci(data, alpha=0.05):
+    data = np.array(data)
+    n = len(data)
+    if n < 2:
+        return np.mean(data), np.nan, np.nan
+    mean_val = np.mean(data)
+    std_val = np.std(data, ddof=1)
+    se = std_val / np.sqrt(n)
+    h = se * t_dist.ppf(1 - alpha/2, n - 1)
+    return mean_val, mean_val - h, mean_val + h
+
+# ----------------------------
+# Pairwise Welch post-hoc
+# ----------------------------
+def pairwise_welch(df, var, group_var, groups):
+    results = []
+
+    for g1, g2 in combinations(groups, 2):
+        x1 = df[df[group_var] == g1][var].values
+        x2 = df[df[group_var] == g2][var].values
+        stat, p = ttest_ind(x1, x2, equal_var=False)
+        results.append((g1, g2, p))
+
+    raw_p = [r[2] for r in results]
+    _, p_adj, _, _ = multipletests(raw_p, method="holm")
+
+    print("Pairwise Welch t-tests (Holm-adjusted):")
+    for (g1, g2, _), p in zip(results, p_adj):
+        print(f"{g1} vs {g2}: p={p:.4f}")
+
+# ----------------------------
+# Main analysis function
+# ----------------------------
+def analyze_variable(df, var, group_var, groups_to_use, method="kw", dunn_adjust="holm"):
+    df_var = df[df[group_var].isin(groups_to_use)][[group_var, var]].dropna()
+    print(f"\n=== Variable: {var} grouped by {group_var} ({method}) ===")
+
+    # ----------------------------
+    # DESCRIPTIVES
+    # ----------------------------
+    for g in groups_to_use:
+        data = df_var[df_var[group_var] == g][var].values
+        n = len(data)
+
+        if method == "kw":
+            med, q1, q3 = median_iqr(data)
+            print(f"{group_var} {g}: median={med:.2f}, IQR=({q1:.2f}, {q3:.2f}), n={n}")
+        elif method == "welch":
+            mean_val, lower, upper = mean_ci(data)
+            print(f"{group_var} {g}: mean={mean_val:.2f}, 95% CI=({lower:.2f}, {upper:.2f}), n={n}")
+
+    # ----------------------------
+    # INFERENCE
+    # ----------------------------
+    if method == "kw":
+        groups = [df_var[df_var[group_var] == g][var].values for g in groups_to_use]
+        kw_stat, kw_p = kruskal(*groups)
+        print(f"Kruskal–Wallis H={kw_stat:.3f}, p={kw_p:.3f}")
+
+        if kw_p <= 0.05 and len(groups_to_use) > 1:
+            print("Pairwise comparisons (Dunn test):")
+            dunn = sp.posthoc_dunn(
+                df_var,
+                val_col=var,
+                group_col=group_var,
+                p_adjust=dunn_adjust
+            )
+            print(dunn)
+
+    elif method == "welch":
+        model = ols(f"{var} ~ C({group_var})", data=df_var).fit()
+        anova_res = anova_lm(model, typ=2, robust="hc3")
+        pval = anova_res["PR(>F)"].iloc[0]
+        print(f"Welch ANOVA p={pval:.3f}")
+
+        if pval <= 0.05 and len(groups_to_use) > 1:
+            pairwise_welch(df_var, var, group_var, groups_to_use)
+
+```
+
+```{python}
+group_var = 'hdbscan_cluster'
+groups_to_use = [0,1,3]  # choose which groups to include
+variables = ['cumulative_score_diff','end_score_diff','handle']
+
+for var in variables:
+    analyze_variable(df_pp2, var, group_var, groups_to_use,method="welch")
+
+```
+
+```{python}
+group_var = 'hdbscan_cluster'
+groups_to_use = [0,1,3]
+variables = ['points','score_hammer','score_nonhammer']
+
+
+for var in variables:
+    analyze_variable(df_pp2, var, group_var, groups_to_use,method="kw")
+
+```
+
+```{python}
+group_var = 'task'
+groups_to_use = [0,1,2,3,4]
+variables = ['cumulative_score_diff','end_score_diff','handle']
+
+
+
+for var in variables:
+    analyze_variable(df_pp, var, group_var, groups_to_use,method="welch")
+
+```
+
+```{python}
+group_var = 'task'
+groups_to_use = [0,1,2,3,4]
+variables = ['points','score_hammer','score_nonhammer']
+
+for var in variables:
+    analyze_variable(df_pp, var, group_var, groups_to_use,method="kw")
+
+```
+
+```{python}
 cluster_summary = (
     df_pp2[df_pp2['hdbscan_cluster'] != -1]
     .groupby('hdbscan_cluster')
     .agg(
         nonhammer_win_rate_mean=('nonhammer_win', 'mean'),
         nonhammer_win_rate_std=('nonhammer_win', 'std'),
+
+        hammer_2plus_mean=('hammer_2plus', 'mean'),
+        hammer_2plus_std=('hammer_2plus', 'std'),
 
         cumulative_score_diff_mean=('cumulative_score_diff', 'mean'),
         cumulative_score_diff_std=('cumulative_score_diff', 'std'),
@@ -1203,6 +1343,21 @@ cluster_summary = (
 
 print(cluster_summary)
 ```
+
+```{python}
+metrics = [
+    'nonhammer_win',
+    'hammer_2plus',
+    'cumulative_score_diff',
+    'score_hammer',
+    'score_nonhammer',
+    'points',
+    'end_score_diff'
+
+]
+
+```
+
 ```{python}
 
 import seaborn as sns
@@ -1211,14 +1366,12 @@ import matplotlib.pyplot as plt
 # exclude noise
 df_plot = df_pp2[df_pp2['hdbscan_cluster'] != -1]
 
-metrics = [
-    
+cont = [
     'cumulative_score_diff',
-    'end_id',
-    'weighted_score_diff'
+
 ]
 
-for m in metrics:
+for m in cont:
     plt.figure(figsize=(6, 4))
     sns.boxplot(
         data=df_plot,
@@ -1232,18 +1385,19 @@ for m in metrics:
     plt.show()
 
 ```
+
 ```{python}
 cluster_summary = (
     df_pp2[(df_pp2['hdbscan_cluster'] != -1) &(df_pp2['points'].isin([3,4]))]
     .groupby('hdbscan_cluster')
     .agg(
         nonhammer_win_rate=('nonhammer_win', 'mean'),
+        hammer_2plus_mean=('hammer_2plus', 'mean'),
         avg_cumulative_score_diff=('cumulative_score_diff', 'mean'),
         avg_score_hammer=('score_hammer', 'mean'),
         avg_score_nonhammer=('score_nonhammer', 'mean'),
         avg_end_id=('end_id', 'mean'),
         avg_points=('points', 'mean'),
-        avg_weighted_score_diff=('weighted_score_diff', 'mean'),
         n=('nonhammer_win', 'count')
     )
 )
@@ -1252,19 +1406,18 @@ print(cluster_summary)
 
 ```
 
-
 ```{python}
 cluster_summary = (
     df_pp2[(df_pp2['hdbscan_cluster'] != -1) &(df_pp2['end_id'] >5)]
     .groupby('hdbscan_cluster')
     .agg(
         nonhammer_win_rate=('nonhammer_win', 'mean'),
+        hammer_2plus_mean=('hammer_2plus', 'mean'),
         avg_cumulative_score_diff=('cumulative_score_diff', 'mean'),
         avg_score_hammer=('score_hammer', 'mean'),
         avg_score_nonhammer=('score_nonhammer', 'mean'),
         avg_end_id=('end_id', 'mean'),
         avg_points=('points', 'mean'),
-        avg_weighted_score_diff=('weighted_score_diff', 'mean'),
         n=('nonhammer_win', 'count')
     )
 )
@@ -1275,9 +1428,9 @@ print(cluster_summary)
 
 ```{python}
 df_plot = df_pp2[
-    (df_pp2['task'].isin([3,4])) & 
+    (df_pp2['task'].isin([3,4])) &
     (df_pp2['hdbscan_cluster'].isin([0,1]))
-    
+
 ]
 
 print("Powerplay - left")
@@ -1293,14 +1446,20 @@ plt.show()
 ```
 
 # Descriptive Stats per task
+
+Without stones knocked off
+
 ```{python}
-df_pp2['nonhammer_win'] = (df_pp2['result']>0).astype(int)
+
 cluster_summary = (
     df_pp2
     .groupby('task')
     .agg(
         nonhammer_win_rate_mean=('nonhammer_win', 'mean'),
         nonhammer_win_rate_std=('nonhammer_win', 'std'),
+
+        hammer_2plus_mean=('hammer_2plus', 'mean'),
+        hammer_2plus_std=('hammer_2plus', 'std'),
 
         cumulative_score_diff_mean=('cumulative_score_diff', 'mean'),
         cumulative_score_diff_std=('cumulative_score_diff', 'std'),
@@ -1317,10 +1476,123 @@ cluster_summary = (
         points_mean=('points', 'mean'),
         points_std=('points', 'std'),
 
-
-        n=('points', 'count')
+        n=('nonhammer_win', 'count')
     )
 )
 
 print(cluster_summary)
+```
+
+# ALL powerplay
+
+```{python}
+
+import matplotlib.pyplot as plt
+
+df_pp['task'].value_counts().plot(kind='bar')
+plt.xlabel("Task")
+plt.ylabel("Count")
+plt.title("Task counts")
+plt.tight_layout()
+plt.show()
+
+```
+
+```{python}
+
+cluster_summary = (
+    df_pp
+    .groupby('task')
+    .agg(
+        nonhammer_win_rate_mean=('nonhammer_win', 'mean'),
+        nonhammer_win_rate_std=('nonhammer_win', 'std'),
+
+        hammer_2plus_mean=('hammer_2plus', 'mean'),
+        hammer_2plus_std=('hammer_2plus', 'std'),
+
+        cumulative_score_diff_mean=('cumulative_score_diff', 'mean'),
+        cumulative_score_diff_std=('cumulative_score_diff', 'std'),
+
+        score_hammer_mean=('score_hammer', 'mean'),
+        score_hammer_std=('score_hammer', 'std'),
+
+        score_nonhammer_mean=('score_nonhammer', 'mean'),
+        score_nonhammer_std=('score_nonhammer', 'std'),
+
+        end_id_mean=('end_id', 'mean'),
+        end_id_std=('end_id', 'std'),
+
+        points_mean=('points', 'mean'),
+        points_std=('points', 'std'),
+
+        n=('nonhammer_win', 'count')
+    )
+)
+
+print(cluster_summary)
+```
+
+```{python}
+import matplotlib.pyplot as plt
+import pandas as pd
+
+skip_tasks = [5, 6, 8, 10]
+
+# Filter out skipped tasks
+df_filtered = df_pp[~df_pp['task'].isin(skip_tasks)]
+df_filtered = df_filtered.dropna(subset=['task', 'cumulative_score_diff'])
+# Get all NOCs
+nocs = df_filtered['noc'].unique()
+
+for noc in nocs:
+    sub = df_filtered[df_filtered['noc'] == noc]
+
+    # Skip countries with fewer than 20 shots
+    if len(sub) < 20:
+        continue
+
+    # Count shots per task
+    counts = sub['task'].value_counts().sort_index()
+
+    # Convert to proportion within the country
+    prop = counts / counts.sum()
+
+    plt.figure(figsize=(8, 4))
+    plt.bar(prop.index.astype(str), prop.values)
+    plt.title(f"Proportion of Shots by Task for {noc} (n={len(sub)})")
+    plt.xlabel("Task")
+    plt.ylabel("Proportion of Shots")
+    plt.ylim(0, 1)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+```
+
+```{python}
+import pandas as pd
+
+skip_tasks = [5, 6, 8, 10]
+
+# Filter out skipped tasks
+df_filtered = df_pp[~df_pp['task'].isin(skip_tasks)]
+
+# Only keep countries with ≥20 shots
+df_filtered = df_filtered.groupby('noc').filter(lambda x: len(x) >= 25)
+
+# Calculate proportions per country for each task
+prop_table = df_filtered.groupby(['noc', 'task']).size().unstack(fill_value=0)
+
+# Convert to proportion within the country
+prop_table = prop_table.div(prop_table.sum(axis=1), axis=0)
+
+# For each task, sort countries by proportion
+for task in prop_table.columns:
+    top_countries = prop_table[task].sort_values(ascending=False)
+    print(f"\nTask {task} - countries with highest proportion of shots:")
+    print(top_countries.head(5))  # show top 5 countries
+
+```
+
+```{python}
+df_filtered['noc'].value_counts()
 ```
