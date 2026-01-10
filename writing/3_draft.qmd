@@ -1,4 +1,18 @@
-# First Shot Defense of the Powerplay
+---
+title: "Mark Quarto Draft"
+
+format:
+  pdf:
+    documentclass: article
+    fig_caption: true
+    fig-pos: t
+    toc: true
+fontsize: 11pt
+geometry: margin=1in
+number-sections: true
+---
+
+## First Shot Defense of the Powerplay
 
 In mixed doubles curling, the powerplay can be played by the team with the
 hammer once an end. In the default position, the preplaced stones are placed
@@ -30,7 +44,7 @@ positons. We will analyze these clusters and group a larger powerplay dataset by
 task, creating confidence intervals and ANOVA to determine differences in
 metrics.
 
-# Methods/Data
+## Methods/Data
 
 We narrow down the merged stone level data to the first shot of the right
 powerplay end. This data combines the task, end score for both teams, end id and
@@ -40,7 +54,7 @@ down confidence intervals and compare means we expand our data to both powerplay
 types and group by task, using welch one-way ANOVA to determine differences in
 metrics.
 
-## Data
+### Data
 
 The figure show teams with the hammer tend to score more in powerplay ends than
 in normal ends. This emphasizes the importance of deciding and executing a plan
@@ -69,8 +83,27 @@ The thrown stone bumps their own team's non-hammer guard diagonally at many
 different strengths shown by the varying lengths it travels. The pre-placed
 stones are rarely knocked out and remain in their starting position.
 
-## Methods
+In preparation for clustering, we performed several data cleaning steps. We
+first dropped irrelevant columns such as the x-y coordinates for stones 3-7 and
+9-12. Values of 4095 and 0 were replaced with N/A, signifying stones that were
+knocked out of play. Columns for stones 2 and 8 both contained coordinates for
+the first shot. When one column was missing it was present in the other. Thus I
+combined the coordinates into one column for the x-y coordinates for stone 2.
+Next, we addressed the issue of stone 1 and 7 not corresponding to the
+non-hammer and hammer teams preplaced stones, respectively. To fix this, if a
+column in stone 1 contained a coordinate for a preplaced hammer stone, it was
+swapped for the values in stone 7, and vice versa. This way stone 1 always is
+the non-hammer guard and stone 7 is the hammer stone at the top of the button.
 
-# Results
+### Methods
 
-# Discussion
+After preparing the data for clustering, we decided to use HDBSCAN due to noisy
+and non-circular clusters from PCA and t-SNE visualizations. We clustered six
+columns `stone_1_x`, `stone_1_x`, `stone_1_x`, `stone_1_x`, `stone_1_x`,
+`stone_1_x` with `minimum_cluster_size`=9 and `min_samples`=1. Cluster quality
+was determined using coverage, Density-Based-Clustering-Validation score, and
+cluster stability and interpretation.
+
+## Results
+
+## Discussion
