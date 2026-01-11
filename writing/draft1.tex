@@ -6,8 +6,8 @@
 \usepackage{natbib}
 \usepackage{xcolor}
 
-\title{Placeholder Title\\
-  \large [Subtitle (optional)]}
+\title{Analysis of Power Play Behavior and Counter Play in Mixed Doubles Curling\\
+  \large CSAS 2026 Data Challenge Submission}
 
 \date{[15 January 2026]}
 
@@ -25,25 +25,124 @@
 % New paragraphs will be formed automatically similar to quarto, just leave a blank line in between
 % lines. Inline math can be called by wrapping with $, for example $ math equation$.
 
-\section{Abstract}
 
 \section{Introduction}
-As shown by \citet{PARK2013391}
+
+% briefly outline what the purpose of the data challenge is exactly
+% -> there isn o data anlysis done on mixed doubles curling
+% all mixed doubles curling strategy and intuition relies on
+% strategy formulated from the tradtional game.
+% this is why we have the data challenge, is so that we can develop
+% strategy independent of the 4 person game.
+
+% the key focus of the data challenge is the power play, for which
+% we have no reliable strategy because this is a novel rule
+% powerplay questions: how and when and why is it used
+% how should you use it or or respond to it etc
+
+% THESES:
+% what behavior is seen during powerplay -> these behaviors are seen -> do they lead to anything
+
+% Defensive behavior is observed during powerplay typically in later ends, strategic trends
+% are not apparent across teams or championships. 
+
+% The different types of shots to counter the powerplay do not have significant differences
+% in expected HT or NHT score but they have significant differences in execution score
+% & cumulative score differences. 
+% -> Teams tend to use different shots in different cumulative score differences, but
+% the data suggests there is no reason to prefer different behavior when opening an end as NHT
+% during Power play.
+
+
+\subsection{Literature Review}
+
+% bring up scarcity of resources and limitations of extant literature
 
 \section{Data}
 
+% source is curlit
 
-\section{Methods}
+% Data collection was that curlit analysts entered the stone positions onto a softeware and evaluated
+% shot quality on objective criteria (awarding points)
+
+% 2 world champsionships 1 winter olympics (beijing 2022)
+
+% This is the first data set that:
+% 1. Contains stone-level coordiante data for geometric analyses
+% 2. Contains powerplay-end level data for mixed doubles curling
+% 3. Objective qualifiers for shot-type and shot-execution
+
+% basic histograms which describe the data,
+% e.g. endid, powerplay 0,1,2, count normal/powerplay ends
+% how many shots every noc hits
+% how often each shot is shots
 
 
-\section{Simulation}
+\section{Methodology}
+\subsection{Power Play Behavior Clustering}
+% Alejandro
+% std. coordinates
+% estimate behavior class binary on end-level predictor set
 
+% finding of mine was that behavior 
+
+
+% Bridge section flowwwww
+
+% The behavior of the HT is much easier to identify during power play
+% 
+
+% Once power play behavior has been identified, clustering analysis
+% for first-stone level data is used to identify ideal response
+% types by the NHT
+
+
+\subsection{First-shot NHT Clustering}
+
+% Mark
+% std. coordinates
+% use HDBScan for clustering -> visualize w/ PCA, tSNE
+% cluster quality evaluated on coverage, score, and cluster stability
+% use welch ANOVA and KW-test, use post-hoc test to determine differences between clusters
+% hypothesis test: test if there is at least one group that is significantly
+% different from another
+
+% assumptions: ind, approx. normal (for anova), skewed (for kw-test)
+
+\section{Results}
+
+% objective reports. figures go here. no need for fluff
 
 \section{Discussion}
 
+% 1st - summarize
+% 2nd - why is your approach the best
+% 3rd - limitations. what question might someone else want to answer that we can't address
 
-\section{Conclusion}
 
+% bring up the most interesting and insightful results
+% bring up the implications, make actionable recommendations
+
+% alejandro: curling strategy says to enter with a game-plan
+% game-plans for how to use powerplay are not observed with this
+% data. 
+
+\subsection{Limitations}
+% lack of powerplay sample size
+% very skewed data. task, points, expected hammer points
+% data quality. i.e. inconsistent coordinate assignments, incosistent column assignments
+
+% freeze vs draw inconsistency 
+
+% imbalanced data with logical end devisions before vs after MFGZ 
+
+% one of the clusters does not identify raise / tap-backs on the hammer stone
+
+% the draw cluster has a very small sample size but is recognized as a cluster
+
+
+\subsection{Conclusion}
+% quick summary
 
 %\section{Appendices}
 %if there is a need for code appendix or otherwise, we'll put it at the botton. 
@@ -51,4 +150,6 @@ As shown by \citet{PARK2013391}
 \bibliography{../references}
 %i have my latex in vscode compiled to use natbib, not bibtex. it will work for you
 % but i havent got mine working yet, once i set it back we will use APA
+
 \end{document}
+
