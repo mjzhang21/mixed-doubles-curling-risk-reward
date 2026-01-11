@@ -114,4 +114,21 @@ same hypothesis to compare with the clusters formed on the right powerplay data.
 
 ## Results
 
+HDBSCAN clusters (subset of data): A Welch ANOVA indicated a significant
+difference in cumulative_score_diff across clusters (p = 0.015), with cluster 1
+having higher cumulative_score_diff than cluster 0. No significant differences
+were observed in end_score_diff, score_hammer, or score_nonhammer (all p > 0.7).
+A Kruskal–Wallis test indicated a significant difference in points across
+clusters (H(2, N = 183) = 11.75, p = 0.003), with cluster 3 having higher points
+than cluster 1. Full descriptive statistics and post-hoc comparisons are
+presented in Table 1.
+
+Task groups (full dataset): Cumulative_score_diff differed significantly across
+tasks (Welch ANOVA p < 0.001), with tasks 0 and 1 higher than tasks 3 and 4.
+Points also differed across tasks (H(4, N = 592) = 39.23, p < 0.001), with
+several significant pairwise differences (e.g., task 0 vs task 2, task 1 vs task
+4, both p < 0.001). No significant differences were observed in end_score_diff,
+score_hammer, or score_nonhammer (all p > 0.38). Full descriptive statistics and
+post-hoc comparisons are presented in Table 2.
+
 ## Discussion
