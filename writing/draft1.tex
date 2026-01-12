@@ -108,11 +108,7 @@
 % hypothesis test: test if there is at least one group that is significantly
 % different from another
 
-<<<<<<< HEAD
 % assumptions: ind, approx. normal (for anova)
-=======
-% assumptions: ind, approx. normal (for anova), skewed (for kw-test)
->>>>>>> 37f7eba9756ebeee05c38386f11df61c025ce280
 The following is a brief summary of the preprocessing steps applied prior
 to analysis. After the coordinates were standardized, the stone level data were 
 merged with the end level data and filtered to the first shot of the end. The
@@ -129,18 +125,13 @@ To explore potential clusters, PCA, t-SNE and UMAP were applied onto the
 6-dimensional coordinate data consisting of the x and y coordinates for 
 stone 1, 2 and 7. HDBSCAN was selected due to non-circular clusters appearing
 in the 2-D visualizations from graphing 2 components of PCA, t-SNE and UMAP.
-<<<<<<< HEAD
 Parameters of minimum cluster size = 5 and min samples = 5 were chosen from
-=======
-Parameters of minimum cluster size = 9 and min samples = 1 were chosen from
->>>>>>> 37f7eba9756ebeee05c38386f11df61c025ce280
 a grid search to balance and maximize Density-Based-Clustering-Validation score
 and coverage. Cluster quality was determined from DBCV score, coverage, excluded 
 noise sillouhete score and cluster membership probabilities. Finally, the clusters
 were visualized by color on 2-D components of the dimensionality reduction 
 techniques to confirm cluster separation.
 
-<<<<<<< HEAD
 Histograms and bar charts were used to visualize the distributions and counts 
 of key variables. Also, curling sheet scatterplots were used to visualize
 the positions of each stone by cluster and task.
@@ -154,31 +145,15 @@ Cluster groups were defined as C0 (n=27), C1 (n=73), and C2 (n=62). Values
 are presented as group means with 95\% bootstrap confidence intervals, and 
 detailed results for all variables are provided in Table~\ref{tab:cluster_test}.
 
-=======
-To compare performance metrics across the clusters, continuous variables 
-approximately normally distributed were analyzed using Welch's one-way ANOVA.
-Heavily skewed ordinal variables were assessed with the Kruskal-Wallis H test.
-Post-hoc pairwise comparisons were performed using the Games–Howell test for ANOVA 
-results and the Dunn test for Kruskal-Wallis outcomes. Cluster groups were defined 
-as C0 (n=35), C1 (n=75), and C3 (n=67). Values are presented as mean with confidence
-intervals or medians with 25th and 75th percentile,as appropriate, and detailed
-results for all variables are provided in Table~\ref{tab:cluster_test}.
->>>>>>> 37f7eba9756ebeee05c38386f11df61c025ce280
 
 
 \begin{table}[t]
 \centering
 \includegraphics[width=0.8\textwidth]{img/cluster_test.pdf}
-<<<<<<< HEAD
 \caption{Group means (with 95\% bootstrap confidence intervals) 
 for each outcome variable by HDBSCAN cluster. p-values are from 
 Welch’s one-way ANOVA. Significant pairwise differences were
  assessed using Games–Howell post hoc tests.}
-=======
-\caption{Values are presented as mean (95\% CI) or median (Q1, Q3). 
-C0: Cluster 0, C1: Cluster 1, C3: Cluster 3.
-P values indicate the statistical inference result of overall comparisons.}
->>>>>>> 37f7eba9756ebeee05c38386f11df61c025ce280
 \label{tab:cluster_test}
 \end{table}
 
@@ -200,7 +175,6 @@ showed cluster-specific variation, while hammer-related outcomes were similar
 across groups.
 
 
-<<<<<<< HEAD
 The HDBSCAN clustering (minimum cluster size = 5, minimum samples = 5) 
 produced four clusters, with a coverage rate of 0.761 and a DBCV score of 0.428.
 These metrics suggest reasonable clustering structure with a fair amount of noise.
@@ -236,8 +210,6 @@ cumulative score difference and points showed cluster-specific variation,
 while hammer-related outcomes were similar across groups.
 
 
-=======
->>>>>>> 37f7eba9756ebeee05c38386f11df61c025ce280
 
 \section{Discussion}
 
