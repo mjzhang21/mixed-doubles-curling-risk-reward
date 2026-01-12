@@ -29,3 +29,7 @@ __pycache__/
 notebooks/*.pdf
 presentation/*.html
 presentation/*_files/
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata

@@ -898,8 +898,8 @@ import numpy as np
 
 
 # Example: best params from your grid search
-best_min_cluster_size = 9
-best_min_samples = 1
+best_min_cluster_size = 5
+best_min_samples = 5
 
 # Fit HDBSCAN
 clusterer = hdbscan.HDBSCAN(
@@ -1168,120 +1168,118 @@ for feature in features:
 ```
 
 ```{python}
-
-from scipy.stats import kruskal
+import numpy as np
 import pingouin as pg
 from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
 
 
 # ----------------------------
-# Descriptive statistics
+# Bootstrap CI for the mean
 # ----------------------------
-def median_iqr(data):
-    data = np.array(data)
-    return (
-        np.median(data),
-        np.percentile(data, 25),
-        np.percentile(data, 75)
-    )
-
-def mean_ci(data, alpha=0.05):
-    data = np.array(data)
+def bootstrap_mean_ci(data, alpha=0.05, n_boot=10000, random_state=None):
+    rng = np.random.default_rng(random_state)
+    data = np.asarray(data)
     n = len(data)
+
     if n < 2:
-        return np.mean(data), np.nan, np.nan
+        mean_val = np.mean(data)
+        return mean_val, np.nan, np.nan
+
+    boot_means = rng.choice(data, size=(n_boot, n), replace=True).mean(axis=1)
+    lower = np.percentile(boot_means, 100 * alpha / 2)
+    upper = np.percentile(boot_means, 100 * (1 - alpha / 2))
     mean_val = np.mean(data)
-    std_val = np.std(data, ddof=1)
-    se = std_val / np.sqrt(n)
-    from scipy.stats import t as t_dist
-    h = se * t_dist.ppf(1 - alpha/2, n - 1)
-    return mean_val, mean_val - h, mean_val + h
+
+    return mean_val, lower, upper
+
 
 # ----------------------------
 # Main analysis function
 # ----------------------------
-def analyze_variable(df, var, group_var, groups_to_use, method="kw", dunn_adjust="holm"):
+def analyze_variable(
+    df,
+    var,
+    group_var,
+    groups_to_use,
+    n_boot=10000,
+    alpha=0.05,
+):
     df_var = df[df[group_var].isin(groups_to_use)][[group_var, var]].dropna()
-    print(f"\n=== Variable: {var} grouped by {group_var} ({method}) ===")
+    print(f"\n=== Variable: {var} grouped by {group_var} (Welch + bootstrap) ===")
 
     # ----------------------------
-    # DESCRIPTIVES
+    # DESCRIPTIVES (mean + bootstrap CI)
     # ----------------------------
     for g in groups_to_use:
         data = df_var[df_var[group_var] == g][var].values
         n = len(data)
 
-        if method == "kw":
-            med, q1, q3 = median_iqr(data)
-            print(f"{group_var} {g}: median={med:.2f}, IQR=({q1:.2f}, {q3:.2f}), n={n}")
-        elif method == "welch":
-            mean_val, lower, upper = mean_ci(data)
-            print(f"{group_var} {g}: mean={mean_val:.2f}, 95% CI=({lower:.2f}, {upper:.2f}), n={n}")
+        mean_val, lower, upper = bootstrap_mean_ci(
+            data, alpha=alpha, n_boot=n_boot, random_state=42
+        )
+
+        print(
+            f"{group_var} {g}: "
+            f"mean={mean_val:.2f}, "
+            f"{int((1-alpha)*100)}% bootstrap CI=({lower:.2f}, {upper:.2f}), "
+            f"n={n}"
+        )
 
     # ----------------------------
-    # INFERENCE
+    # INFERENCE (Welch ANOVA)
     # ----------------------------
-    if method == "kw":
-        groups = [df_var[df_var[group_var] == g][var].values for g in groups_to_use]
-        kw_stat, kw_p = kruskal(*groups)
-        print(f"Kruskal–Wallis H={kw_stat:.3f}, p={kw_p:.3f}")
+    model = ols(f"{var} ~ C({group_var})", data=df_var).fit()
+    anova_res = anova_lm(model, typ=2, robust="hc3")
+    pval = anova_res["PR(>F)"].iloc[0]
 
-        if kw_p <= 0.05 and len(groups_to_use) > 1:
-            print("Pairwise comparisons (Dunn test):")
-            import scikit_posthocs as sp
-            dunn = sp.posthoc_dunn(
-                df_var,
-                val_col=var,
-                group_col=group_var,
-                p_adjust=dunn_adjust
-            )
-            print(dunn)
+    print(f"Welch ANOVA p={pval:.4f}")
 
-    elif method == "welch":
-        # Welch ANOVA using statsmodels with robust covariance
-        model = ols(f"{var} ~ C({group_var})", data=df_var).fit()
-        anova_res = anova_lm(model, typ=2, robust="hc3")
-        pval = anova_res["PR(>F)"].iloc[0]
-        print(f"Welch ANOVA p={pval:.3f}")
+    # ----------------------------
+    # POST HOC (Games–Howell)
+    # ----------------------------
+    if pval <= alpha and len(groups_to_use) > 1:
+        print("Pairwise comparisons (Games–Howell):")
+        gh = pg.pairwise_gameshowell(
+            dv=var,
+            between=group_var,
+            data=df_var
+        )
+        print(gh)
 
-        if pval <= 0.05 and len(groups_to_use) > 1:
-            print("Pairwise comparisons (Games-Howell test):")
-            gh = pg.pairwise_gameshowell(dv=var, between=group_var, data=df_var)
-            print(gh)
 
 ```
 
 ```{python}
 group_var = 'hdbscan_cluster'
-groups_to_use = [0,1,3]  # choose which groups to include
-variables = ['cumulative_score_diff','end_score_diff']
+groups_to_use = [0,1,2]  # choose which groups to include
+variables = ['cumulative_score_diff']
 
 for var in variables:
-    analyze_variable(df_pp2, var, group_var, groups_to_use,method="welch")
+    analyze_variable(df_pp2, var, group_var, groups_to_use)
 
 ```
 
 ```{python}
 group_var = 'hdbscan_cluster'
-groups_to_use = [0,1,3]
+groups_to_use = [0,1,2]
 variables = ['points','score_hammer','score_nonhammer']
 
 
 for var in variables:
-    analyze_variable(df_pp2, var, group_var, groups_to_use,method="kw")
+    analyze_variable(df_pp2, var, group_var, groups_to_use)
 
 ```
 
 ```{python}
 group_var = 'task'
 groups_to_use = [0,1,2,3,4]
-variables = ['cumulative_score_diff','end_score_diff']
+variables = ['cumulative_score_diff']
 
 
 
 for var in variables:
-    analyze_variable(df_pp, var, group_var, groups_to_use,method="welch")
+    analyze_variable(df_pp, var, group_var, groups_to_use)
 
 ```
 
@@ -1291,7 +1289,7 @@ groups_to_use = [0,1,2,3,4]
 variables = ['points','score_hammer','score_nonhammer']
 
 for var in variables:
-    analyze_variable(df_pp, var, group_var, groups_to_use,method="kw")
+    analyze_variable(df_pp, var, group_var, groups_to_use)
 
 ```
 

@@ -23,9 +23,9 @@
 
 % Note: % is comment character, \ backslash is the escape character (needed for $, %, etc.)
 
-% New paragraphs will be formed automatically similar to quarto, just leave a blank line in between
-% lines. Inline math can be called by wrapping with $, for example $ math equation$.
-
+% New paragraphs will be formed automatically similar to quarto, just leave a
+% blank line in between lines. Inline math can be called by wrapping with $, for
+% example $ math equation$.
 
 \section{Introduction}
 
@@ -38,215 +38,284 @@
 
 Mixed Doubles Curling is the product of the Internation Olympic Committee's
 request for a variatiant of the game that is more fast-paced, dynamic,
-high-risk, and less likely to fall into specific patterns determined by a
-game strategy.
+high-risk, and less likely to fall into specific patterns determined by a game
+strategy.
 
 The unique rules of the Mixed Doubles game including the Modified Free Guard
-Zone (MFGZ), two pre-placed stones, the hammer being transferred even on a blank,
-only eight ends, and of course the power play, necessitate new tactical and
-strategic decisionmaking on the ice. These modifications are intended to keep more
-stones in play, increasing the odds of big ends and raising the stakes for a
-single end. 
+Zone (MFGZ), two pre-placed stones, the hammer being transferred even on a
+blank, only eight ends, and of course the power play, necessitate new tactical
+and strategic decisionmaking on the ice. These modifications are intended to
+keep more stones in play, increasing the odds of big ends and raising the
+stakes for a single end.
 
-Mixed Doubles' novelty, however, means that little-to-no data-driven strategy exists
-yet for the sport. Analysts note (source pending) that currently, mixed doubles teams
-have to "play the sheet", i.e., a tactical game.
+Mixed Doubles' novelty, however, means that little-to-no data-driven strategy
+exists yet for the sport. Analysts note (source pending) that currently, mixed
+doubles teams have to "play the sheet", i.e., a tactical game.
 
-Of particular note is the power play, a concept entirely new to curling. The power play
-can be used by each team once per team if they have the hammer. In power play, the
-pre-placed stones, which usually are a front guard and a button scoring stone
-for the non-hammer and hammer team respectively, are moved off to the side. This opens
-up the sheet and requires a fundamentally different approach.
+Of particular note is the power play, a concept entirely new to curling. The
+power play can be used by each team once per team if they have the hammer. In
+power play, the pre-placed stones, which usually are a front guard and a button
+scoring stone for the non-hammer and hammer team respectively, are moved off to
+the side. This opens up the sheet and requires a fundamentally different
+approach.
 
-Right now, coaches and analysts only have intuition (source pending) from the traditional
-game as how to effectively play the power play. But if there is anything to learn
-from traditional curling, a strategic approach is always more effective than playing pure
-tactics; and thus at the professional level it is the teams' best interest that proper
-strategy on when to use the power play, how to use it, and how to respond to it, is
-developed.
+Right now, coaches and analysts only have intuition (source pending) from the
+traditional game as how to effectively play the power play. But if there is
+anything to learn from traditional curling, a strategic approach is always more
+effective than playing pure tactics; and thus at the professional level it is
+the teams' best interest that proper strategy on when to use the power play,
+how to use it, and how to respond to it, is developed.
+% briefly outline what the purpose of the data challenge is exactly -> there isn
+% o data anlysis done on mixed doubles curling all mixed doubles curling
+% strategy and intuition relies on strategy formulated from the tradtional game.
+% this is why we have the data challenge, is so that we can develop strategy
+% independent of the 4 person game.
 
 % the key focus of the data challenge is the power play, for which
 % we have no reliable strategy because this is a novel rule
 % powerplay questions: how and when and why is it used
 % how should you use it or or respond to it etc
 
-Using data from three World Championships and one Winter Olympics,
-this paper offers the first analysis of strategic behavior surrounding the Power play
-in professional Mixed Doubles Curling. We first show that teams tend to adopt more
-defensive behaviors when using the power play, particularly in the later ends, but that
-these strategic tendencies are not consistent across teams or championships. We then
-focus on non-hammer team behavior, by analyzing common counter power play shot types and
-find that while different opens do not significantly affect expeced scoring outcomes for
-the non-hammer team, they do produce significant differences in execution quality
-and cumulative score dynamics. Despite teams systemically varying their shot
-choice based on game context, the data provides no evidence that any particular 
-counter-strategy is objectively preferable when opening an end agaisnt the Power Play.
+Using data from three World Championships and one Winter Olympics, this paper
+offers the first analysis of strategic behavior surrounding the Power play in
+professional Mixed Doubles Curling. We first show that teams tend to adopt more
+defensive behaviors when using the power play, particularly in the later ends,
+but that these strategic tendencies are not consistent across teams or
+championships. We then focus on non-hammer team behavior, by analyzing common
+counter power play shot types and find that while different opens do not
+significantly affect expeced scoring outcomes for the non-hammer team, they do
+produce significant differences in execution quality and cumulative score
+dynamics. Despite teams systemically varying their shot choice based on game
+context, the data provides no evidence that any particular counter-strategy is
+objectively preferable when opening an end agaisnt the Power Play.
+% the key focus of the data challenge is the power play, for which we have no
+% reliable strategy because this is a novel rule powerplay questions: how and
+% when and why is it used how should you use it or For respond to it etc
 
 % THESES:
 % what behavior is seen during powerplay -> these behaviors are seen -> do they lead to anything
 
-% Defensive behavior is observed during powerplay typically in later ends, strategic trends
-% are not apparent across teams or championships. 
+% Defensive behavior is observed during powerplay typically in later ends,
+% strategic trends are not apparent across teams or championships. 
 
-% The different types of shots to counter the powerplay do not have significant differences
-% in expected HT or NHT score but they have significant differences in execution score
-% & cumulative score differences. 
-% -> Teams tend to use different shots in different cumulative score differences, but
-% the data suggests there is no reason to prefer different behavior when opening an end as NHT
-% during Power play.
-
+% The different types of shots to counter the powerplay do not have significant
+% differences in expected HT or NHT score but they have significant differences
+% in execution score & cumulative score differences. -> Teams tend to use
+% different shots in different cumulative score differences, but the data
+% suggests there is no reason to prefer different behavior when opening an end
+% as NHT during Power play.
 
 \subsection{Literature Review}
 
-Previous analysis of 
+Previous analysis of
 
 \section{Data}
 
-We use a dataset from 
-Curlit which provides 26,730 shot-by-shot stone positions across four competitions,
-compiled from shot-by-shot images which are entered into Curlit's
-software during the game. Included are unique
-IDs which successfuly distinguish individual competitions, games, ends, 
-participants, and preserve
-chronological shot order. 
+We use a dataset from Curlit which provides 26,730 shot-by-shot stone positions
+across four competitions, compiled from shot-by-shot images which are entered
+into Curlit's software during the game. Included are unique IDs which
+successfuly distinguish individual competitions, games, ends, participants, and
+preserve chronological shot order.
 
-Perhaps the dataset's most important quality is that 
-it is the first available dataset for mixed doubles curling that contains stone-level
-coordinate data, addressing a key limitation of previous analyses.
-Additionally, columns assessment data such as intended shot-call and execution quality
-are included for every stone, providing necessary information for behavior classification.
+Perhaps the dataset's most important quality is that it is the first available
+dataset for mixed doubles curling that contains stone-level coordinate data,
+addressing a key limitation of previous analyses. Additionally, columns
+assessment data such as intended shot-call and execution quality are included
+for every stone, providing necessary information for behavior classification.
 These descriptors are based on a set of objective grading critera such that
 that any analyst entering the data would fill each category identically.
 
-With score results for each end, it is possible to wholly reconstruct the entire process
-of each game, allowing new insights.
+With score results for each end, it is possible to wholly reconstruct the
+entire process of each game, allowing new insights.
 
 %some chart/table will go here, detailing the championships, number of ends, number of games,
 % number of nocs, number of stones, etc etc etc
 
-At the shot-level, the data is heavily skewed towards draws, supporting the idea that the
-most dominant strategy is an opportunistic/probing strategy, where teams continue to draw
-until it is determined advantageous to "break the cluster".
+At the shot-level, the data is heavily skewed towards draws, supporting the
+idea that the most dominant strategy is an opportunistic/probing strategy,
+where teams continue to draw until it is determined advantageous to "break the
+cluster".
 
-This is reflected in the heatmaps of stone positions 
+This is reflected in the heatmaps of stone positions
 
 We see that powerplay occurs in t
+% source is curlit
 
-% basic histograms which describe the data,
-% e.g. endid, powerplay 0,1,2, count normal/powerplay ends
-% how many shots every noc hits
-% how often each shot is shots
+% Data collection was that curlit analysts entered the stone positions onto a
+% softeware and evaluated shot quality on objective criteria (awarding points)
 
+% 2 world champsionships 1 winter olympics (beijing 2022)
+
+% This is the first data set that:
+% 1. Contains stone-level coordiante data for geometric analyses
+% 2. Contains powerplay-end level data for mixed doubles curling
+% 3. Objective qualifiers for shot-type and shot-execution
+
+% basic histograms which describe the data, e.g. endid, powerplay 0,1,2, count
+% normal/powerplay ends how many shots every noc hits how often each shot is
+% shots
 
 \section{Methodology}
 \subsection{Power Play Behavior Clustering}
-% Alejandro
-% std. coordinates
-% estimate behavior class binary on end-level predictor set
+% Alejandro std. coordinates estimate behavior class binary on end-level
+% predictor set
 
 % finding of mine was that behavior 
-
 
 % Bridge section flowwwww
 
 % The behavior of the HT is much easier to identify during power play
-% 
+%
 
-% Once power play behavior has been identified, clustering analysis
-% for first-stone level data is used to identify ideal response
-% types by the NHT
-
+% Once power play behavior has been identified, clustering analysis for
+% first-stone level data is used to identify ideal response types by the NHT
 
 \subsection{First-shot NHT Clustering}
 
-% Mark
-% std. coordinates
-% use HDBScan for clustering -> visualize w/ PCA, tSNE
-% cluster quality evaluated on coverage, score, and cluster stability
-% use welch ANOVA and KW-test, use post-hoc test to determine differences between clusters
-% hypothesis test: test if there is at least one group that is significantly
-% different from another
+% Mark std. coordinates use HDBScan for clustering -> visualize w/ PCA, tSNE
+% cluster quality evaluated on coverage, score, and cluster stability use welch
+% ANOVA and bootstrap, use post-hoc test to determine differences between
+% clusters hypothesis test: test if there is at least one group that is
+% significantly different from another
 
-% assumptions: ind, approx. normal (for anova), skewed (for kw-test)
-The following is a brief summary of the preprocessing steps applied prior
-to analysis. After the coordinates were standardized, the stone level data were 
-merged with the end level data and filtered to the first shot of the end. The
-columns for stones 3 to 6 and 9 to 12 were dropped as they are able
-to be played in the first shot. Columns for stone 2 and 8 were combined 
-and shifted into one column for stone 2 due to both belonging to the 
+% assumptions: ind, approx. normal (for anova)
+The following is a brief summary of the preprocessing steps applied prior to
+analysis. After the coordinates were standardized, the stone level data were
+merged with the end level data and filtered to the first shot of the powerplay
+right formation end. The columns for stones 3 to 6 and 9 to 12 were dropped as
+they are able to be played in the first shot. Columns for stone 2 and 8 were
+combined and shifted into one column for stone 2 due to both belonging to the
 non-hammer team. As for stones 1 and 7, both columns represented preplaced
 stones, although the designation of guard or house stone was unclear for each
-row. Thus, the coordinates were swapped when either stone 1 had coordinates for 
-the hammer preplaced house stone or stone 7 had coordinates for the 
-non-hammer guard.
+row. Thus, the coordinates were swapped when either stone 1 had coordinates for
+the hammer preplaced house stone or stone 7 had coordinates for the non-hammer
+guard. Finally, rows with missing values were dropped. This excludes shots that
+knocked out any stone before the Modified Free Guard Zone from the data.
 
-To explore potential clusters, PCA, t-SNE and UMAP were applied onto the 
-6-dimensional coordinate data consisting of the x and y coordinates for 
-stone 1, 2 and 7. HDBSCAN was selected due to non-circular clusters appearing
-in the 2-D visualizations from graphing 2 components of PCA, t-SNE and UMAP.
-Parameters of minimum cluster size = 9 and min samples = 1 were chosen from
-a grid search to balance and maximize Density-Based-Clustering-Validation score
-and coverage. Cluster quality was determined from DBCV score, coverage, excluded 
-noise sillouhete score and cluster membership probabilities. Finally, the clusters
-were visualized by color on 2-D components of the dimensionality reduction 
-techniques to confirm cluster separation.
+Next, to identify patterns in stone positions, PCA, t-SNE and UMAP were applied
+onto the 6-dimensional coordinate data consisting of the x and y coordinates
+for stone 1, 2 and 7. HDBSCAN was selected due to non-circular clusters
+appearing in the 2-D visualizations from graphing 2 components of PCA, t-SNE
+and UMAP. To optimize clustering performance, Parameters of minimum cluster
+size = 5 and min samples = 5 were chosen from a grid search Cluster quality was
+then assessed from DBCV score, coverage, excluded noise sillouhete score and
+cluster membership probabilities. Finally, the clusters were visualized by
+color on 2-D components of the dimensionality reduction techniques to confirm
+cluster separation.
 
-To compare performance metrics across the clusters, continuous variables 
-approximately normally distributed were analyzed using Welch's one-way ANOVA.
-Heavily skewed ordinal variables were assessed with the Kruskal-Wallis H test.
-Post-hoc pairwise comparisons were performed using the Games–Howell test for ANOVA 
-results and the Dunn test for Kruskal-Wallis outcomes. Cluster groups were defined 
-as C0 (n=35), C1 (n=75), and C3 (n=67). Values are presented as mean with confidence
-intervals or medians with 25th and 75th percentile,as appropriate, and detailed
-results for all variables are provided in Table~\ref{tab:cluster_test}.
-
+Histograms and bar charts were used to visualize the distributions and counts
+of key variables. Also, curling sheet scatterplots were used to visualize the
+positions of each stone by cluster and task. Following visualization,
+performance metrics across clusters were compared using Welch’s one-way ANOVA
+to account for unequal group sizes and variances. Cluster comparisons were
+carried out using Welch’s ANOVA to account for unequal group sizes and
+variances. Some variables were highly skewed, which may slightly affect the
+p-values, but bootstrap confidence intervals were used for the means to provide
+robust estimates.Where the overall ANOVA indicated significant differences,
+post-hoc pairwise comparisons were performed using the Games–Howell test.
+Cluster groups were defined as C0 (n = 27), C1 (n = 73), and C2 (n = 62).
+Values are presented as group means with 95\% bootstrap confidence intervals to
+account for the skewed distributions. Detailed results for all variables are
+provided in Table~\ref{tab:cluster_test}.
 
 \begin{table}[t]
-\centering
-\includegraphics[width=0.8\textwidth]{img/cluster_test.pdf}
-\caption{Values are presented as mean (95\% CI) or median (Q1, Q3). 
-C0: Cluster 0, C1: Cluster 1, C3: Cluster 3.
-P values indicate the statistical inference result of overall comparisons.}
-\label{tab:cluster_test}
+  \centering
+  \includegraphics[width=0.8\textwidth]{img/cluster_test.pdf}
+  \caption{Group means (with 95\% bootstrap confidence intervals) for each
+    outcome variable by HDBSCAN cluster. p-values are from Welch’s one-way
+    ANOVA. Significant pairwise differences were assessed using Games–Howell
+    post hoc tests.}
+  \label{tab:cluster_test}
 \end{table}
 
-
-
 \section{Results}
-Cumulative score difference differed significantly across clusters (Welch’s 
-ANOVA, $p=0.015$; Table~\ref{tab:cluster_test}), with the highest mean observed in
-C1 (6.00, 95\% CI 5.07--6.93) and the lowest in C0 (3.51, 95\% CI 2.06--4.97).
-Post-hoc analysis indicated a significant difference between C0 and C1 ($p=0.014$),
-while differences between C0 and C3 ($p=0.317$) and C1 and C3 ($p=0.245$) were 
-not statistically significant. Points also varied across clusters (Kruskal-Wallis
-H test, $p=0.003$; Table~\ref{tab:cluster_test}), with a significant post-hoc 
-difference between C1 and C3 ($p=0.002$) but not between C0 and C1 ($p=0.129$)
-or C0 and C3 ($p=1.000$). Hammer and non-hammer scores did not differ significantly
-across clusters ($p=0.958$ and $p=0.904$, respectively; Table~\ref{tab:cluster_test}).
-Overall, these results indicate that cumulative score difference and points
-showed cluster-specific variation, while hammer-related outcomes were similar
-across groups.
 
+The HDBSCAN clustering (minimum cluster size = 5, minimum samples = 5) produced
+four clusters, with a coverage rate of 0.761 and a DBCV score of 0.428. These
+metrics suggest reasonable clustering structure with a fair amount of noise.
+Cluster sizes ranged from 7 to 76 with 55 points labeled as noise. Cluster
+assignments from HDBSCAN were probabilistic. Clusters 0–3 had mean membership
+probabilities of 0.773, 0.753, 0.891, and 0.982, respectively, indicating that
+Cluster 3 contained the most tightly grouped points, while Clusters 0 and 1 had
+weaker assignments. Fifty-five points were labeled as noise, reflecting points
+not clearly assigned to any cluster. Clusters visualized on 2-D components of
+PCA, t-SNE and UMAP revealed well separated clustrs with minimal overlap. With
+noise excluded, sihlouette score was calculated as 0.604 suggesting reasonable
+to strong clustering structure.
 
+To further characterize these clusters, we examined the spatial distribution of
+stone placements and shot types for each cluster. Plotting the stone
+coordinates on a curling sheet grouped by cluster reveals three clear board
+positions which have been identified. The Cluster 0 plot illustrates the first
+non-hammer team shot collides with the non-hammer guard pushing into around the
+house or near the button. The Cluster 1 plot has preplaced stones untouched,
+with the first shot landing around the hammer house stone. Cluster 2 also shows
+the preplaced stones untouched and the first shot in the front of the house or
+even higher. Cluster 3 had a very small sample size but is revealed to be a
+central draw. Although identified as a distinct cluster with strong membership
+probability, Cluster 3 (n=7) was excluded from further analyses due to its
+small size.
+
+We next examined the distribution of shot types within each cluster. Histograms
+of proportion of each task grouped by cluster conclude that Cluster 0 having a
+roughly equal distribution of raise/tapbacks and wick/soft-peeling shots.
+Cluster 1 only consists of draws and Cluster 2 consists of fronts and guards.
+
+Finally, we assessed whether these cluster groupings corresponded to
+differences in game outcomes. Cumulative score difference differed
+significantly across clusters (Welch’s ANOVA, $p=0.013$;
+Table~\ref{tab:cluster_test}), with the highest mean observed in C1 (6.16, 95\%
+CI 5.26--7.08) and the lowest in C0 (3.44, 95\% CI 1.89--5.04). Post-hoc
+Games–Howell tests indicated a significant difference between C0 and C1
+($p=0.016$), while differences between C0 and C2 ($p=0.343$) and C1 and C2
+($p=0.205$) were not statistically significant. Points also varied across
+clusters (Welch’s ANOVA, $p=0.005$; Table~\ref{tab:cluster_test}), with a
+significant post-hoc difference between C1 and C2 ($p=0.004$), but not between
+C0 and C1 ($p=0.326$) or C0 and C2 ($p=0.845$). Hammer and non-hammer scores
+did not differ significantly across clusters (Welch’s ANOVA, $p=0.769$ and
+$p=0.833$, respectively; Table~\ref{tab:cluster_test}). Overall, these results
+indicate that cumulative score difference and points showed cluster-specific
+variation, while hammer-related outcomes were similar across groups.
 
 \section{Discussion}
 
-% 1st - summarize
-% 2nd - why is your approach the best
-% 3rd - limitations. what question might someone else want to answer that we can't address
+% 1st - summarize 2nd - why is your approach the best 3rd - limitations. what
+% question might someone else want to answer that we can't address
 
+% bring up the most interesting and insightful results bring up the
+% implications, make actionable recommendations
 
-% bring up the most interesting and insightful results
-% bring up the implications, make actionable recommendations
+% alejandro: curling strategy says to enter with a game-plan game-plans for how
+% to use powerplay are not observed with this data. 
+Analysts have observed different responses for countering the powerplay,
+although there has been no studies to identify exactly which shots teams hit
+and their effect on performance and context metrics. By clustering the board
+positions after the non-hammer team hits their first shot, we can observe the
+three distinct patterns in curling mixed doubles championships. The tick, guard
+and draw around the guard are all common shots that occur in response to the
+powerplay.
 
-% alejandro: curling strategy says to enter with a game-plan
-% game-plans for how to use powerplay are not observed with this
-% data. 
+Welch ANOVA was used to compare differences between clusters, revealing
+significant differences in cumulative score difference and points in the
+non-missed shots and no significant differences in hammer or non-hammer score.
+Post Hoc Games-Howell tests show that significant cumulative score differences
+between the tick and draw around the guard. All shots are utilized when the
+hammer team has the score advantage. However, the tick shot is thrown at when
+the score difference is lesser while the draw is thrown when the hammer team
+has a blowout lead.
+
+Teams may have tendencies to throw less riskier shots when they are behind less
+in the score compared to when they are down many points. Nevertheless, as there
+are no siginificant differences in hammer and non-hammer score between the
+clusters, shot choice may not have an important role in end score performance.
+We suggest that when countering the powerplay as the non-hammer team, that
+teams choose the starting player based on their overall skill in executing one
+of the three options observed.
 
 \subsection{Limitations}
-% lack of powerplay sample size
-% very skewed data. task, points, expected hammer points
-% data quality. i.e. inconsistent coordinate assignments, incosistent column assignments
+% lack of powerplay sample size very skewed data. task, points, expected hammer
+% points data quality. i.e. inconsistent coordinate assignments, incosistent
+% column assignments
 
 % freeze vs draw inconsistency 
 
@@ -256,16 +325,15 @@ across groups.
 
 % the draw cluster has a very small sample size but is recognized as a cluster
 
-
 \subsection{Conclusion}
 % quick summary
 
-%\section{Appendices}
-%if there is a need for code appendix or otherwise, we'll put it at the botton. 
+%\section{Appendices} if there is a need for code appendix or otherwise, we'll
+%put it at the botton. 
 \bibliographystyle{plainnat}
 \bibliography{../references}
-%i have my latex in vscode compiled to use natbib, not bibtex. it will work for you
-% but i havent got mine working yet, once i set it back we will use APA
+%i have my latex in vscode compiled to use natbib, not bibtex. it will work for
+% you but i havent got mine working yet, once i set it back we will use APA
 
 \end{document}
 
