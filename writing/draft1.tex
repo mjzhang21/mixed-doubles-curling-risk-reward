@@ -18,7 +18,7 @@
 
 \begin{titlepage}
   \maketitle
-  % i may add a table of contents here.
+
 \end{titlepage}
 
 % Note: % is comment character, \ backslash is the escape character (needed for $, %, etc.)
@@ -29,12 +29,65 @@
 
 \section{Introduction}
 
+% briefly outline what the purpose of the data challenge is exactly
+% -> there isn o data anlysis done on mixed doubles curling
+% all mixed doubles curling strategy and intuition relies on
+% strategy formulated from the tradtional game.
+% this is why we have the data challenge, is so that we can develop
+% strategy independent of the 4 person game.
+
+Mixed Doubles Curling is the product of the Internation Olympic Committee's
+request for a variatiant of the game that is more fast-paced, dynamic,
+high-risk, and less likely to fall into specific patterns determined by a game
+strategy.
+
+The unique rules of the Mixed Doubles game including the Modified Free Guard
+Zone (MFGZ), two pre-placed stones, the hammer being transferred even on a
+blank, only eight ends, and of course the power play, necessitate new tactical
+and strategic decisionmaking on the ice. These modifications are intended to
+keep more stones in play, increasing the odds of big ends and raising the
+stakes for a single end.
+
+Mixed Doubles' novelty, however, means that little-to-no data-driven strategy
+exists yet for the sport. Analysts note (source pending) that currently, mixed
+doubles teams have to "play the sheet", i.e., a tactical game.
+
+Of particular note is the power play, a concept entirely new to curling. The
+power play can be used by each team once per team if they have the hammer. In
+power play, the pre-placed stones, which usually are a front guard and a button
+scoring stone for the non-hammer and hammer team respectively, are moved off to
+the side. This opens up the sheet and requires a fundamentally different
+approach.
+
+Right now, coaches and analysts only have intuition (source pending) from the
+traditional game as how to effectively play the power play. But if there is
+anything to learn from traditional curling, a strategic approach is always more
+effective than playing pure tactics; and thus at the professional level it is
+the teams' best interest that proper strategy on when to use the power play,
+how to use it, and how to respond to it, is developed.
 % briefly outline what the purpose of the data challenge is exactly -> there isn
 % o data anlysis done on mixed doubles curling all mixed doubles curling
 % strategy and intuition relies on strategy formulated from the tradtional game.
 % this is why we have the data challenge, is so that we can develop strategy
 % independent of the 4 person game.
 
+% the key focus of the data challenge is the power play, for which
+% we have no reliable strategy because this is a novel rule
+% powerplay questions: how and when and why is it used
+% how should you use it or or respond to it etc
+
+Using data from three World Championships and one Winter Olympics, this paper
+offers the first analysis of strategic behavior surrounding the Power play in
+professional Mixed Doubles Curling. We first show that teams tend to adopt more
+defensive behaviors when using the power play, particularly in the later ends,
+but that these strategic tendencies are not consistent across teams or
+championships. We then focus on non-hammer team behavior, by analyzing common
+counter power play shot types and find that while different opens do not
+significantly affect expeced scoring outcomes for the non-hammer team, they do
+produce significant differences in execution quality and cumulative score
+dynamics. Despite teams systemically varying their shot choice based on game
+context, the data provides no evidence that any particular counter-strategy is
+objectively preferable when opening an end agaisnt the Power Play.
 % the key focus of the data challenge is the power play, for which we have no
 % reliable strategy because this is a novel rule powerplay questions: how and
 % when and why is it used how should you use it or For respond to it etc
@@ -54,10 +107,38 @@
 
 \subsection{Literature Review}
 
-% bring up scarcity of resources and limitations of extant literature
+Previous analysis of
 
 \section{Data}
 
+We use a dataset from Curlit which provides 26,730 shot-by-shot stone positions
+across four competitions, compiled from shot-by-shot images which are entered
+into Curlit's software during the game. Included are unique IDs which
+successfuly distinguish individual competitions, games, ends, participants, and
+preserve chronological shot order.
+
+Perhaps the dataset's most important quality is that it is the first available
+dataset for mixed doubles curling that contains stone-level coordinate data,
+addressing a key limitation of previous analyses. Additionally, columns
+assessment data such as intended shot-call and execution quality are included
+for every stone, providing necessary information for behavior classification.
+These descriptors are based on a set of objective grading critera such that
+that any analyst entering the data would fill each category identically.
+
+With score results for each end, it is possible to wholly reconstruct the
+entire process of each game, allowing new insights.
+
+%some chart/table will go here, detailing the championships, number of ends, number of games,
+% number of nocs, number of stones, etc etc etc
+
+At the shot-level, the data is heavily skewed towards draws, supporting the
+idea that the most dominant strategy is an opportunistic/probing strategy,
+where teams continue to draw until it is determined advantageous to "break the
+cluster".
+
+This is reflected in the heatmaps of stone positions
+
+We see that powerplay occurs in t
 % source is curlit
 
 % Data collection was that curlit analysts entered the stone positions onto a

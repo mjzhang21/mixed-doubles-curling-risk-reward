@@ -1,3 +1,34 @@
+# mac
+.DS_Store
+
+# python
+__pycache__/
+*.pyc
+
+# latex aux files
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+
+# JUST FOR NOW
+*.pdf
+# quarto html and aux files
+*_files/
+*.html
+
+# for quarto interactice
+.ipynb_checkpoints/
+
+# temporary once we start rendering everything we undo
+notebooks/*.pdf
+presentation/*.html
+presentation/*_files/
 .Rproj.user
 .Rhistory
 .RData
