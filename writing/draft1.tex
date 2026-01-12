@@ -18,7 +18,7 @@
 
 \begin{titlepage}
   \maketitle
-  % i may add a table of contents here.
+
 \end{titlepage}
 
 % Note: % is comment character, \ backslash is the escape character (needed for $, %, etc.)
@@ -35,6 +35,10 @@
 % strategy formulated from the tradtional game.
 % this is why we have the data challenge, is so that we can develop
 % strategy independent of the 4 person game.
+
+Mixed Doubles Curling is the product of the Internation Olympic Committee's
+request for a variatiant of the game that is more fast-paced, dynamic,
+and high-risk. 
 
 % the key focus of the data challenge is the power play, for which
 % we have no reliable strategy because this is a novel rule
@@ -53,6 +57,36 @@
 % -> Teams tend to use different shots in different cumulative score differences, but
 % the data suggests there is no reason to prefer different behavior when opening an end as NHT
 % during Power play.
+
+In mixed doubles curling, the powerplay can be played by the team with the
+hammer once an end. In the default position, the preplaced stones are placed
+with the hammer stone on top of the button, and the non-hammer stone as a guard.
+In the powerplay, both stones are shifted left or right, clearing the center
+line of the board. Teams with the hammer or the last stone advantage typically
+win the end in regular and power play ends. However, in regular ends, analysts
+have observed that mixed doubles is a game focused on execution. With the
+positioning of the preplaced stones, most of the non-hammer team's success is
+determined by how well they execute their first shot, usually a draw around the
+center guard, where the stone is delivered to rest behind the guard. In the
+powerplay, there is much more variety in how the non-hammer team plays the first
+shot of the end. Some common shots include a draw around the guard and a tick
+shot, which is intended to move the hammer team's guard stone while keeping the
+shooter's stone in play.
+
+While analysts note teams use various shots to counter the power play, there is
+little literature on power play strategies or outcomes. Thus, it is important to
+compare how board positions and shot types affect metrics such as non-hammer win
+percentage and points. Also, determining contexts in which teams use different
+shots is meaningful.
+
+The purpose of this section is to identify and analyze first shots against the
+power play and the scenarios in which teams choose specific plays. We will use a
+subset of the stone level data merged with end level features containing only
+the first shot of the end. We are first going to cluster board positions with
+HDBSCAN on a subset with only powerplay right ends to identify unique board
+positons. We will analyze these clusters and group a larger powerplay dataset by
+task, creating confidence intervals and ANOVA to determine differences in
+metrics.
 
 
 \subsection{Literature Review}
