@@ -9,30 +9,30 @@
 % Optional: reduce column padding and font size for compact table
 \setlength{\tabcolsep}{4pt}
 \small
-
 \begin{table}[h!]
 \centering
 
 \begin{threeparttable}
 \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X c c c c}
 \toprule
-Variables & C0 (n=35) & C1 (n=75) & C3 (n=67) & p-value \\
+Variable & C0 (n=27) & C1 (n=73) & C2 (n=62) & p-value \\
 \midrule
-Cumulative score difference\tnote{*}    & 3.51 (2.06--4.97) & 6.00 (5.07--6.93) & 4.84 (3.73--5.94) & 0.015 \\
-Points\tnote{\textdagger}               & 4.00 (3.00--4.00) & 3.50 (3.00--4.00) & 4.00 (3.00--4.00) & 0.003 \\
-Hammer score\tnote{\textdagger}         & 1.00 (0.50--2.00) & 1.00 (1.00--2.00) & 1.00 (0.50--2.00) & 0.958 \\
-Non-hammer score\tnote{\textdagger}     & 0.00 (0.00--0.50) & 0.00 (0.00--0.00) & 0.00 (0.00--0.00) & 0.904 \\
+Cumulative score difference & 3.44 (1.89--5.04) & 6.16 (5.26--7.08) & 4.87 (3.73--6.03) & 0.013 \\
+Points                     & 3.63 (3.26--3.93) & 3.34 (3.17--3.51) & 3.74 (3.57--3.88) & 0.005 \\
+Hammer score               & 1.30 (0.85--1.78) & 1.44 (1.16--1.73) & 1.52 (1.18--1.89) & 0.769 \\
+Non-hammer score           & 0.37 (0.15--0.63) & 0.37 (0.21--0.55) & 0.31 (0.16--0.45) & 0.833 \\
 \bottomrule
 \end{tabularx}
 
 \begin{tablenotes}[flushleft]
 \small
-\item[*] Welch’s one-way ANOVA
-\item[\textdagger] Kruskal-Wallis H test
-\item Pairwise comparisons: Cumulative score difference (Games–Howell): C0 vs C1 $p=0.014$, C0 vs C3 $p=0.317$, C1 vs C3 $p=0.245$.
-\item Pairwise comparisons: Points (Dunn test): C0 vs C1 $p=0.129$, C0 vs C3 $p=1.000$, C1 vs C3 $p=0.002$.
+\item Pairwise comparisons (Games–Howell) for significant variables: Cumulative score difference:
+C0 vs C1 $p=0.016$, C0 vs C2 $p=0.343$, C1 vs C2 $p=0.205$; Points: C0 vs C1 $p=0.326$,
+C0 vs C2 $p=0.845$, C1 vs C2 $p=0.004$.
 \end{tablenotes}
+
 \end{threeparttable}
 \end{table}
 
 \end{document}
+
