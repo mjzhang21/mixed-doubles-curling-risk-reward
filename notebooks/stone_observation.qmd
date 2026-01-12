@@ -1,0 +1,449 @@
+---
+title: "Exploratory Analysis"
+author: "Alejandro Haerter"
+date: "2026-01-01"
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt 
+---
+
+# Exploratory Analysis (stones_master_1.csv)
+
+This exploratory analysis uses the variable definitions in `notebooks/new_data_dictionary.qmd`
+copied above. The intent is to generate a large set of candidate figures for the final report,
+so most plots are saved to disk for easy review.
+
+```{python}
+import numpy as np
+import pandas as pd
+from plotnine import (
+    aes,
+    coord_fixed,
+    element_text,
+    geom_boxplot,
+    geom_col,
+    geom_hline,
+    geom_line,
+    geom_point,
+    geom_vline,
+    ggplot,
+    labs,
+    position_dodge,
+    scale_fill_cmap,
+    scale_color_discrete,
+    stat_bin2d,
+    theme,
+    theme_minimal,
+)
+from pathlib import Path
+
+data_path = Path("../data/stones_master_1.csv")
+df = pd.read_csv(data_path)
+
+df["powerplay"] = df["powerplay"].fillna(0).astype(int)
+
+task_labels = {
+    -1: "No shot (concession)",
+    0: "Draw",
+    1: "Front",
+    2: "Guard",
+    3: "Raise/Tap-back",
+    4: "Wick/Soft peel",
+    5: "Freeze",
+    6: "Take-out",
+    7: "Hit and Roll",
+    8: "Clearing",
+    9: "Double Take-out",
+    10: "Promotion Take-out",
+    11: "Through",
+}
+task_label_order = [task_labels[i] for i in range(12)]
+task_group_order = ["Slow stones (0-5)", "Fast stones (6-10)", "Through", "No shot"]
+
+powerplay_labels = {
+    0: "No powerplay",
+    1: "Powerplay Right",
+    2: "Powerplay Left",
+}
+powerplay_label_order = [powerplay_labels[i] for i in [0, 1, 2]]
+
+def task_group(task_value: int) -> str:
+    if 0 <= task_value <= 5:
+        return "Slow stones (0-5)"
+    if 6 <= task_value <= 10:
+        return "Fast stones (6-10)"
+    if task_value == 11:
+        return "Through"
+    return "No shot"
+
+df["task_group"] = df["task"].map(task_group)
+
+out_dir = Path("figures/stone_observation")
+out_dir.mkdir(parents=True, exist_ok=True)
+
+def save_plot(plot, name: str, width: float, height: float) -> Path:
+    path = out_dir / f"{name}.png"
+    plot.save(
+        filename=str(path),
+        dpi=200,
+        width=width,
+        height=height,
+    )
+    return path
+
+def base_theme():
+    return theme_minimal() + theme(
+        axis_text_x=element_text(rotation=35, ha="right"),
+        figure_size=(7, 4),
+    )
+
+def plot_hexbin(data, title, filename, gridsize=55):
+    guide_df = pd.DataFrame({"x": [750], "y": [800]})
+    plot = (
+        ggplot(data, aes("x", "y"))
+        + stat_bin2d(bins=gridsize)
+        + geom_vline(xintercept=750, color="white", alpha=0.6)
+        + geom_hline(yintercept=200, color="white", alpha=0.6)
+        + geom_point(data=guide_df, mapping=aes("x", "y"), color="white", size=2)
+        + scale_fill_cmap(name="Count", cmap_name="magma")
+        + coord_fixed(ratio=1, xlim=(0, 1500), ylim=(0, 3000))
+        + labs(title=title, x="X (across sheet)", y="Y (down sheet)")
+        + theme_minimal()
+        + theme(figure_size=(6, 12))
+    )
+    save_plot(plot, filename, width=6, height=12)
+    return plot
+```
+
+```{python}
+summary = pd.Series(
+    {
+        "rows": len(df),
+        "matches": df["match_id"].nunique(),
+        "ends": df[["match_id", "end_id"]].drop_duplicates().shape[0],
+        "shots": df[["match_id", "end_id", "shot_id"]].drop_duplicates().shape[0],
+        "concession_rows": (df["task"] == -1).sum(),
+    }
+)
+summary
+```
+
+```{python}
+shot_counts = df["shot_id"].value_counts().sort_index()
+shot_counts_df = shot_counts.reset_index()
+shot_counts_df.columns = ["shot_id", "count"]
+shot_counts_df = shot_counts_df.sort_values("shot_id")
+shot_id_order = shot_counts_df["shot_id"].astype(str).tolist()
+shot_counts_df["shot_id_label"] = pd.Categorical(
+    shot_counts_df["shot_id"].astype(str),
+    categories=shot_id_order,
+    ordered=True,
+)
+
+plot_shot_counts = (
+    ggplot(shot_counts_df, aes("shot_id_label", "count"))
+    + geom_col(fill="#2a788e")
+    + labs(title="Shot ID frequency", x="Shot ID", y="Count")
+    + base_theme()
+)
+save_plot(plot_shot_counts, "shot_id_frequency", width=7, height=4)
+plot_shot_counts
+```
+
+```{python}
+task_counts = (
+    df[df["task"] >= 0]["task"]
+    .value_counts()
+    .sort_index()
+    .rename(index=task_labels)
+)
+task_counts_df = task_counts.reset_index()
+task_counts_df.columns = ["task_label", "count"]
+task_counts_df["task_label"] = pd.Categorical(
+    task_counts_df["task_label"],
+    categories=task_label_order,
+    ordered=True,
+)
+
+plot_task_counts = (
+    ggplot(task_counts_df, aes("task_label", "count"))
+    + geom_col(fill="#1f77b4")
+    + labs(title="Task frequency (excluding concessions)", x="Task", y="Count")
+    + base_theme()
+)
+save_plot(plot_task_counts, "task_frequency", width=10, height=4)
+plot_task_counts
+```
+
+```{python}
+task_powerplay = (
+    df[df["task"] >= 0]
+    .groupby(["task", "powerplay"])
+    .size()
+    .reset_index(name="count")
+)
+task_powerplay["task_label"] = task_powerplay["task"].map(task_labels)
+task_powerplay["powerplay_label"] = task_powerplay["powerplay"].map(powerplay_labels)
+task_powerplay["powerplay_label"] = pd.Categorical(
+    task_powerplay["powerplay_label"],
+    categories=powerplay_label_order,
+    ordered=True,
+)
+task_powerplay["task_label"] = pd.Categorical(
+    task_powerplay["task_label"],
+    categories=task_label_order,
+    ordered=True,
+)
+
+plot_task_powerplay = (
+    ggplot(task_powerplay, aes("task_label", "count", fill="powerplay_label"))
+    + geom_col(position=position_dodge(width=0.8))
+    + labs(title="Task frequency by powerplay", x="Task", y="Count", fill="Powerplay")
+    + base_theme()
+)
+save_plot(plot_task_powerplay, "task_by_powerplay", width=11, height=5)
+plot_task_powerplay
+```
+
+```{python}
+task_by_player = (
+    df[df["task"] >= 0]
+    .groupby(["player_id", "task"])
+    .size()
+    .reset_index(name="count")
+)
+task_by_player["task_label"] = task_by_player["task"].map(task_labels)
+task_by_player = task_by_player.sort_values(["player_id", "task"])
+task_by_player["task_label"] = pd.Categorical(
+    task_by_player["task_label"],
+    categories=task_label_order,
+    ordered=True,
+)
+task_by_player["player_label"] = task_by_player["player_id"].astype(str)
+
+plot_task_player = (
+    ggplot(task_by_player, aes("task_label", "count", color="player_label"))
+    + geom_line(aes(group="player_label"))
+    + geom_point()
+    + scale_color_discrete(name="Player")
+    + labs(title="Task frequency by player", x="Task", y="Count")
+    + base_theme()
+)
+save_plot(plot_task_player, "task_by_player", width=11, height=5)
+plot_task_player
+```
+
+```{python}
+points_df = df[df["points"] >= 0].copy()
+points_summary = (
+    points_df.groupby("task_group")["points"]
+    .agg(["count", "mean", "median"])
+    .sort_values("count", ascending=False)
+)
+points_summary
+```
+
+```{python}
+plot_groups = [g for g in task_group_order if g in points_df["task_group"].unique()]
+
+points_plot_df = points_df[points_df["task_group"].isin(plot_groups)].copy()
+points_plot_df["task_group"] = pd.Categorical(
+    points_plot_df["task_group"],
+    categories=plot_groups,
+    ordered=True,
+)
+
+plot_points = (
+    ggplot(points_plot_df, aes("task_group", "points"))
+    + geom_boxplot()
+    + labs(title="Points distribution by task group", x="Task group", y="Points")
+    + base_theme()
+    + theme(axis_text_x=element_text(rotation=20, ha="right"))
+)
+save_plot(plot_points, "points_by_task_group", width=7, height=4)
+plot_points
+```
+
+```{python}
+handle_counts = df[df["handle"] >= 0]["handle"].value_counts().sort_index()
+handle_df = handle_counts.reset_index()
+handle_df.columns = ["handle", "count"]
+handle_df["handle_label"] = handle_df["handle"].map(
+    {0: "Clockwise (0)", 1: "Counterclockwise (1)"}
+)
+
+plot_handle = (
+    ggplot(handle_df, aes("handle_label", "count"))
+    + geom_col(fill="#4c72b0")
+    + labs(title="Handle frequency", x=None, y="Count")
+    + base_theme()
+    + theme(axis_text_x=element_text(rotation=0, ha="center"))
+)
+save_plot(plot_handle, "handle_frequency", width=5, height=4)
+plot_handle
+```
+
+The thrown-stone location is approximated by mapping each shot to its stone index
+using the ordering rules described in the data dictionary. Shots beyond the
+standard 5 per team (usually data errors) are excluded; concession-shortened ends
+remain but contribute fewer observations.
+
+```{python}
+# Build a thrown-stone dataset by mapping each shot to its stone index.
+df_sorted = df.sort_values(["match_id", "end_id", "shot_id"]).copy()
+df_sorted["team_shot_number"] = (
+    df_sorted.groupby(["match_id", "end_id", "team_id"]).cumcount()
+)
+df_sorted["team_slot"] = np.where(
+    df_sorted["team_id"] == df_sorted["team_id1"], 1, 2
+)
+df_sorted["stone_index"] = np.where(
+    df_sorted["team_slot"] == 1,
+    df_sorted["team_shot_number"] + 2,
+    df_sorted["team_shot_number"] + 8,
+)
+df_sorted.loc[df_sorted["team_shot_number"] > 4, "stone_index"] = np.nan
+
+stone_x_cols = [f"stone_{i}_x" for i in range(1, 13)]
+stone_y_cols = [f"stone_{i}_y" for i in range(1, 13)]
+stone_x = df_sorted[stone_x_cols].to_numpy()
+stone_y = df_sorted[stone_y_cols].to_numpy()
+
+stone_idx = df_sorted["stone_index"].to_numpy()
+valid_idx = np.isfinite(stone_idx)
+row_idx = np.arange(len(df_sorted))[valid_idx]
+col_idx = stone_idx[valid_idx].astype(int) - 1
+
+thrown_x = np.full(len(df_sorted), np.nan)
+thrown_y = np.full(len(df_sorted), np.nan)
+thrown_x[valid_idx] = stone_x[row_idx, col_idx]
+thrown_y[valid_idx] = stone_y[row_idx, col_idx]
+
+df_sorted["thrown_x"] = thrown_x
+df_sorted["thrown_y"] = thrown_y
+
+thrown = df_sorted[
+    (df_sorted["task"] >= 0)
+    & (df_sorted["thrown_x"].between(1, 1499))
+    & (df_sorted["thrown_y"].between(1, 2999))
+].copy()
+
+thrown_positions = thrown.rename(columns={"thrown_x": "x", "thrown_y": "y"})[
+    ["x", "y", "task_group", "powerplay"]
+]
+```
+
+```{python}
+plot_hexbin(
+    thrown_positions,
+    "Thrown stone positions (all shots)",
+    "thrown_positions_all",
+)
+```
+
+```{python}
+for pp_value, pp_label in powerplay_labels.items():
+    subset = thrown_positions[thrown_positions["powerplay"] == pp_value]
+    if subset.empty:
+        continue
+    plot_hexbin(
+        subset,
+        f"Thrown stone positions: {pp_label}",
+        f"thrown_positions_powerplay_{pp_value}",
+    )
+```
+
+```{python}
+for group in ["Slow stones (0-5)", "Fast stones (6-10)"]:
+    subset = thrown_positions[thrown_positions["task_group"] == group]
+    if subset.empty:
+        continue
+    safe_name = (
+        group.lower()
+        .replace(" ", "_")
+        .replace("-", "")
+        .replace("(", "")
+        .replace(")", "")
+    )
+    plot_hexbin(
+        subset,
+        f"Thrown stone positions: {group}",
+        f"thrown_positions_{safe_name}",
+    )
+```
+
+```{python}
+all_positions = []
+for i in range(1, 13):
+    tmp = df[[f"stone_{i}_x", f"stone_{i}_y"]].copy()
+    tmp.columns = ["x", "y"]
+    tmp["stone"] = i
+    all_positions.append(tmp)
+
+all_positions = pd.concat(all_positions, ignore_index=True)
+all_positions = all_positions[
+    all_positions["x"].between(1, 1499) & all_positions["y"].between(1, 2999)
+]
+
+plot_hexbin(
+    all_positions,
+    "All stones in play (all shots)",
+    "all_stones_positions",
+    gridsize=65,
+)
+```
+
+```{python}
+task_sequence = (
+    df[df["task"] >= 0]
+    .groupby(["shot_id", "task_group"])
+    .size()
+    .reset_index(name="count")
+)
+task_sequence["task_group"] = pd.Categorical(
+    task_sequence["task_group"],
+    categories=task_group_order,
+    ordered=True,
+)
+plot_task_sequence = (
+    ggplot(task_sequence, aes("shot_id", "count", color="task_group"))
+    + geom_line(aes(group="task_group"))
+    + geom_point()
+    + labs(title="Task group frequency by shot ID", x="Shot ID", y="Count", color="Task group")
+    + base_theme()
+    + theme(figure_size=(8, 4), axis_text_x=element_text(rotation=0, ha="center"))
+)
+save_plot(plot_task_sequence, "task_group_by_shot_id", width=8, height=4)
+plot_task_sequence
+```
+
+```{python}
+powerplay_end = (
+    df[["match_id", "end_id", "powerplay"]]
+    .drop_duplicates()
+    .groupby("powerplay")
+    .size()
+    .rename(index=powerplay_labels)
+)
+powerplay_end_df = powerplay_end.reset_index()
+powerplay_end_df.columns = ["powerplay_label", "count"]
+powerplay_end_df["powerplay_label"] = pd.Categorical(
+    powerplay_end_df["powerplay_label"],
+    categories=powerplay_label_order,
+    ordered=True,
+)
+
+plot_powerplay_end = (
+    ggplot(powerplay_end_df, aes("powerplay_label", "count"))
+    + geom_col(fill="#2ca02c")
+    + labs(title="Powerplay usage by end", x=None, y="Ends")
+    + base_theme()
+    + theme(axis_text_x=element_text(rotation=15, ha="right"))
+)
+save_plot(plot_powerplay_end, "powerplay_end_frequency", width=5, height=4)
+plot_powerplay_end
+```
