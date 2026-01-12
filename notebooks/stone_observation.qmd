@@ -1,0 +1,678 @@
+---
+title: "Exploratory Analysis"
+author: "Alejandro Haerter"
+date: "2026-01-01"
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt 
+---
+
+#### Game Level Data
+
+- `match_id` - unique ID for each Match in the dataset.
+- `group_id` - In competitions where teams are split into group for play, the ID
+of the group for the teams in this match.
+- `sheet` - The name of the sheet on which the match is played.
+- `noc1` - National Olympic Committee of the first competing team.
+- `noc2` - National Olympic Committee of the second competing team.
+- `team_id1` – ID for the team corresponding to NOC1 and ResultsStr1.
+- `team_id2` - ID for the team corresponding to NOC2 and ResultsStr2.
+- `resultstr1` – Final Score of Team 1.
+- `resultstr2` – Final Score of Team 2.
+- `lsfe` - Last Stone First End. Indicates which team threw the last stone in
+the first end of the match, i.e., starting with the hammer.
+    - 0 means `NOC2` threw the LSFE.
+    - 1 means `NOC1` threw the LSFE.
+- `winner` – Indicates the winning team. 0 indicates that `NOC2` won the match, 1 indicates that `NOC1` won the match.
+
+#### End-Level Context
+
+- `end_id` - ID for an end of the match. 8 ends are typical
+in mixed doubles curling, but concession can lead to only 6
+or 7 ends being played and overtime can lead to a 9th.
+- `result` - The points scored by the skipping team in that end.
+- `powerplay` - A flag for when a team using their power play in an end. A value 
+of 1 corresponds to pre-palced stones being moved to the right side
+2 being pre-placed stones are moved to the left side. 0 means the team is not using their
+powerplay.
+- `pre_end_score` - Running score of the team throwing the stone before the current end.
+- `opp_pre_end_score` - Running score of the opponent team before the current end.
+- `pre_end_score_diff` - Pre-end score differntial computed as
+`pre_end_score` - `opp_pre_end_score`. 
+- `hammer_team_id` - Which `TeamID` in the end has the hammer.
+- `has_hammer` - Boolean for whether the skipping team has the hammer.
+
+#### Shot-By-Shot Data
+
+- `shot_id` - ID for the shot. Within a particular match and end, shots occur in
+ascending order of the ShotID values (i.e. lower ShotIDs are thrown first).
+    - `shot_id` begins at 7 and ascends to 22, skipping 10 through
+    15.
+    - My understanding is that 10-15 are unused "shot slots" from
+    traditional 16 shot curling, and this is an artifact from curlit.
+- `team_id` - ID for the Team which threw the shot for the row.
+- `player_id` - ID for the player taking the shot (1 or 2)
+    - 5 Instances of value 3, all corresponding with `ShotID == 7`.
+    Curlit says this is a data entry error.
+- `task` - The type of shot that the player is throwing,
+or the objective of the shot.
+    - Tasks 0-5 are considered "Slow Stones", as they are focused on precise positioning
+    of the skipped stone.
+    - Tasks 6-10 are considered "Fast Stones", as they are are all Take-out variations,
+    so they must carry enough energy to remove at least one stone from play.
+    - 0: Draw
+        - Meant to be for scoring position; should have close proximity to the button inside
+        the house.
+        - Skip should land close to opponent preplaced button stone as to remove it from scoring
+        potential.
+    - 1: Front
+        - Placed in-front of the house as an obstacle.
+        - Not to be confused with guard; Fronts are not intended to guard particular
+        stones in the house.
+    - 2: Guard
+        - Meant to protect stones in scoring position. Typically stops short of house, directly
+        in-line with a scoring stone in the house.
+    - 3: Raise / Tap-back
+        - Throw pushes another stone forward into a new position. I.e., this
+        moves a stone already in play with the new stone. Can be either team's stone.
+        - This is a way to push your stone onto the button, and if executed correctly,
+        the skipped stone acts as a new guard.
+    - 4: Wick / Soft peeling
+        - Moving another stone such that both the moved and skipped stone land
+        in desired positions. E.g., moving a stone into the house and landing the skipped
+        stone in the house. Could also be used to move opponent stones out of
+        guarding position while moving your own into house. 
+        - "Soft peeling" is a traditional men's/women's term and does not apply due to
+        the nature of no free-guard-zone in mixed doubles. 
+    - 5: Freeze
+        - A special draw which skips as close as possible to an opponent scoring stone
+        in the house.
+        - A "frozen" ston is exceptionally difficult to remove because it will transfer
+        its energy to the stone it is stuck to. Thus, it is suitable for last possibilites
+        (i.e., the 2nd-to-last stone in the end)
+    - 6: Take-out
+        - To remove an opponent's stone from play. The skipped stone is intended to
+        stay in play.
+    - 7: Hit and Roll
+        - A special take-out which removes the target stone, and leaves the skipped
+        stone in a strategic position, perhaps as a guard, or defended by a guard,
+        inside the house.
+    - 8: Clearing
+        - A special take-out primarily to clear stones from in front of the house,
+        intended to take the moved stone and skipped stone out of play. This "clears"
+        the sheet from both teams' obstructions.
+    - 9: Double Take-out
+        - A special take-out which removes two opponent stones from play.
+    - 10: Promotion Take-out
+        - A special take-out which promotes a team's stone, takes out an opponent stone,
+        and leaves the skipped stone as a guard for the promoted stone. 
+        - Not to be confused with Hit and Roll, which leaves the skipped stone as the
+        scoring stone.
+    - 11: Through
+        - A complete player fault which takes the skip and only the skip out of play.
+        I.e., a complete miss to off the sheet.
+        - Awarded 9 points; null value in practice.
+    - -1: Shot not attempted due to concession (filler value).
+- `handle` - The turn of the stone as it is thrown. A 0 value means the shot
+is turning clockwise, a 1 indicates counterclockwise. -1 means the shot wasn't
+thrown due to concession.
+- `timeout` - Binary variable for whether a time was called before the shot.
+- `points` - An assessment of the execution of the shot, ranging from 0 to 4. A 4-point
+shot is one that has been ascertained to have been perfectly executed to the
+player's intention, while a 0 is a shot that totally failed in its intended result.
+    -1 means the shot wasn't attempted due to concession.
+    - Intended to be an objective metric which would be graded the same by every analyst;
+    each shot type must meet specific criteria for point awards.
+    - Points are awarded solely based on intent, not outcome.
+    - The decision to make the skip type (whether good or bad) is not in the criteria.
+- `Stone_{i}_x` - The x position of stone `i` on the on the sheet, after
+the stone for the row has been thrown.
+    - Stones can take x values in (0, 1500).
+    - Value 4095 is a sentinel value indicating the stone has been knocked off the sheet
+    and is no longer in play.
+    - Value 0 indicates the stone has not yet been thrown in this end.
+- `Stone_{i}_y` - The x position of stone `i` on the on the sheet, after
+the stone for the row has been thrown.
+    - Stones can take x values in (0, 3000).
+    - Value 4095 is a sentinel value indicating the stone has been knocked off the sheet
+    and is no longer in play.
+    - Value 0 indicates the stone has not yet been thrown in this end.
+
+**Note on stones:** Stone `i` does not necessarily correspond to ShotID `i`. For each match,
+the first six stones correspond to one team, which stones 7-12 are for the other team. `Stone_1`
+and `Stone_7` are the pre-placed stones, and teams throw the rest of their stones in order. For
+example, a Team 1 in a match would have stones 2-6 and throw them in ascending order.
+
+Each end begins with `ShotID == 7` populated, i.e. there is no row dedicated to the preplaced
+stones.
+
+A curling sheet is marked by several important lines and positions that define gameplay and scoring.
+- Centerline (`x = 750`): Divides the sheet lengthwise and serves as a reference axis for all play.
+- Backline (`y = 200`): Marks the rear edge of the house; stones completely cross to remain in play
+and where players must relase the stone before delivery.
+- Button (`x = 750, y = 800`): Represents the center of the house, used as the reference point for
+scoring.
+
+# Exploratory Analysis (stones_master_1.csv)
+
+This exploratory analysis uses the variable definitions in `notebooks/new_data_dictionary.qmd`
+copied above. The intent is to generate a large set of candidate figures for the final report,
+so most plots are saved to disk for easy review. Powerplay is treated as a binary
+flag (used vs not used).
+
+```{python}
+import numpy as np
+import pandas as pd
+from plotnine import (
+    aes,
+    coord_fixed,
+    element_text,
+    facet_wrap,
+    geom_col,
+    geom_hline,
+    geom_line,
+    geom_point,
+    geom_vline,
+    ggplot,
+    labs,
+    position_dodge,
+    scale_fill_cmap,
+    scale_color_discrete,
+    stat_bin2d,
+    theme,
+    theme_minimal,
+)
+from pathlib import Path
+
+data_path = Path("../data/stones_master_1.csv")
+df = pd.read_csv(data_path)
+
+df["powerplay"] = df["powerplay"].fillna(0).astype(int)
+df["powerplay_used"] = (df["powerplay"] != 0).astype(int)
+
+task_labels = {
+    -1: "No shot (concession)",
+    0: "Draw",
+    1: "Front",
+    2: "Guard",
+    3: "Raise/Tap-back",
+    4: "Wick/Soft peel",
+    5: "Freeze",
+    6: "Take-out",
+    7: "Hit and Roll",
+    8: "Clearing",
+    9: "Double Take-out",
+    10: "Promotion Take-out",
+    11: "Through",
+}
+task_label_order = [task_labels[i] for i in range(12)]
+task_group_order = ["Slow stones (0-5)", "Fast stones (6-10)", "Through", "No shot"]
+
+powerplay_labels = {
+    0: "No powerplay",
+    1: "Powerplay used",
+}
+powerplay_label_order = [powerplay_labels[i] for i in [0, 1]]
+
+def task_group(task_value: int) -> str:
+    if 0 <= task_value <= 5:
+        return "Slow stones (0-5)"
+    if 6 <= task_value <= 10:
+        return "Fast stones (6-10)"
+    if task_value == 11:
+        return "Through"
+    return "No shot"
+
+df["task_group"] = df["task"].map(task_group)
+
+out_dir = Path("figures/stone_observation")
+out_dir.mkdir(parents=True, exist_ok=True)
+
+def save_plot(plot, name: str, width: float, height: float) -> Path:
+    path = out_dir / f"{name}.png"
+    plot.save(
+        filename=str(path),
+        dpi=200,
+        width=width,
+        height=height,
+    )
+    return path
+
+def base_theme():
+    return theme_minimal() + theme(
+        axis_text_x=element_text(rotation=35, ha="right"),
+        figure_size=(7, 4),
+    )
+
+def plot_hexbin(data, title, filename, gridsize=55):
+    guide_df = pd.DataFrame({"x": [750], "y": [800]})
+    plot = (
+        ggplot(data, aes("x", "y"))
+        + stat_bin2d(bins=gridsize)
+        + geom_vline(xintercept=750, color="white", alpha=0.6)
+        + geom_hline(yintercept=200, color="white", alpha=0.6)
+        + geom_point(data=guide_df, mapping=aes("x", "y"), color="white", size=2)
+        + scale_fill_cmap(name="Count", cmap_name="magma")
+        + coord_fixed(ratio=1, xlim=(0, 1500), ylim=(0, 3000))
+        + labs(title=title, x="X (across sheet)", y="Y (down sheet)")
+        + theme_minimal()
+        + theme(figure_size=(6, 12))
+    )
+    save_plot(plot, filename, width=6, height=12)
+    return plot
+```
+
+```{python}
+summary = pd.Series(
+    {
+        "rows": len(df),
+        "matches": df["match_id"].nunique(),
+        "ends": df[["match_id", "end_id"]].drop_duplicates().shape[0],
+        "shots": df[["match_id", "end_id", "shot_id"]].drop_duplicates().shape[0],
+        "concession_rows": (df["task"] == -1).sum(),
+    }
+)
+summary
+```
+
+```{python}
+shot_counts = df["shot_id"].value_counts().sort_index()
+shot_counts_df = shot_counts.reset_index()
+shot_counts_df.columns = ["shot_id", "count"]
+shot_counts_df = shot_counts_df.sort_values("shot_id")
+shot_id_order = shot_counts_df["shot_id"].astype(str).tolist()
+shot_counts_df["shot_id_label"] = pd.Categorical(
+    shot_counts_df["shot_id"].astype(str),
+    categories=shot_id_order,
+    ordered=True,
+)
+
+plot_shot_counts = (
+    ggplot(shot_counts_df, aes("shot_id_label", "count"))
+    + geom_col(fill="#2a788e")
+    + labs(title="Shot ID frequency", x="Shot ID", y="Count")
+    + base_theme()
+)
+save_plot(plot_shot_counts, "shot_id_frequency", width=7, height=4)
+plot_shot_counts
+```
+
+```{python}
+task_counts = (
+    df[df["task"] >= 0]["task"]
+    .value_counts()
+    .sort_index()
+    .rename(index=task_labels)
+)
+task_counts_df = task_counts.reset_index()
+task_counts_df.columns = ["task_label", "count"]
+task_counts_df["task_label"] = pd.Categorical(
+    task_counts_df["task_label"],
+    categories=task_label_order,
+    ordered=True,
+)
+
+plot_task_counts = (
+    ggplot(task_counts_df, aes("task_label", "count"))
+    + geom_col(fill="#1f77b4")
+    + labs(title="Task frequency (excluding concessions)", x="Task", y="Count")
+    + base_theme()
+)
+save_plot(plot_task_counts, "task_frequency", width=10, height=4)
+plot_task_counts
+```
+
+```{python}
+task_powerplay = (
+    df[df["task"] >= 0]
+    .groupby(["task", "powerplay_used"])
+    .size()
+    .unstack(fill_value=0)
+    .reindex(columns=[0, 1], fill_value=0)
+    .stack()
+    .reset_index(name="count")
+)
+task_powerplay["task_label"] = task_powerplay["task"].map(task_labels)
+task_powerplay["powerplay_label"] = task_powerplay["powerplay_used"].map(powerplay_labels)
+task_powerplay["powerplay_label"] = pd.Categorical(
+    task_powerplay["powerplay_label"],
+    categories=powerplay_label_order,
+    ordered=True,
+)
+task_powerplay["task_label"] = pd.Categorical(
+    task_powerplay["task_label"],
+    categories=task_label_order,
+    ordered=True,
+)
+task_powerplay_totals = task_powerplay.groupby("powerplay_used")["count"].transform("sum")
+task_powerplay["rate"] = np.where(
+    task_powerplay_totals > 0,
+    task_powerplay["count"] / task_powerplay_totals,
+    0,
+)
+
+plot_task_powerplay = (
+    ggplot(task_powerplay, aes("task_label", "rate", fill="powerplay_label"))
+    + geom_col(position=position_dodge(width=0.8))
+    + labs(
+        title="Task rates by powerplay usage",
+        x="Task",
+        y="Share of shots",
+        fill="Powerplay",
+    )
+    + base_theme()
+)
+save_plot(plot_task_powerplay, "task_by_powerplay", width=11, height=5)
+plot_task_powerplay
+```
+
+Note: These bars show the overall share of shots by task within each powerplay
+category, computed as task counts divided by the total number of shots thrown
+with (or without) powerplay. This is not averaged by end or match; it is a
+pooled proportion across all shots.
+
+```{python}
+task_by_player = (
+    df[df["task"] >= 0]
+    .groupby(["player_id", "task"])
+    .size()
+    .reset_index(name="count")
+)
+task_by_player["task_label"] = task_by_player["task"].map(task_labels)
+task_by_player = task_by_player.sort_values(["player_id", "task"])
+task_by_player["task_label"] = pd.Categorical(
+    task_by_player["task_label"],
+    categories=task_label_order,
+    ordered=True,
+)
+task_by_player["player_label"] = task_by_player["player_id"].astype(str)
+
+plot_task_player = (
+    ggplot(task_by_player, aes("task_label", "count", color="player_label"))
+    + geom_line(aes(group="player_label"))
+    + geom_point()
+    + scale_color_discrete(name="Player")
+    + labs(title="Task frequency by player", x="Task", y="Count")
+    + base_theme()
+)
+save_plot(plot_task_player, "task_by_player", width=11, height=5)
+plot_task_player
+```
+
+```{python}
+points_df = df[df["points"].between(0, 4)].copy()
+points_summary = (
+    points_df.groupby("task_group")["points"]
+    .agg(["count", "mean", "median"])
+    .sort_values("count", ascending=False)
+)
+points_summary
+```
+
+```{python}
+plot_groups = [g for g in task_group_order if g in points_df["task_group"].unique()]
+
+points_counts = (
+    points_df[points_df["task_group"].isin(plot_groups)]
+    .groupby(["task_group", "points"])
+    .size()
+    .reset_index(name="count")
+)
+points_counts["task_group"] = pd.Categorical(
+    points_counts["task_group"],
+    categories=plot_groups,
+    ordered=True,
+)
+points_counts["points_label"] = points_counts["points"].astype(int).astype(str)
+points_counts["points_label"] = pd.Categorical(
+    points_counts["points_label"],
+    categories=[str(i) for i in range(5)],
+    ordered=True,
+)
+
+plot_points = (
+    ggplot(points_counts, aes("points_label", "count"))
+    + geom_col(fill="#4c72b0")
+    + facet_wrap("~task_group", nrow=1)
+    + labs(title="Points distribution by task group", x="Points", y="Count")
+    + base_theme()
+    + theme(
+        figure_size=(10, 3),
+        axis_text_x=element_text(rotation=0, ha="center"),
+    )
+)
+save_plot(plot_points, "points_by_task_group", width=10, height=3)
+plot_points
+```
+
+```{python}
+handle_counts = df[df["handle"] >= 0]["handle"].value_counts().sort_index()
+handle_df = handle_counts.reset_index()
+handle_df.columns = ["handle", "count"]
+handle_df["handle_label"] = handle_df["handle"].map(
+    {0: "Clockwise (0)", 1: "Counterclockwise (1)"}
+)
+
+plot_handle = (
+    ggplot(handle_df, aes("handle_label", "count"))
+    + geom_col(fill="#4c72b0")
+    + labs(title="Handle frequency", x=None, y="Count")
+    + base_theme()
+    + theme(axis_text_x=element_text(rotation=0, ha="center"))
+)
+save_plot(plot_handle, "handle_frequency", width=5, height=4)
+plot_handle
+```
+
+The thrown-stone location is approximated by mapping each shot to its stone index
+using the ordering rules described in the data dictionary. Shots beyond the
+standard 5 per team (usually data errors) are excluded; concession-shortened ends
+remain but contribute fewer observations.
+
+```{python}
+# Build a thrown-stone dataset by mapping each shot to its stone index.
+df_sorted = df.sort_values(["match_id", "end_id", "shot_id"]).copy()
+df_sorted["team_shot_number"] = (
+    df_sorted.groupby(["match_id", "end_id", "team_id"]).cumcount()
+)
+df_sorted["team_slot"] = np.where(
+    df_sorted["team_id"] == df_sorted["team_id1"], 1, 2
+)
+df_sorted["stone_index"] = np.where(
+    df_sorted["team_slot"] == 1,
+    df_sorted["team_shot_number"] + 2,
+    df_sorted["team_shot_number"] + 8,
+)
+df_sorted.loc[df_sorted["team_shot_number"] > 4, "stone_index"] = np.nan
+
+stone_x_cols = [f"stone_{i}_x" for i in range(1, 13)]
+stone_y_cols = [f"stone_{i}_y" for i in range(1, 13)]
+stone_x = df_sorted[stone_x_cols].to_numpy()
+stone_y = df_sorted[stone_y_cols].to_numpy()
+
+stone_idx = df_sorted["stone_index"].to_numpy()
+valid_idx = np.isfinite(stone_idx)
+row_idx = np.arange(len(df_sorted))[valid_idx]
+col_idx = stone_idx[valid_idx].astype(int) - 1
+
+thrown_x = np.full(len(df_sorted), np.nan)
+thrown_y = np.full(len(df_sorted), np.nan)
+thrown_x[valid_idx] = stone_x[row_idx, col_idx]
+thrown_y[valid_idx] = stone_y[row_idx, col_idx]
+
+df_sorted["thrown_x"] = thrown_x
+df_sorted["thrown_y"] = thrown_y
+
+thrown = df_sorted[
+    (df_sorted["task"] >= 0)
+    & (df_sorted["thrown_x"].between(1, 1499))
+    & (df_sorted["thrown_y"].between(1, 2999))
+].copy()
+
+thrown_positions = thrown.rename(columns={"thrown_x": "x", "thrown_y": "y"})[
+    ["x", "y", "task_group", "powerplay_used"]
+]
+```
+
+This heatmap uses one point per shot (the thrown stone), so it does not weight
+stones by how long they remain in play.
+
+```{python}
+plot_hexbin(
+    thrown_positions,
+    "Thrown stone positions (all shots)",
+    "thrown_positions_all",
+)
+```
+
+```{python}
+for pp_value, pp_label in powerplay_labels.items():
+    subset = thrown_positions[thrown_positions["powerplay_used"] == pp_value]
+    if subset.empty:
+        continue
+    plot_hexbin(
+        subset,
+        f"Thrown stone positions: {pp_label}",
+        f"thrown_positions_powerplay_{pp_value}",
+    )
+```
+
+```{python}
+for group in ["Slow stones (0-5)", "Fast stones (6-10)"]:
+    subset = thrown_positions[thrown_positions["task_group"] == group]
+    if subset.empty:
+        continue
+    safe_name = (
+        group.lower()
+        .replace(" ", "_")
+        .replace("-", "")
+        .replace("(", "")
+        .replace(")", "")
+    )
+    plot_hexbin(
+        subset,
+        f"Thrown stone positions: {group}",
+        f"thrown_positions_{safe_name}",
+    )
+```
+
+To avoid the preplaced stones dominating the color scale, the all-stones heatmap
+excludes `Stone_1` and `Stone_7`.
+
+```{python}
+all_positions = []
+for i in range(1, 13):
+    tmp = df[[f"stone_{i}_x", f"stone_{i}_y"]].copy()
+    tmp.columns = ["x", "y"]
+    tmp["stone"] = i
+    all_positions.append(tmp)
+
+all_positions = pd.concat(all_positions, ignore_index=True)
+all_positions = all_positions[
+    all_positions["x"].between(1, 1499) & all_positions["y"].between(1, 2999)
+]
+
+all_positions_no_preplaced = all_positions[
+    ~all_positions["stone"].isin([1, 7])
+]
+
+plot_hexbin(
+    all_positions_no_preplaced,
+    "All stones in play (excluding preplaced stones)",
+    "all_stones_positions",
+    gridsize=65,
+)
+```
+
+Alternative summary: final stone locations for each end (one snapshot per end),
+which avoids weighting stones by how long they remain in play.
+
+```{python}
+end_final = (
+    df.sort_values(["match_id", "end_id", "shot_id"])
+    .groupby(["match_id", "end_id"])
+    .tail(1)
+)
+
+end_positions = []
+for i in range(1, 13):
+    tmp = end_final[[f"stone_{i}_x", f"stone_{i}_y"]].copy()
+    tmp.columns = ["x", "y"]
+    tmp["stone"] = i
+    end_positions.append(tmp)
+
+end_positions = pd.concat(end_positions, ignore_index=True)
+end_positions = end_positions[
+    end_positions["x"].between(1, 1499) & end_positions["y"].between(1, 2999)
+]
+
+plot_hexbin(
+    end_positions,
+    "Final stone positions per end",
+    "final_positions_per_end",
+    gridsize=65,
+)
+```
+
+```{python}
+task_sequence = (
+    df[df["task"] >= 0]
+    .groupby(["shot_id", "task_group"])
+    .size()
+    .reset_index(name="count")
+)
+shot_id_order = sorted(task_sequence["shot_id"].unique())
+shot_number_map = {shot_id: idx + 1 for idx, shot_id in enumerate(shot_id_order)}
+task_sequence["shot_number"] = task_sequence["shot_id"].map(shot_number_map)
+task_sequence["task_group"] = pd.Categorical(
+    task_sequence["task_group"],
+    categories=task_group_order,
+    ordered=True,
+)
+plot_task_sequence = (
+    ggplot(task_sequence, aes("shot_number", "count", color="task_group"))
+    + geom_line(aes(group="task_group"))
+    + geom_point()
+    + labs(
+        title="Task group frequency by shot order",
+        x="Shot number (ordered within end)",
+        y="Count",
+        color="Task group",
+    )
+    + base_theme()
+    + theme(figure_size=(8, 4), axis_text_x=element_text(rotation=0, ha="center"))
+)
+save_plot(plot_task_sequence, "task_group_by_shot_id", width=8, height=4)
+plot_task_sequence
+```
+
+```{python}
+powerplay_end = (
+    df[["match_id", "end_id", "powerplay_used"]]
+    .drop_duplicates()
+    .groupby("powerplay_used")
+    .size()
+    .rename(index=powerplay_labels)
+)
+powerplay_end_df = powerplay_end.reset_index()
+powerplay_end_df.columns = ["powerplay_label", "count"]
+powerplay_end_df["powerplay_label"] = pd.Categorical(
+    powerplay_end_df["powerplay_label"],
+    categories=powerplay_label_order,
+    ordered=True,
+)
+
+plot_powerplay_end = (
+    ggplot(powerplay_end_df, aes("powerplay_label", "count"))
+    + geom_col(fill="#2ca02c")
+    + labs(title="Powerplay usage by end", x=None, y="Ends")
+    + base_theme()
+    + theme(axis_text_x=element_text(rotation=15, ha="right"))
+)
+save_plot(plot_powerplay_end, "powerplay_end_frequency", width=5, height=4)
+plot_powerplay_end
+```
