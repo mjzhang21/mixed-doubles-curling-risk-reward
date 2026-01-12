@@ -100,15 +100,15 @@
 % assumptions: ind, approx. normal (for anova)
 The following is a brief summary of the preprocessing steps applied prior to
 analysis. After the coordinates were standardized, the stone level data were
-merged with the end level data and filtered to the first shot of the end. The
-columns for stones 3 to 6 and 9 to 12 were dropped as they are able to be
-played in the first shot. Columns for stone 2 and 8 were combined and shifted
-into one column for stone 2 due to both belonging to the non-hammer team. As
-for stones 1 and 7, both columns represented preplaced stones, although the
-designation of guard or house stone was unclear for each row. Thus, the
-coordinates were swapped when either stone 1 had coordinates for the hammer
-preplaced house stone or stone 7 had coordinates for the non-hammer guard.
-Finally, rows with missing values were dropped. This excludes shots that
+merged with the end level data and filtered to the first shot of the powerplay
+right formation end. The columns for stones 3 to 6 and 9 to 12 were dropped as
+they are able to be played in the first shot. Columns for stone 2 and 8 were
+combined and shifted into one column for stone 2 due to both belonging to the
+non-hammer team. As for stones 1 and 7, both columns represented preplaced
+stones, although the designation of guard or house stone was unclear for each
+row. Thus, the coordinates were swapped when either stone 1 had coordinates for
+the hammer preplaced house stone or stone 7 had coordinates for the non-hammer
+guard. Finally, rows with missing values were dropped. This excludes shots that
 knocked out any stone before the Modified Free Guard Zone from the data.
 
 Next, to identify patterns in stone positions, PCA, t-SNE and UMAP were applied
@@ -124,15 +124,18 @@ cluster separation.
 
 Histograms and bar charts were used to visualize the distributions and counts
 of key variables. Also, curling sheet scatterplots were used to visualize the
-positions of each stone by cluster and task.
-
-Following visualization, performance metrics across clusters were compared
-using Welch’s one-way ANOVA to account for unequal group sizes and variances.
-Post-hoc pairwise comparisons were performed using the Games–Howell test where
-the overall ANOVA indicated significant differences. Cluster groups were
-defined as C0 (n=27), C1 (n=73), and C2 (n=62). Values are presented as group
-means with 95\% bootstrap confidence intervals, and detailed results for all
-variables are provided in Table~\ref{tab:cluster_test}.
+positions of each stone by cluster and task. Following visualization,
+performance metrics across clusters were compared using Welch’s one-way ANOVA
+to account for unequal group sizes and variances. Cluster comparisons were
+carried out using Welch’s ANOVA to account for unequal group sizes and
+variances. Some variables were highly skewed, which may slightly affect the
+p-values, but bootstrap confidence intervals were used for the means to provide
+robust estimates.Where the overall ANOVA indicated significant differences,
+post-hoc pairwise comparisons were performed using the Games–Howell test.
+Cluster groups were defined as C0 (n = 27), C1 (n = 73), and C2 (n = 62).
+Values are presented as group means with 95\% bootstrap confidence intervals to
+account for the skewed distributions. Detailed results for all variables are
+provided in Table~\ref{tab:cluster_test}.
 
 \begin{table}[t]
   \centering
@@ -203,6 +206,29 @@ variation, while hammer-related outcomes were similar across groups.
 
 % alejandro: curling strategy says to enter with a game-plan game-plans for how
 % to use powerplay are not observed with this data. 
+Analysts have observed different responses for countering the powerplay,
+although there has been no studies to identify exactly which shots teams hit
+and performance and context metrics. By clustering the board positions after
+the non-hammer team hits their first shot, we can observe the three distinct
+patterns in curling mixed doubles championships. The tick, guard and draw
+around the guard are all common shots that occur in response to the powerplay.
+
+Welch ANOVA was used to compare differences between clusters, revealing
+significant differences in cumulative score difference and points in the
+non-missed shots and no significant differences in hammer or non-hammer score.
+Post Hoc Games-Howell tests show that significant cumulative score differences
+between the tick and draw around the guard. All shots are utilized when the
+hammer team has the score advantage. However, the tick shot is thrown at when
+the score difference is lesser while the draw is thrown when the hammer team
+has a blowout lead.
+
+Teams may have tendencies to throw less riskier shots the non-hammer team is
+behind little in the score compared to when they are down many points.
+Nevertheless, as there are no siginificant differences in score for both teams,
+shot choice may not have an important role in end score performance. We suggest
+that when countering the powerplay as the non-hammer team, that teams choose
+the starting player based on their overall skill in executing one of the three
+options observed.
 
 \subsection{Limitations}
 % lack of powerplay sample size very skewed data. task, points, expected hammer
