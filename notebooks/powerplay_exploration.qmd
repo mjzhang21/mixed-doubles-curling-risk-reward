@@ -1,0 +1,185 @@
+---
+title: "CSAS 2026: Offensive and Defensive Behavior: Powerplay Exploration"
+author: "Alejandro Haerter"
+date: "2026-01-01"
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt 
+---
+
+# Import and Setup
+
+```{python}
+import pandas as pd
+import numpy as np
+from plotnine import (
+    ggplot, aes, geom_col, geom_boxplot, geom_point, geom_violin,
+    labs, theme_minimal, coord_flip, facet_wrap, scale_y_continuous
+)
+
+df = pd.read_csv('../data/end_level.csv')
+df["powerplay_used"] = df["powerplay_value"].notna()
+```
+
+# Quick Sanity Checks
+
+```{python}
+summary = {
+    "rows": len(df),
+    "matches": df["match_id"].nunique(),
+    "ends": df[["match_id", "end_id"]].drop_duplicates().shape[0],
+    "powerplay_ends": int(df["powerplay_used"].sum()),
+}
+summary
+```
+
+This dataset is already end-level (one row per end, with hammer/non-hammer context).
+
+# Power Play Usage: Baseline
+
+Check whether teams use Power Play more than once per match.
+
+```{python}
+pp_counts = (
+    df[df["powerplay_used"]]
+    .groupby(["match_id", "powerplay_team_id"], as_index=False)
+    .size()
+    .rename(columns={"size": "pp_ends"})
+)
+pp_counts["pp_ends"].value_counts()
+```
+
+```{python}
+pp_overuse = pp_counts[pp_counts["pp_ends"] > 1]
+pp_overuse.head()
+```
+
+# When Is Power Play Used?
+
+Power play usage by end number.
+
+```{python}
+pp_ends = df[df["powerplay_used"]]
+pp_end_counts = pp_ends["end_id"].value_counts().sort_index().reset_index()
+pp_end_counts.columns = ["end_id", "count"]
+
+(
+    ggplot(pp_end_counts, aes("end_id", "count")) +
+    geom_col(fill="#2b8cbe") +
+    labs(title="Power Play Usage by End (Hammer Team)", x="EndID", y="Count") +
+    theme_minimal()
+)
+```
+
+# Power Play vs Score Context
+
+Compare pre-end score differential (hammer perspective) for power play vs non-power play.
+
+```{python}
+score_view = df.copy()
+score_view["pp_label"] = np.where(score_view["powerplay_used"], "PowerPlay", "No PowerPlay")
+
+(
+    ggplot(score_view, aes("pp_label", "cumulative_score_diff")) +
+    geom_violin(fill="#99d8c9") +
+    geom_boxplot(width=0.2, outlier_alpha=0.2) +
+    labs(title="Pre-End Score Diff at Power Play (Hammer Perspective)", x="", y="Cumulative Score Diff") +
+    theme_minimal()
+)
+```
+
+# End Outcomes: Points Scored
+
+Compare hammer-team end points for power play vs non-power play.
+
+```{python}
+hammer_view = df[df["powerplay_by_hammer"] | (~df["powerplay_used"])].copy()
+hammer_view["pp_label"] = np.where(hammer_view["powerplay_used"], "PowerPlay", "No PowerPlay")
+
+(
+    ggplot(hammer_view, aes("pp_label", "score_hammer")) +
+    geom_boxplot(outlier_alpha=0.2, fill="#c7e9b4") +
+    labs(title="Hammer Team End Points: Power Play vs Not", x="", y="End Points") +
+    theme_minimal()
+)
+```
+
+# Power Play Side Usage
+
+Power play side usage (1 or 2); NA means no power play.
+
+```{python}
+pp_side = df[df["powerplay_used"]].copy()
+pp_side_counts = (
+    pp_side["powerplay_value"].value_counts().sort_index().reset_index()
+)
+pp_side_counts.columns = ["powerplay_value", "count"]
+
+(
+    ggplot(pp_side_counts, aes("powerplay_value", "count")) +
+    geom_col(fill="#9ecae1") +
+    labs(title="Power Play Side Usage", x="PowerPlay Value (1 or 2)", y="Count") +
+    theme_minimal()
+)
+```
+
+# Shot Mix During Power Play
+
+Shot-type distribution for hammer team, power play vs non-power play (end-level counts).
+
+```{python}
+task_map = {
+    -1: "Unknown / No statistics",
+    0: "Draw",
+    1: "Front",
+    2: "Guard",
+    3: "Raise / Tap-back",
+    4: "Wick / Soft Peeling",
+    5: "Freeze",
+    6: "Take-out",
+    7: "Hit and Roll",
+    8: "Clearing",
+    9: "Double Take-out",
+    10: "Promotion Take-out",
+    11: "Through",
+}
+
+hammer_task_cols = [c for c in df.columns if c.startswith("hammer_task_")]
+hammer_long = df.melt(
+    id_vars=["match_id", "end_id", "powerplay_used"],
+    value_vars=hammer_task_cols,
+    var_name="task_col",
+    value_name="count",
+)
+hammer_long["task_code"] = (
+    hammer_long["task_col"]
+    .str.replace("hammer_task_", "", regex=False)
+    .replace({"neg1": "-1"})
+    .astype(int)
+)
+hammer_long["task_name"] = hammer_long["task_code"].map(task_map).fillna("Unknown")
+hammer_long["pp_label"] = np.where(hammer_long["powerplay_used"], "PowerPlay", "No PowerPlay")
+
+task_counts = (
+    hammer_long.groupby(["pp_label", "task_name"], as_index=False)["count"]
+    .sum()
+)
+task_counts["rate"] = task_counts.groupby("pp_label")["count"].transform(lambda s: s / s.sum())
+
+(
+    ggplot(task_counts, aes("task_name", "rate", fill="pp_label")) +
+    geom_col(position="dodge") +
+    coord_flip() +
+    labs(title="Hammer Team Shot Mix: Power Play vs Not", x="", y="Share of Shots") +
+    theme_minimal()
+)
+```
+
+# Notes to Carry Forward
+
+This section should surface patterns about *when* and *why* power play is used,
+before any behavioral classification is introduced.

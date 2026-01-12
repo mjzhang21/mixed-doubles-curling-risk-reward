@@ -518,6 +518,9 @@ thrown_positions = thrown.rename(columns={"thrown_x": "x", "thrown_y": "y"})[
 ]
 ```
 
+This heatmap uses one point per shot (the thrown stone), so it does not weight
+stones by how long they remain in play.
+
 ```{python}
 plot_hexbin(
     thrown_positions,
@@ -581,6 +584,36 @@ plot_hexbin(
     all_positions_no_preplaced,
     "All stones in play (excluding preplaced stones)",
     "all_stones_positions",
+    gridsize=65,
+)
+```
+
+Alternative summary: final stone locations for each end (one snapshot per end),
+which avoids weighting stones by how long they remain in play.
+
+```{python}
+end_final = (
+    df.sort_values(["match_id", "end_id", "shot_id"])
+    .groupby(["match_id", "end_id"])
+    .tail(1)
+)
+
+end_positions = []
+for i in range(1, 13):
+    tmp = end_final[[f"stone_{i}_x", f"stone_{i}_y"]].copy()
+    tmp.columns = ["x", "y"]
+    tmp["stone"] = i
+    end_positions.append(tmp)
+
+end_positions = pd.concat(end_positions, ignore_index=True)
+end_positions = end_positions[
+    end_positions["x"].between(1, 1499) & end_positions["y"].between(1, 2999)
+]
+
+plot_hexbin(
+    end_positions,
+    "Final stone positions per end",
+    "final_positions_per_end",
     gridsize=65,
 )
 ```
