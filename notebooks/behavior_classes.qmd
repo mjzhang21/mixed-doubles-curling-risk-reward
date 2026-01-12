@@ -13,14 +13,14 @@ format:
 
 # Overview
 
-This notebook builds end-level behavior labels from shot-level data. The goal is
-to produce a stable, interpretable behavior classification per team per end, and
-then compare those behaviors to power play usage. The workflow is:
+This notebook builds end-level intent labels from shot-level data. The goal is
+to produce a stable, interpretable late-phase intent classification per team per end,
+and then compare those intents to power play usage. The workflow is:
 
 1. Load `stones_master_1.csv` (one row per shot).
 2. Normalize columns and map shot tasks to coarse behavior groups.
 3. Aggregate to end-level, with an early/late phase split.
-4. Produce rule-based labels (baseline) and cluster-derived labels (exploratory).
+4. Produce rule-based late-phase intent labels (baseline) and cluster-derived intents (exploratory).
 5. Validate labels, compare to power play, and check sensitivity.
 
 # Import and Load
@@ -67,7 +67,7 @@ df["has_hammer"] = df["has_hammer"].fillna(0).astype(int)
 # Task Groups
 
 Map each task code into a coarse behavior bucket. This is a simplifying assumption,
-not a truth claim, and it is used to construct a baseline behavior signal.
+not a truth claim, and it is used to construct a baseline intent signal.
 
 ```{python}
 offensive_tasks = {0, 1, 2, 3, 5, 7}   # draws/guards/raising/rolls
@@ -84,12 +84,13 @@ df["task_group"] = np.select(
     default="neutral",
 )
 
-The early/late split is based on mixed doubles rules: the first four shots cannot
-be takeouts. We treat those as the "early" phase and the remaining six shots as
-"late." This is used to detect probing behavior (early ambiguity with late intent).
+# The early/late split is based on mixed doubles rules: the first three shots
+# cannot be takeouts (MFGZ). We treat those as the "early" phase and the
+# remaining seven shots as "late." The intent label is determined only from the
+# late phase.
 
-early_ids = {7, 8, 9, 16}
-late_ids = {17, 18, 19, 20, 21, 22}
+early_ids = {7, 8, 9}
+late_ids = {16, 17, 18, 19, 20, 21, 22}
 df["phase"] = np.where(
     df["shot_id"].isin(early_ids),
     "early",
@@ -99,7 +100,7 @@ df["phase"] = np.where(
 
 # End-Level Aggregation (Per Team)
 
-Aggregate to one row per team per end, then compute phase-aware behavior rates.
+Aggregate to one row per team per end, then compute phase-aware intent rates.
 The key outputs are early/late offensive and defensive rates, plus overall rates.
 
 ```{python}
@@ -158,70 +159,71 @@ context = (
         pre_end_score_diff=("pre_end_score_diff", "first"),
     )
 )
-context["powerplay_used"] = context["powerplay_value"].fillna(0).astype(int).ne(0)
+context["powerplay_by_team"] = context["powerplay_value"].fillna(0).astype(int).ne(0)
+
+powerplay_end = (
+    df.groupby(["match_id", "end_id"], as_index=False)["powerplay"]
+    .max()
+    .rename(columns={"powerplay": "powerplay_value_end"})
+)
+powerplay_end["powerplay_used_end"] = powerplay_end["powerplay_value_end"].fillna(0).astype(int).ne(0)
 
 end_features = phase_pivot.merge(context, on=keys, how="left", validate="one_to_one")
+end_features = end_features.merge(
+    powerplay_end[["match_id", "end_id", "powerplay_used_end"]],
+    on=["match_id", "end_id"],
+    how="left",
+    validate="many_to_one",
+)
 rate_cols = [c for c in end_features.columns if c.endswith("_rate")]
 end_features[rate_cols] = end_features[rate_cols].fillna(0)
 end_features.head()
 ```
 
-# Rule-Based Classification (Draft)
+# Rule-Based Intent Classification (Draft)
 
-Simple thresholds to label end behavior. This uses late-phase intent because
-probing is expected early. Adjust thresholds if labels are too imbalanced.
+Late-phase intent only (offensive vs defensive). We do not use a probing class
+because early-phase draw-heavy behavior is structurally forced.
 
 ```{python}
-OFF_LATE = 0.60
-DEF_LATE = 0.60
-
-end_features["behavior"] = np.select(
-    [
-        end_features["late_offensive_rate"] >= OFF_LATE,
-        end_features["late_defensive_rate"] >= DEF_LATE,
-    ],
-    ["offensive", "defensive"],
-    default="probing",
+end_features["intent"] = np.where(
+    end_features["late_offensive_rate"] >= end_features["late_defensive_rate"],
+    "offensive",
+    "defensive",
 )
 
-end_features["behavior_strength"] = (
+end_features["intent_strength"] = (
     (end_features["late_offensive_rate"] - end_features["late_defensive_rate"]).abs()
 )
 
-end_features["behavior"].value_counts()
+end_features["intent"].value_counts()
 ```
 
 # Quick Sanity Cross-Tab
 
-Check whether behavior distributions shift during power play. This is descriptive,
+Check whether intent distributions shift during power play. This is descriptive,
 not causal.
 
 ```{python}
-pd.crosstab(
-    end_features["behavior"],
-    end_features["powerplay_used"],
-    normalize="columns"
-)
+pd.crosstab(end_features["intent"], end_features["powerplay_used_end"], normalize="columns")
 ```
 
 # Clustering (Exploratory)
 
-Cluster end-level behavior patterns using standardized features. This is an
+Cluster end-level intent patterns using standardized features. This is an
 unsupervised check for natural groupings beyond the rule-based labels.
 
 ```{python}
-feature_cols = [
+cluster_feature_cols = [
     "early_offensive_rate",
     "early_defensive_rate",
     "late_offensive_rate",
     "late_defensive_rate",
     "pre_end_score_diff",
-    "powerplay_used",
     "has_hammer",
 ]
 
-X = end_features[feature_cols].copy()
-X["powerplay_used"] = X["powerplay_used"].astype(int)
+X = end_features[cluster_feature_cols].copy()
 X["has_hammer"] = X["has_hammer"].astype(int)
 X = X.fillna(0)
 
@@ -235,7 +237,7 @@ gmm = GaussianMixture(n_components=3, random_state=42)
 end_features["cluster_gmm3"] = gmm.fit_predict(X_scaled)
 
 cluster_summary = (
-    end_features.groupby("cluster_k3")[feature_cols]
+    end_features.groupby("cluster_k3")[cluster_feature_cols + ["powerplay_used_end"]]
     .mean()
     .sort_index()
 )
@@ -248,10 +250,10 @@ cluster_summary
 cluster_counts
 ```
 
-Compare clusters to rule-based labels.
+Compare clusters to rule-based intent.
 
 ```{python}
-pd.crosstab(end_features["behavior"], end_features["cluster_k3"])
+pd.crosstab(end_features["intent"], end_features["cluster_k3"])
 ```
 
 PCA view of clusters (for visualization only). This is not used for clustering.
@@ -265,34 +267,33 @@ pca_df["cluster"] = end_features["cluster_k3"].values
 pca_df.head()
 ```
 
-# Label Sanity Check
+# Intent Sanity Check
 
-Mean phase rates by rule-based label. Offensive should show higher late-offensive
-rate, defensive should show higher late-defensive rate, and probing should be
-lower in both.
+Mean phase rates by rule-based intent. Offensive should show higher late-offensive
+rate, defensive should show higher late-defensive rate.
 
 ```{python}
-behavior_summary = (
-    end_features.groupby("behavior")[
+intent_summary = (
+    end_features.groupby("intent")[
         ["early_offensive_rate", "early_defensive_rate", "late_offensive_rate", "late_defensive_rate"]
     ]
     .mean()
     .sort_index()
 )
-behavior_summary
+intent_summary
 ```
 
-Sample a few ends per label for manual review. Use this to spot obvious mislabels.
+Sample a few ends per intent for manual review. Use this to spot obvious mislabels.
 
 ```{python}
 sampled = (
-    end_features.groupby("behavior", group_keys=False)
+    end_features.groupby("intent", group_keys=False)
     .apply(lambda x: x.sample(min(5, len(x)), random_state=42))
     .reset_index(drop=True)
 )
 sample_cols = [
-    "match_id", "end_id", "team_id", "behavior",
-    "powerplay_used", "has_hammer", "pre_end_score_diff",
+    "match_id", "end_id", "team_id", "intent",
+    "powerplay_used_end", "has_hammer", "pre_end_score_diff",
     "early_offensive_rate", "early_defensive_rate",
     "late_offensive_rate", "late_defensive_rate",
 ]
@@ -301,8 +302,8 @@ sampled[sample_cols]
 
 # Cluster Interpretation
 
-Derive a simple label for clusters using late-phase rates. This gives a parallel
-labeling system to compare with the rule-based labels.
+Derive a simple intent label for clusters using late-phase rates. This gives a parallel
+labeling system to compare with the rule-based intent.
 
 ```{python}
 cluster_means = (
@@ -312,59 +313,82 @@ cluster_means = (
     .mean()
 )
 
-def label_cluster(row, margin=0.15):
-    if row["late_offensive_rate"] >= row["late_defensive_rate"] + margin:
-        return "offensive"
-    if row["late_defensive_rate"] >= row["late_offensive_rate"] + margin:
-        return "defensive"
-    return "probing"
+def label_cluster_intent(row):
+    return "offensive" if row["late_offensive_rate"] >= row["late_defensive_rate"] else "defensive"
 
-cluster_labels = cluster_means.apply(label_cluster, axis=1)
-cluster_means.assign(cluster_label=cluster_labels)
+cluster_intents = cluster_means.apply(label_cluster_intent, axis=1)
+cluster_means.assign(cluster_intent=cluster_intents)
 ```
 
 ```{python}
-end_features["cluster_label_k3"] = end_features["cluster_k3"].map(cluster_labels)
-pd.crosstab(end_features["cluster_label_k3"], end_features["powerplay_used"], normalize="columns")
+end_features["cluster_intent_k3"] = end_features["cluster_k3"].map(cluster_intents)
+pd.crosstab(end_features["cluster_intent_k3"], end_features["powerplay_used_end"], normalize="columns")
 ```
 
 # Power Play Shifts
 
-Compare rule-based labels vs power play.
+Compare rule-based intent vs power play.
 
 ```{python}
-pd.crosstab(end_features["behavior"], end_features["powerplay_used"], normalize="columns")
+pd.crosstab(end_features["intent"], end_features["powerplay_used_end"], normalize="columns")
 ```
 
-Compare cluster-derived labels vs power play.
+Compare cluster-derived intent vs power play.
 
 ```{python}
-pd.crosstab(end_features["cluster_label_k3"], end_features["powerplay_used"], normalize="columns")
+pd.crosstab(end_features["cluster_intent_k3"], end_features["powerplay_used_end"], normalize="columns")
+```
+
+# Shift Summary Tables
+
+Compact summaries for aggregate, hammer-team, and non-hammer-team shifts.
+
+```{python}
+def shift_table(frame, label_col, group_name):
+    ct = pd.crosstab(frame[label_col], frame["powerplay_used_end"], normalize="columns")
+    ct = ct.rename(columns={False: "non_pp", True: "pp"}).reset_index()
+    ct = ct.rename(columns={label_col: "intent"})
+    ct["group"] = group_name
+    ct["delta_pp_minus_non"] = ct["pp"] - ct["non_pp"]
+    return ct[["group", "intent", "non_pp", "pp", "delta_pp_minus_non"]]
+
+all_rows = end_features.copy()
+ht_rows = end_features[end_features["has_hammer"] == 1].copy()
+nht_rows = end_features[end_features["has_hammer"] == 0].copy()
+
+shift_summary = pd.concat(
+    [
+        shift_table(all_rows, "intent", "rule_all"),
+        shift_table(ht_rows, "intent", "rule_hammer"),
+        shift_table(nht_rows, "intent", "rule_nonhammer"),
+        shift_table(all_rows, "cluster_intent_k3", "cluster_all"),
+        shift_table(ht_rows, "cluster_intent_k3", "cluster_hammer"),
+        shift_table(nht_rows, "cluster_intent_k3", "cluster_nonhammer"),
+    ],
+    ignore_index=True,
+)
+
+shift_summary
 ```
 
 # Sensitivity Checks
 
-How label proportions change as thresholds move. If results swing wildly, the
-classification is unstable.
+How offensive share changes as the late-phase threshold changes (defensive is the complement).
 
 ```{python}
 threshold_grid = [0.55, 0.60, 0.65]
 rows = []
 for t in threshold_grid:
-    labels = np.select(
-        [
-            end_features["late_offensive_rate"] >= t,
-            end_features["late_defensive_rate"] >= t,
-        ],
-        ["offensive", "defensive"],
-        default="probing",
+    labels = np.where(
+        end_features["late_offensive_rate"] >= t,
+        "offensive",
+        "defensive",
     )
     counts = pd.Series(labels).value_counts(normalize=True)
     rows.append({
         "threshold": t,
         "offensive_share": counts.get("offensive", 0),
         "defensive_share": counts.get("defensive", 0),
-        "probing_share": counts.get("probing", 0),
     })
 pd.DataFrame(rows)
 ```
@@ -376,3 +400,157 @@ kmeans4 = KMeans(n_clusters=4, random_state=42, n_init=25)
 end_features["cluster_k4"] = kmeans4.fit_predict(X_scaled)
 end_features["cluster_k4"].value_counts().sort_index()
 ```
+
+# Hammer-Only Power Play Analysis
+
+Restrict to hammer-team rows (per end). This directly tests intent shifts for
+the team that has decision control.
+
+```{python}
+hammer_only = end_features[end_features["has_hammer"] == 1].copy()
+
+hammer_pp = pd.crosstab(
+    hammer_only["intent"],
+    hammer_only["powerplay_used_end"],
+    normalize="columns"
+)
+hammer_pp
+```
+
+```{python}
+hammer_cluster_pp = pd.crosstab(
+    hammer_only["cluster_intent_k3"],
+    hammer_only["powerplay_used_end"],
+    normalize="columns"
+)
+hammer_cluster_pp
+```
+
+# Strategy Consistency (Team-Level)
+
+Compute how stable each team's late-phase intent is across ends. Lower entropy
+means more consistent intent, higher entropy means more mixed intent.
+
+```{python}
+team_counts = (
+    end_features.groupby(["match_id", "team_id", "intent"])
+    .size()
+    .unstack(fill_value=0)
+)
+team_shares = team_counts.div(team_counts.sum(axis=1), axis=0).astype(float)
+team_entropy = (
+    -(team_shares.where(team_shares > 0) * np.log2(team_shares.where(team_shares > 0)))
+    .sum(axis=1)
+    .reset_index()
+    .rename(columns={0: "intent_entropy"})
+)
+
+team_entropy["pp_used_in_match"] = (
+    end_features.groupby(["match_id", "team_id"])["powerplay_by_team"]
+    .max()
+    .reset_index(drop=True)
+)
+
+team_entropy["entropy_bin"] = pd.qcut(team_entropy["intent_entropy"], q=4, duplicates="drop")
+team_entropy.head()
+```
+
+```{python}
+team_entropy.groupby("pp_used_in_match")["intent_entropy"].describe()
+```
+
+# Sensitivity: Early/Late Split
+
+Shift the early/late boundary to include the 4th shot in the early phase
+(older four-shot assumption). Early = {7,8,9,16} and Late = {17,18,19,20,21,22}.
+
+```{python}
+early_ids_alt = {7, 8, 9, 16}
+late_ids_alt = {17, 18, 19, 20, 21, 22}
+
+df_alt = df.copy()
+df_alt["phase_alt"] = np.where(
+    df_alt["shot_id"].isin(early_ids_alt),
+    "early",
+    np.where(df_alt["shot_id"].isin(late_ids_alt), "late", "other"),
+)
+
+df_phase_alt = df_alt[df_alt["phase_alt"] != "other"].copy()
+phase_counts_alt = (
+    df_phase_alt.groupby(keys + ["phase_alt", "task_group"])
+    .size()
+    .reset_index(name="n")
+)
+phase_counts_alt["col"] = phase_counts_alt["phase_alt"] + "_" + phase_counts_alt["task_group"]
+phase_pivot_alt = phase_counts_alt.pivot_table(
+    index=keys, columns="col", values="n", fill_value=0, aggfunc="sum"
+).reset_index()
+
+for col in [
+    "early_offensive", "early_defensive", "early_neutral",
+    "late_offensive", "late_defensive", "late_neutral",
+]:
+    if col not in phase_pivot_alt.columns:
+        phase_pivot_alt[col] = 0
+
+phase_pivot_alt["early_total"] = phase_pivot_alt[
+    ["early_offensive", "early_defensive", "early_neutral"]
+].sum(axis=1)
+phase_pivot_alt["late_total"] = phase_pivot_alt[
+    ["late_offensive", "late_defensive", "late_neutral"]
+].sum(axis=1)
+
+for phase in ["early", "late"]:
+    total = phase_pivot_alt[f"{phase}_total"].replace(0, np.nan)
+    for label in ["offensive", "defensive", "neutral"]:
+        phase_pivot_alt[f"{phase}_{label}_rate"] = (
+            phase_pivot_alt[f"{phase}_{label}"] / total
+        )
+
+end_alt = phase_pivot_alt.merge(context, on=keys, how="left", validate="one_to_one")
+end_alt = end_alt.merge(
+    powerplay_end[["match_id", "end_id", "powerplay_used_end"]],
+    on=["match_id", "end_id"],
+    how="left",
+    validate="many_to_one",
+)
+rate_cols_alt = [c for c in end_alt.columns if c.endswith("_rate")]
+end_alt[rate_cols_alt] = end_alt[rate_cols_alt].fillna(0)
+
+end_alt["intent_alt"] = np.where(
+    end_alt["late_offensive_rate"] >= end_alt["late_defensive_rate"],
+    "offensive",
+    "defensive",
+)
+
+pd.crosstab(end_alt["intent_alt"], end_alt["powerplay_used_end"], normalize="columns")
+```
+
+# Interpretation (Current Run)
+
+These interpretations summarize the current run of the late-phase intent classification.
+Re-run the notebook to update numbers if the data or thresholds change.
+
+- **Intent distribution:** Use `end_features["intent"].value_counts()` to read the
+  offensive vs defensive split under the 3-shot MFGZ baseline (4,049 offensive,
+  1,225 defensive; 76.8% vs 23.2%).
+- **Power play shift (rule-based):** Non‑PP ends are 80.6% offensive vs 19.4%
+  defensive, while PP ends shift to 63.6% offensive vs 36.4% defensive.
+- **Phase logic check:** Offensive intent shows very high late offense (0.800) and
+  low late defense (0.194); defensive intent flips that pattern (late offense 0.192,
+  late defense 0.796). Early phase remains mostly offensive for both (0.984 vs 0.895).
+- **Threshold stability:** Late‑offensive thresholds of 0.55–0.65 yield the same split
+  (62.7% offensive / 37.3% defensive), suggesting stable labels.
+- **Cluster summary (k=3, no PP leakage):** Cluster sizes are 3,239 / 1,753 / 282.
+  Cluster 0 is offensive (late_off 0.868, late_def 0.127) with low PP incidence (0.169).
+  Cluster 1 is defensive (late_def 0.672) with moderate PP incidence (0.242).
+  Cluster 2 is defensive (late_def 0.611) and is heavily PP‑linked (0.798).
+- **Power play shift (clusters):** Non‑PP ends are 66.0% offensive vs 34.0% defensive;
+  PP ends shift to 45.7% offensive vs 54.3% defensive.
+- **Hammer-only check:** Rule‑based intent stays mostly offensive (non‑PP 76.9% vs
+  PP 72.4%). Cluster intents are near‑even but still tilt defensive (51.6% non‑PP,
+  53.3% PP).
+- **Strategy consistency:** Team intent entropy is slightly lower when a team uses
+  PP (0.659 vs 0.710), suggesting a modest increase in consistency.
+- **Sensitivity (4-shot early):** The defensive shift persists: non‑PP 29.0% defensive
+  vs PP 43.4% defensive (offensive 71.0% -> 56.6%).

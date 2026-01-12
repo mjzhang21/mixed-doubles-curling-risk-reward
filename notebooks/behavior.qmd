@@ -273,6 +273,82 @@ These are framed to be directly testable with the end-level features built later
   - E.g., is power play really used in the final end in a defensive manner?
 - Can our power play analysis inform any new strategic decision making?
 
+# Findings (Current Run)
+
+This section summarizes what the current intent-classification pipeline actually
+shows. It uses phase-aware end labels (early vs late), a two-class late-phase
+intent label (offensive vs defensive), and unsupervised clustering without
+power-play leakage.
+
+## Confirmed (or strongly supported)
+
+- **Power play ends shift defensive.** End-level results show a clear shift
+  toward defensive intent during power play ends compared to non-power play.
+  Rule-based intent: offensive 80.6% -> 63.6%, defensive 19.4% -> 36.4%.
+  Cluster intent: offensive 66.0% -> 45.7%, defensive 34.0% -> 54.3%.
+- **Late-phase behavior separates intent.** Early phase is mostly offensive across
+  ends (early offense 0.984 vs 0.895), while late phase determines the label
+  (late offense 0.800 vs 0.192 and late defense 0.194 vs 0.796).
+
+## Partially supported or mixed
+
+- **H1 (hammer teams more offensive in PP):** Not supported. Hammer-only PP vs non-PP
+  is similar under rule-based intent (offensive 76.9% vs 72.4%), and remains
+  slightly defensive under clustering (51.6% vs 53.3% defensive).
+- **"Power play is the strategic end":** PP ends are more defensive by both labels,
+  but this does not directly measure strategic intent; it only reflects late-phase
+  shot choice.
+
+## Not yet tested
+
+- **H2 (PP timing vs score diff):** Not tested here.
+- **H3 (behavior vs end points in PP):** Not tested here.
+- **H4 (context dependence):** Not tested here.
+- **NHT behavior during PP:** Not tested here.
+
+## Caveats
+
+- Late-phase intent is a two-class simplification; mixed ends are forced into one class.
+- PP is defined per end; clustering excludes PP to avoid leakage, then compares PP rates.
+- A few ends have 4 or 6 shots per team; they do not change the aggregate results.
+
+## Interpretation (Current Run)
+
+The clearest signal is that power play ends look *more defensive* than non‑power‑play
+ends once we focus on the late phase. The rule‑based labels show a large shift
+from 19.4% defensive (non‑PP) to 36.4% defensive (PP), and the cluster labels show
+the same direction (34.0% -> 54.3% defensive). This is consistent with the analysts'
+intuition that power play does not simply amplify offense; it often coincides with
+late‑phase defensive shot selection.
+
+The mechanism seems to be *late‑phase choice*, not early‑phase behavior. Early
+phase remains mostly offensive in both classes (0.984 vs 0.895 early‑offense rates),
+which fits the MFGZ constraint. The late phase is where intents separate sharply
+(late offense 0.800 vs 0.192; late defense 0.194 vs 0.796), so the shift is about
+what teams do once takeouts are allowed.
+
+The hammer‑only shifts are smaller than the aggregate shifts. Under rule‑based intent,
+hammer teams move only slightly toward defense during PP (76.9% -> 72.4% offensive).
+Under clustering, hammer rows stay near‑even but still tilt defensive (51.6% -> 53.3%
+defensive). This suggests that much of the PP defensive swing may be coming from the
+non‑hammer response or end‑level context rather than the hammer team alone.
+
+Clustering adds structure: one small, strongly defensive cluster is heavily PP‑linked
+(PP incidence ~0.80) and has positive pre‑end score differential (mean ~2.34), which
+is consistent with a "protect a lead" pattern. The larger offensive cluster has low
+PP incidence, which reinforces that PP is not simply used to chase offense.
+
+Robustness checks do not change the story. The 4‑shot sensitivity split still shows
+the same directional shift (29.0% -> 43.4% defensive), and the late‑offense threshold
+grid is stable. So the defensive PP signal is not an artifact of the early/late cutoff.
+
+Interpretation wise, the data support this framing: *power play ends are more likely
+to be played defensively in the late phase*, even if the rule intent was offensive.
+That could mean power play is invoked in defensive contexts (score, end, or match state),
+or that opponents force a defensive reaction once PP is called. The next step to nail
+mechanism is the hypothesis block: PP timing vs score diff (H2), within‑PP scoring
+associations (H3), and context dependence (H4).
+
 
 # Express Goals
 
@@ -289,9 +365,9 @@ the shot-type data (especially during power play) may prove too granular and noi
 to reliably classify. Shot-type is a very strong informer of intended behavior but
 not the complete determinant. 
 
-One alternative is by end-intent in two sections: for the first four stones (where take-outs
-are not allowed) and for the last six stones (wehre take-outs are allowed). I.e., before
-and after Modified Free Guard Zone (MFGZ).
+One alternative is by end-intent in two sections: for the first three stones (where take-outs
+are not allowed) and for the last seven stones (where take-outs are allowed). I.e., before
+and after Modified Free Guard Zone (MFGZ). I keep the 4-shot split as a sensitivity check.
 
 I want to lean towards keeping the predictor set
 smaller here, careful not to introduce categorical variables which could introduce leakage
