@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc} % only needed for pdflatex
 \usepackage{booktabs, tabularx, threeparttable, graphicx, caption}
 
-
+\pagestyle{empty}
 \begin{document}
 
 % Optional: reduce column padding and font size for compact table
@@ -12,9 +12,7 @@
 
 \begin{table}[h!]
 \centering
-\caption{Values are presented as mean (95\% CI) or median (Q1, Q3). 
-C0: Cluster 0, C1: Cluster 1, C3: Cluster 3.
-P values indicate the statistical inference result of overall comparisons.}
+
 \begin{threeparttable}
 \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X c c c c}
 \toprule
@@ -31,6 +29,8 @@ Non-hammer score\tnote{\textdagger}     & 0.00 (0.00--0.50) & 0.00 (0.00--0.00) 
 \small
 \item[*] Welch’s one-way ANOVA
 \item[\textdagger] Kruskal-Wallis H test
+\item Pairwise comparisons: Cumulative score difference (Games–Howell): C0 vs C1 $p=0.014$, C0 vs C3 $p=0.317$, C1 vs C3 $p=0.245$.
+\item Pairwise comparisons: Points (Dunn test): C0 vs C1 $p=0.129$, C0 vs C3 $p=1.000$, C1 vs C3 $p=0.002$.
 \end{tablenotes}
 \end{threeparttable}
 \end{table}

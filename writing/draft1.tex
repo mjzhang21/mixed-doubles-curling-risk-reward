@@ -5,6 +5,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{natbib}
 \usepackage{xcolor}
+\usepackage{caption}
 
 \title{Analysis of Power Play Behavior and Counter Play in Mixed Doubles Curling\\
   \large CSAS 2026 Data Challenge Submission}
@@ -108,10 +109,66 @@
 % different from another
 
 % assumptions: ind, approx. normal (for anova), skewed (for kw-test)
+The following is a brief summary of the preprocessing steps applied prior
+to analysis. After the coordinates were standardized, the stone level data were 
+merged with the end level data and filtered to the first shot of the end. The
+columns for stones 3 to 6 and 9 to 12 were dropped as they are able
+to be played in the first shot. Columns for stone 2 and 8 were combined 
+and shifted into one column for stone 2 due to both belonging to the 
+non-hammer team. As for stones 1 and 7, both columns represented preplaced
+stones, although the designation of guard or house stone was unclear for each
+row. Thus, the coordinates were swapped when either stone 1 had coordinates for 
+the hammer preplaced house stone or stone 7 had coordinates for the 
+non-hammer guard.
+
+To explore potential clusters, PCA, t-SNE and UMAP were applied onto the 
+6-dimensional coordinate data consisting of the x and y coordinates for 
+stone 1, 2 and 7. HDBSCAN was selected due to non-circular clusters appearing
+in the 2-D visualizations from graphing 2 components of PCA, t-SNE and UMAP.
+Parameters of minimum cluster size = 9 and min samples = 1 were chosen from
+a grid search to balance and maximize Density-Based-Clustering-Validation score
+and coverage. Cluster quality was determined from DBCV score, coverage, excluded 
+noise sillouhete score and cluster membership probabilities. Finally, the clusters
+were visualized by color on 2-D components of the dimensionality reduction 
+techniques to confirm cluster separation.
+
+To compare performance metrics across the clusters, continuous variables 
+approximately normally distributed were analyzed using Welch's one-way ANOVA.
+Heavily skewed ordinal variables were assessed with the Kruskal-Wallis H test.
+Post-hoc pairwise comparisons were performed using the Games–Howell test for ANOVA 
+results and the Dunn test for Kruskal-Wallis outcomes. Cluster groups were defined 
+as C0 (n=35), C1 (n=75), and C3 (n=67). Values are presented as mean with confidence
+intervals or medians with 25th and 75th percentile,as appropriate, and detailed
+results for all variables are provided in Table~\ref{tab:cluster_test}.
+
+
+\begin{table}[t]
+\centering
+\includegraphics[width=0.8\textwidth]{img/cluster_test.pdf}
+\caption{Values are presented as mean (95\% CI) or median (Q1, Q3). 
+C0: Cluster 0, C1: Cluster 1, C3: Cluster 3.
+P values indicate the statistical inference result of overall comparisons.}
+\label{tab:cluster_test}
+\end{table}
+
+
 
 \section{Results}
+Cumulative score difference differed significantly across clusters (Welch’s 
+ANOVA, $p=0.015$; Table~\ref{tab:cluster_test}), with the highest mean observed in
+C1 (6.00, 95\% CI 5.07--6.93) and the lowest in C0 (3.51, 95\% CI 2.06--4.97).
+Post-hoc analysis indicated a significant difference between C0 and C1 ($p=0.014$),
+while differences between C0 and C3 ($p=0.317$) and C1 and C3 ($p=0.245$) were 
+not statistically significant. Points also varied across clusters (Kruskal-Wallis
+H test, $p=0.003$; Table~\ref{tab:cluster_test}), with a significant post-hoc 
+difference between C1 and C3 ($p=0.002$) but not between C0 and C1 ($p=0.129$)
+or C0 and C3 ($p=1.000$). Hammer and non-hammer scores did not differ significantly
+across clusters ($p=0.958$ and $p=0.904$, respectively; Table~\ref{tab:cluster_test}).
+Overall, these results indicate that cumulative score difference and points
+showed cluster-specific variation, while hammer-related outcomes were similar
+across groups.
 
-% objective reports. figures go here. no need for fluff
+
 
 \section{Discussion}
 
