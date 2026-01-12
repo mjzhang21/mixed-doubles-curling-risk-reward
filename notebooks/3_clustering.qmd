@@ -1168,7 +1168,8 @@ for feature in features:
 ```
 
 ```{python}
-import numpy as np
+
+from scipy.stats import kruskal
 import pingouin as pg
 from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
@@ -1183,16 +1184,13 @@ def bootstrap_mean_ci(data, alpha=0.05, n_boot=10000, random_state=None):
     n = len(data)
 
     if n < 2:
-        mean_val = np.mean(data)
-        return mean_val, np.nan, np.nan
-
-    boot_means = rng.choice(data, size=(n_boot, n), replace=True).mean(axis=1)
-    lower = np.percentile(boot_means, 100 * alpha / 2)
-    upper = np.percentile(boot_means, 100 * (1 - alpha / 2))
+        return np.mean(data), np.nan, np.nan
     mean_val = np.mean(data)
-
-    return mean_val, lower, upper
-
+    std_val = np.std(data, ddof=1)
+    se = std_val / np.sqrt(n)
+    from scipy.stats import t as t_dist
+    h = se * t_dist.ppf(1 - alpha/2, n - 1)
+    return mean_val, mean_val - h, mean_val + h
 
 # ----------------------------
 # Main analysis function
@@ -1229,31 +1227,40 @@ def analyze_variable(
     # ----------------------------
     # INFERENCE (Welch ANOVA)
     # ----------------------------
-    model = ols(f"{var} ~ C({group_var})", data=df_var).fit()
-    anova_res = anova_lm(model, typ=2, robust="hc3")
-    pval = anova_res["PR(>F)"].iloc[0]
+    if method == "kw":
+        groups = [df_var[df_var[group_var] == g][var].values for g in groups_to_use]
+        kw_stat, kw_p = kruskal(*groups)
+        print(f"Kruskal–Wallis H={kw_stat:.3f}, p={kw_p:.3f}")
 
-    print(f"Welch ANOVA p={pval:.4f}")
+        if kw_p <= 0.05 and len(groups_to_use) > 1:
+            print("Pairwise comparisons (Dunn test):")
+            import scikit_posthocs as sp
+            dunn = sp.posthoc_dunn(
+                df_var,
+                val_col=var,
+                group_col=group_var,
+                p_adjust=dunn_adjust
+            )
+            print(dunn)
 
-    # ----------------------------
-    # POST HOC (Games–Howell)
-    # ----------------------------
-    if pval <= alpha and len(groups_to_use) > 1:
-        print("Pairwise comparisons (Games–Howell):")
-        gh = pg.pairwise_gameshowell(
-            dv=var,
-            between=group_var,
-            data=df_var
-        )
-        print(gh)
+    elif method == "welch":
+        # Welch ANOVA using statsmodels with robust covariance
+        model = ols(f"{var} ~ C({group_var})", data=df_var).fit()
+        anova_res = anova_lm(model, typ=2, robust="hc3")
+        pval = anova_res["PR(>F)"].iloc[0]
+        print(f"Welch ANOVA p={pval:.3f}")
 
+        if pval <= 0.05 and len(groups_to_use) > 1:
+            print("Pairwise comparisons (Games-Howell test):")
+            gh = pg.pairwise_gameshowell(dv=var, between=group_var, data=df_var)
+            print(gh)
 
 ```
 
 ```{python}
 group_var = 'hdbscan_cluster'
-groups_to_use = [0,1,2]  # choose which groups to include
-variables = ['cumulative_score_diff']
+groups_to_use = [0,1,3]  # choose which groups to include
+variables = ['cumulative_score_diff','end_score_diff']
 
 for var in variables:
     analyze_variable(df_pp2, var, group_var, groups_to_use)
@@ -1274,7 +1281,7 @@ for var in variables:
 ```{python}
 group_var = 'task'
 groups_to_use = [0,1,2,3,4]
-variables = ['cumulative_score_diff']
+variables = ['cumulative_score_diff','end_score_diff']
 
 
 
