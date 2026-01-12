@@ -1,0 +1,38 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc} % only needed for pdflatex
+\usepackage{booktabs, tabularx, threeparttable, graphicx, caption}
+
+\pagestyle{empty}
+\begin{document}
+
+% Optional: reduce column padding and font size for compact table
+\setlength{\tabcolsep}{4pt}
+\small
+
+\begin{table}[h!]
+\centering
+
+\begin{threeparttable}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X c c c c}
+\toprule
+Variables & C0 (n=35) & C1 (n=75) & C3 (n=67) & p-value \\
+\midrule
+Cumulative score difference\tnote{*}    & 3.51 (2.06--4.97) & 6.00 (5.07--6.93) & 4.84 (3.73--5.94) & 0.015 \\
+Points\tnote{\textdagger}               & 4.00 (3.00--4.00) & 3.50 (3.00--4.00) & 4.00 (3.00--4.00) & 0.003 \\
+Hammer score\tnote{\textdagger}         & 1.00 (0.50--2.00) & 1.00 (1.00--2.00) & 1.00 (0.50--2.00) & 0.958 \\
+Non-hammer score\tnote{\textdagger}     & 0.00 (0.00--0.50) & 0.00 (0.00--0.00) & 0.00 (0.00--0.00) & 0.904 \\
+\bottomrule
+\end{tabularx}
+
+\begin{tablenotes}[flushleft]
+\small
+\item[*] Welch’s one-way ANOVA
+\item[\textdagger] Kruskal-Wallis H test
+\item Pairwise comparisons: Cumulative score difference (Games–Howell): C0 vs C1 $p=0.014$, C0 vs C3 $p=0.317$, C1 vs C3 $p=0.245$.
+\item Pairwise comparisons: Points (Dunn test): C0 vs C1 $p=0.129$, C0 vs C3 $p=1.000$, C1 vs C3 $p=0.002$.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+\end{document}
