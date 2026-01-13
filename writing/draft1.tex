@@ -7,6 +7,7 @@
 \usepackage{natbib}
 \usepackage{xcolor}
 \usepackage{caption}
+\usepackage{subcaption}  
 
 \newcommand{\jy}[1]{{\textcolor{violet}{JY:\@ #1}}}
 
@@ -262,8 +263,8 @@ skewed, which may slightly affect the p-values, but bootstrap confidence
 intervals were used for the means to provide robust estimates. Where the
 overall ANOVA indicated significant differences, post-hoc pairwise comparisons
 were performed using the Games–Howell test. Cluster groups were defined as C0
-(n = 27), C1 (n = 73), and C2 (n = 62). Values are presented as group means
-with 95\% bootstrap confidence intervals to account for the skewed
+($n$ = 27), C1 ($n$ = 73), and C2 ($n$ = 62). Values are presented as group
+means with 95\% bootstrap confidence intervals to account for the skewed
 distributions. Detailed results for all variables are provided in
 Table~\ref{tab:cluster_test}.
 
@@ -320,6 +321,16 @@ PCA, t-SNE and UMAP revealed well separated clusters with minimal overlap. With
 noise excluded, silhouette score was calculated as 0.604 suggesting reasonable
 to strong clustering structure.
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=1.0\textwidth]{img/fs_t-SNE.pdf}
+  \caption{“t-SNE visualization of the first shot powerplay left formation
+    dataset in two dimensions.
+    Each point represents a sample, colored by cluster.
+    Clusters indicate similarity in the feature space.”}
+  \label{fig:fs_tSNE}
+\end{figure}
+
 To further characterize these clusters, we examined the spatial distribution of
 stone placements and shot types for each cluster. Plotting the stone
 coordinates on a curling sheet grouped by cluster reveals three clear board
@@ -330,8 +341,38 @@ with the first shot landing around the hammer house stone. Cluster 2 also shows
 the preplaced stones untouched and the first shot in the front of the house or
 even higher. Cluster 3 had a very small sample size but is revealed to be a
 central draw. Although identified as a distinct cluster with strong membership
-probability, Cluster 3 (n=7) was excluded from further analyses due to its
+probability, Cluster 3 ($n$=7) was excluded from further analyses due to its
 small size.
+
+\begin{figure}[t]
+  \centering
+
+  \begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{img/C0.pdf}
+    \caption{Cluster 0: Tick shot}
+    \label{fig:C0}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{img/C1.pdf}
+    \caption{Cluster 1: Draw}
+    \label{fig:C1}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{img/C2.pdf}
+    \caption{Cluster 2: Front/Guard}
+    \label{fig:C2}
+  \end{subfigure}
+
+  \caption{Coordinate visualizations after the first shot in the powerplay left formation.
+    Each panel highlights a different cluster, which can be identified as shot types:
+    tick (Panel A), draw around the guard (Panel B), and front/guard (Panel C)}
+  \label{fig:C_all}
+\end{figure}
 
 We next examined the distribution of shot types within each cluster. Histograms
 of proportion of each task grouped by cluster conclude that Cluster 0 having a
@@ -409,6 +450,14 @@ We suggest that when countering the powerplay as the non-hammer team, that
 teams choose the starting player based on their overall skill in executing one
 of the three options observed.
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{img/noc_pptask.pdf}
+  \caption{“Top 5 nations by proportion of grouped tasks on the full powerplay
+    data.”}
+  \label{fig:noc_pptask}
+\end{figure}
+
 \subsection{Limitations}
 \jy{Could be brief, because this is not exactly an academic paper but a
   report for reference for the coaching team.}
@@ -423,6 +472,11 @@ of the three options observed.
 % one of the clusters does not identify raise / tap-backs on the hammer stone
 
 % the draw cluster has a very small sample size but is recognized as a cluster
+
+Some limitations included small powerplay sample size and heavily skewed data
+in multiple columns such as task, points, hammer score and points. Also,
+coordinates and columns were sometimes assigned inconsistently. For example, a
+draw may be confused with a freeze.
 
 \subsection{Conclusion}
 % quick summary
