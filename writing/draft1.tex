@@ -1,5 +1,5 @@
 % LTeX: language=en-US
-\documentclass{article}
+\documentclass[titlepage, 12pt]{article}
 \usepackage{amsmath}
 \usepackage[margin=1in]{geometry}
 \usepackage{graphicx}
@@ -8,19 +8,41 @@
 \usepackage{xcolor}
 \usepackage{caption}
 
-\title{Analysis of Power Play Behavior and Counter Play in Mixed Doubles Curling\\
-  \large CSAS 2026 Data Challenge Submission}
+\newcommand{\jy}[1]{{\textcolor{violet}{JY:\@ #1}}}
 
-\date{[15 January 2026]}
+
+\title{Strategic Adaptation to the Power Play in Mixed Doubles Curling}
+
+% \date{[15 January 2026]}
 
 
 
 \begin{document}
+\maketitle
 
-\begin{titlepage}
-  \maketitle
-
-\end{titlepage}
+\begin{abstract}
+  The power play in mixed doubles curling was introduced to open
+  the sheet and encourage offensive scoring, yet its strategic
+  effects remain largely undocumented. Using stone-level
+  coordinate and shot assessment data from three World Mixed
+  Doubles Curling Championships and one Winter Olympics, this
+  study examines strategic behavior associated with power play
+  usage and response. End-level intent is inferred from
+  shot-level task information by distinguishing early and late
+  phases defined by the Modified Free Guard Zone, combining
+  rule-based classification with unsupervised clustering to
+  characterize offensive and defensive patterns. Across more
+  than 5,000 team-ends, power play ends show a systematic shift
+  toward defensive behavior in the late phase relative to
+  non-power-play ends, particularly in score-protective
+  contexts, and this shift is not driven solely by hammer-team
+  behavior. Analysis of the non-hammer team’s first shot against
+  the power play identifies three dominant counterplay patterns
+  based on spatial stone configurations. These patterns differ
+  in execution quality and cumulative score dynamics but do not
+  yield statistically significant differences in end-level
+  scoring outcomes.
+\end{abstract}
 
 % Note: % is comment character, \ backslash is the escape character (needed for $, %, etc.)
 
@@ -37,10 +59,17 @@
 % this is why we have the data challenge, is so that we can develop
 % strategy independent of the 4 person game.
 
+\jy{Paragraphs are fragmented. I like longer paragraphs, each 130-160 words,
+  with strong topic sentences. A reader could sketch the topic sentences only
+  to get a quick idea about the paper.}
+
+\jy{Three questions to address in introduction and in this order:
+  why important; what've been done; what's new.}
+
 Mixed Doubles Curling is the product of the International Olympic Committee's
 request for a variation of the game that is more fast-paced, dynamic,
 high-risk, and less likely to fall into specific patterns determined by a game
-strategy.
+strategy \citep{willoughby2005analysis, park2013curling}.
 
 The unique rules of the Mixed Doubles game including the Modified Free Guard
 Zone (MFGZ), two pre-placed stones, the hammer being transferred even on a
@@ -192,6 +221,7 @@ assumption) and by testing stricter late-offense thresholds (0.55--0.65). See
 
 \subsection{First-shot NHT Clustering}
 
+\jy{define acronym at first and only at first occurrence.}
 % Mark std. coordinates use HDBScan for clustering -> visualize w/ PCA, tSNE
 % cluster quality evaluated on coverage, score, and cluster stability use welch
 % ANOVA and bootstrap, use post-hoc test to determine differences between
@@ -237,6 +267,7 @@ with 95\% bootstrap confidence intervals to account for the skewed
 distributions. Detailed results for all variables are provided in
 Table~\ref{tab:cluster_test}.
 
+\jy{n is not $n$}
 \begin{table}[t]
   \centering
   \includegraphics[width=0.8\textwidth]{img/cluster_test.pdf}
@@ -379,6 +410,8 @@ teams choose the starting player based on their overall skill in executing one
 of the three options observed.
 
 \subsection{Limitations}
+\jy{Could be brief, because this is not exactly an academic paper but a
+  report for reference for the coaching team.}
 % lack of powerplay sample size very skewed data. task, points, expected hammer
 % points data quality. i.e. inconsistent coordinate assignments, incosistent
 % column assignments
@@ -395,9 +428,11 @@ of the three options observed.
 % quick summary
 
 %\section{Appendices} if there is a need for code appendix or otherwise, we'll
-%put it at the botton. 
-\bibliographystyle{plainnat}
-\bibliography{../references}
+%put it at the botton.
+
+\jy{Do you have team strategy profiles?}
+\bibliographystyle{apalike}
+\bibliography{references}
 %i have my latex in vscode compiled to use natbib, not bibtex. it will work for
 % you but i havent got mine working yet, once i set it back we will use APA
 
