@@ -275,16 +275,12 @@ means with 95\% bootstrap confidence intervals to account for the skewed
 distributions. Detailed results for all variables are provided in
 Table~\ref{tab:cluster_test}.
 
-\jy{n is not $n$}
-\begin{table}[t]
-  \centering
-  \includegraphics[width=0.8\textwidth]{img/cluster_test.pdf}
-  \caption{Group means (with 95\% bootstrap confidence intervals) for each
-    outcome variable by HDBSCAN cluster. p-values are from Welch’s one-way
-    ANOVA. Significant pairwise differences were assessed using Games–Howell
-    post hoc tests.}
-  \label{tab:cluster_test}
-\end{table}
+To observe different countries' first non-hammer shot selection in the
+powerplay, bar charts are created on both left and right powerplay formation
+ends. Teams are only included if they have played more than twenty powerplay
+ends. Based on the results of the clustering, similar type of shots are grouped
+together. The top five countries for each group of shot type are plotted to
+compare playstyles in response to the powerplay.
 
 \section{Results}
 
@@ -341,15 +337,17 @@ to strong clustering structure.
 To further characterize these clusters, we examined the spatial distribution of
 stone placements and shot types for each cluster. Plotting the stone
 coordinates on a curling sheet grouped by cluster reveals three clear board
-positions which have been identified. The Cluster 0 plot illustrates the first
-non-hammer team shot collides with the non-hammer guard pushing into around the
-house or near the button. The Cluster 1 plot has preplaced stones untouched,
-with the first shot landing around the hammer house stone. Cluster 2 also shows
-the preplaced stones untouched and the first shot in the front of the house or
-even higher. Cluster 3 had a very small sample size but is revealed to be a
-central draw. Although identified as a distinct cluster with strong membership
-probability, Cluster 3 ($n$=7) was excluded from further analyses due to its
-small size.
+positions, shown in Figure~\ref{fig:C_all}. As illustrated in
+Figure~\ref{fig:C0}, the Cluster~0 pattern corresponds to situations in which
+the first non-hammer team shot collides with the non-hammer guard, pushing the
+stone into or near the house. Figure~\ref{fig:C1} shows that Cluster~1 is
+characterized by the pre-placed stones remaining untouched, with the first shot
+typically landing around the hammer team’s house stone. Similarly, Cluster~2
+(Figure~\ref{fig:C2}) exhibits untouched pre-placed stones, but with the first
+shot positioned in the front of the house or even higher. Cluster~3 was
+identified as a distinct central draw pattern but contained a very small sample
+size ($n=7$); despite strong cluster membership probabilities, it was excluded
+from further analysis due to its limited representation.
 
 \begin{figure}[t]
   \centering
@@ -383,8 +381,9 @@ small size.
 
 We next examined the distribution of shot types within each cluster. Histograms
 of proportion of each task grouped by cluster conclude that Cluster 0 having a
-roughly equal distribution of raise/tapbacks and wick/soft-peeling shots.
-Cluster 1 only consists of draws, and Cluster 2 consists of fronts and guards.
+roughly equal proportion of raise/tapbacks and wick/soft-peeling shots. Cluster
+1 only consists of draws, and Cluster 2 has an equal number of fronts and
+guards.
 
 Finally, we assessed whether these cluster groupings corresponded to
 differences in game outcomes. Cumulative score difference differed
@@ -401,6 +400,17 @@ did not differ significantly across clusters (Welch’s ANOVA, $p=0.769$ and
 $p=0.833$, respectively; Table~\ref{tab:cluster_test}). Overall, these results
 indicate that cumulative score difference and points showed cluster-specific
 variation, while hammer-related outcomes were similar across groups.
+
+\jy{n is not $n$}
+\begin{table}[t]
+  \centering
+  \includegraphics[width=0.8\textwidth]{img/cluster_test.pdf}
+  \caption{Group means (with 95\% bootstrap confidence intervals) for each
+    outcome variable by HDBSCAN cluster. p-values are from Welch’s one-way
+    ANOVA. Significant pairwise differences were assessed using Games–Howell
+    post hoc tests.}
+  \label{tab:cluster_test}
+\end{table}
 
 \section{Discussion}
 
@@ -457,17 +467,30 @@ We suggest that when countering the powerplay as the non-hammer team, that
 teams choose the starting player based on their overall skill in executing one
 of the three options observed.
 
+When including all of the powerplay ends, certain countries play the draw,
+guard or tick shot a lot more than others. The bar chart of proportion of task
+groups by nation indicate the clear difference in strategy in throwing the
+first stone during powerplay ends (Figure~\ref{fig:noc_pptask}). The tasks are
+grouped by the results discovered through clustering. All teams tend to hit
+more draws and tick shots, with Korea hitting 67\% of their shots as draws.
+Germany plays the most guards at 48\%. Sweden along with Scotland hit a large
+majority of their shots as Raise/Tapbacks and Wick/Soft-Peels. These
+differences confirm the analysts' intutition about varying responses to
+countering the powerplay.
+
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{img/noc_pptask.pdf}
-  \caption{“Top 5 nations by proportion of grouped tasks on the full powerplay
-    data.”}
+  \caption{“Proportions of grouped tasks hit by country. Data includes all powerplay
+    ends and is limited to the first stone. Only the top five teams with more than 20
+    powerplay ends are shown.”}
   \label{fig:noc_pptask}
 \end{figure}
 
 \subsection{Limitations}
 \jy{Could be brief, because this is not exactly an academic paper but a
   report for reference for the coaching team.}
+
 % lack of powerplay sample size very skewed data. task, points, expected hammer
 % points data quality. i.e. inconsistent coordinate assignments, incosistent
 % column assignments
@@ -483,7 +506,7 @@ of the three options observed.
 Some limitations included small powerplay sample size and heavily skewed data
 in multiple columns such as task, points, hammer score and points. Also,
 coordinates and columns were sometimes assigned inconsistently. For example, a
-draw may be confused with a freeze.
+draw may be identified as a freeze.
 
 \subsection{Conclusion}
 % quick summary
