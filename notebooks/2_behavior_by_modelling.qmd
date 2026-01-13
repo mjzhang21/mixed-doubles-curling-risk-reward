@@ -80,5 +80,68 @@ We will do this by taking the set of unique ends (match_id, end_id) and
 cross-joining with both team_id_i. We keep these keys and add
 opp_team_id as a new key. 
 
+```{python}
+# now we are adding information on powerplay.
+pp_context = (
+    df.groupby(["match_id", "end_id"], as_index=False)
+      .agg(pp_value_end=("powerplay", "max"))
+)
+
+pp_context["pp_used_end"] = pp_context["pp_value_end"].fillna(0).astype(int).ne(0)
+pp_context["pp_side_end"] = np.select(
+    [
+        pp_context["pp_value_end"].fillna(0).astype(int).eq(1),
+        pp_context["pp_value_end"].fillna(0).astype(int).eq(2),
+    ],
+    ["right", "left"],
+    default=None,
+)
+```
+
+
+```{python}
+# --- B) Team-end context (team-relative; constant within match_id,end_id,team_id) ---
+# Verify constancy within team-end
+team_ctx_nunique = (
+    df.groupby(["match_id", "end_id", "team_id"])[["has_hammer", "pre_end_score_diff"]]
+      .nunique(dropna=False)
+)
+
+# qc. check to make sure has_hammer, pre_end_score_diff don't occur twice.
+bad_team_ctx = team_ctx_nunique[(team_ctx_nunique["has_hammer"] > 1) | (team_ctx_nunique["pre_end_score_diff"] > 1)]
+if len(bad_team_ctx):
+    raise ValueError(f"Non-constant has_hammer or pre_end_score_diff within some team-ends:\n{bad_team_ctx.head()}")
+
+team_context = (
+    df.groupby(["match_id", "end_id", "team_id"], as_index=False)
+      .agg(
+          has_hammer=("has_hammer", "first"),
+          pre_end_score_diff=("pre_end_score_diff", "first"), #fine assumption to make because should all be the same
+      )
+)
+```
+
+passes qc. we can safely add the has_hammer boolean and the pre_end_score_diff. 
+
+```{python}
+# --- C) Merge onto team_end ---
+team_end = team_end.merge(
+    team_context,
+    on=["match_id", "end_id", "team_id"],
+    how="left",
+    validate="one_to_one",
+)
+
+team_end = team_end.merge(
+    pp_context[["match_id", "end_id", "pp_value_end", "pp_used_end", "pp_side_end"]],
+    on=["match_id", "end_id"],
+    how="left",
+    validate="many_to_one",
+)
+
+# Quick check
+team_end[["has_hammer", "pre_end_score_diff", "pp_value_end", "pp_used_end", "pp_side_end"]].head()
+```
+
 ## Attach End-context to both team-end rows.
 
