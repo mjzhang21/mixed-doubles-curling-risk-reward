@@ -1,0 +1,28 @@
+---
+title: "CSAS 2026: Behavior Classes"
+author: "Alejandro Haerter"
+date: "2026-01-13"
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt 
+---
+
+The final plan.
+
+# Buld the analysis unit: team-end
+
+A new dataframe must be constructed which creates exactly two rows per
+match_id and end_id; one for team_id1 and one for team_id2.
+Each observational unit (so for each time) is intended to quantify the
+decisions made by each team during the end without using every single
+shot-row (too granular, useless).
+
+The outcome is to see how much each team changed the sheet over the end,
+not what did the shooter do on one shot (stone-level).
+
+We will do this by taking the set of unique ends (match_id, end_id) and
+cross-joining with {team_id1, team_id2}
