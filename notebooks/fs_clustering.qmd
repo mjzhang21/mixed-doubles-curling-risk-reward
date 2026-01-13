@@ -1544,43 +1544,51 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.patches import Patch
 
-# Task groups
+skip_tasks = [5, 6, 8, 10]
+
+# --- Filter the dataframe ---
+df_filtered = df_pp[~df_pp['task'].isin(skip_tasks)]
+df_filtered = df_filtered.dropna(subset=['task', 'cumulative_score_diff'])
+
+# --- Task groups ---
 task_groups = {
     "Draw": [0],
     "Front/Guard": [1, 2],
     "Raise/Tapback + Wick/Soft-Peel": [3, 4]
 }
 
-# Aggregate proportions
-agg_task_dict = {name: prop_table[tasks].sum(axis=1) for name, tasks in task_groups.items()}
-
-# Filter nations with at least 20 shots
+# --- Filter valid nations (≥20 shots) ---
 valid_nations = df_filtered['noc'].value_counts()
 valid_nations = valid_nations[valid_nations >= 20].index
-agg_task_dict = {name: data.loc[data.index.isin(valid_nations)] for name, data in agg_task_dict.items()}
 
-# Get all nations that appear in any top 5
+# --- Compute proportion per country per group ---
+agg_task_dict = {}
+for name, tasks in task_groups.items():
+    agg_task_dict[name] = df_filtered[df_filtered['noc'].isin(valid_nations)].groupby('noc')['task'].apply(
+        lambda x: x.isin(tasks).sum() / len(x)
+    )
+
+# --- Top nations across any group ---
 all_nations = set()
 for data in agg_task_dict.values():
     all_nations.update(data.sort_values(ascending=False).head(5).index)
 all_nations = sorted(all_nations)
 
-# Assign a **unique color per country**
-palette = sns.color_palette("tab20", n_colors=len(all_nations))  # tab20 has up to 20 distinct colors
+# --- Assign unique color per country ---
+palette = sns.color_palette("tab20", n_colors=len(all_nations))
 nation_colors = dict(zip(all_nations, palette))
 
-# Plot
-fig, axes = plt.subplots(1, len(agg_task_dict), figsize=(12, 6), sharey=False)
+# --- Multi-panel plot ---
+fig, axes = plt.subplots(1, len(agg_task_dict), figsize=(14, 6), sharey=False)
 
 for i, (group_name, data) in enumerate(agg_task_dict.items()):
     ax = axes[i]
 
-    # Top 5 nations for this group
+    # Select top 5 nations for this group
     data_top = data.sort_values(ascending=True)[-5:]
 
-    # Bars with consistent colors
-    colors = [nation_colors[n] for n in data_top.index]
-    ax.barh(data_top.index, data_top.values, color=colors)
+    # Plot bars
+    ax.barh(data_top.index, data_top.values, color=[nation_colors[n] for n in data_top.index])
 
     # Annotate values
     for j, val in enumerate(data_top.values):
@@ -1596,13 +1604,14 @@ for i, (group_name, data) in enumerate(agg_task_dict.items()):
     ax.set_xlabel("Proportion", fontsize=14)
     ax.tick_params(axis='both', labelsize=12)
 
-# Legend
+# --- Legend ---
 legend_handles = [Patch(color=col, label=n) for n, col in nation_colors.items()]
 fig.legend(handles=legend_handles, loc='upper center', ncol=len(nation_colors), fontsize=9, bbox_to_anchor=(0.5, 1.05))
 
+# --- Final touches ---
 plt.suptitle("Top Nations by Proportion of Shots (Grouped Tasks, ≥20 Shots)", fontsize=18, y=0.92)
 plt.tight_layout(rect=[0, 0, 1, 0.92])
-plt.savefig("noc_pptask.pdf", format="pdf", bbox_inches="tight")
 plt.show()
+
 
 ```
