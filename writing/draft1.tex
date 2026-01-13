@@ -1,3 +1,4 @@
+% LTeX: language=en-US
 \documentclass{article}
 \usepackage{amsmath}
 \usepackage[margin=1in]{geometry}
@@ -36,15 +37,15 @@
 % this is why we have the data challenge, is so that we can develop
 % strategy independent of the 4 person game.
 
-Mixed Doubles Curling is the product of the Internation Olympic Committee's
-request for a variatiant of the game that is more fast-paced, dynamic,
+Mixed Doubles Curling is the product of the International Olympic Committee's
+request for a variation of the game that is more fast-paced, dynamic,
 high-risk, and less likely to fall into specific patterns determined by a game
 strategy.
 
 The unique rules of the Mixed Doubles game including the Modified Free Guard
 Zone (MFGZ), two pre-placed stones, the hammer being transferred even on a
 blank, only eight ends, and of course the power play, necessitate new tactical
-and strategic decisionmaking on the ice. These modifications are intended to
+and strategic decision-making on the ice. These modifications are intended to
 keep more stones in play, increasing the odds of big ends and raising the
 stakes for a single end.
 
@@ -60,7 +61,7 @@ the side. This opens up the sheet and requires a fundamentally different
 approach.
 
 Right now, coaches and analysts only have intuition (source pending) from the
-traditional game as how to effectively play the power play. But if there is
+traditional game as to how to effectively play the power play. But if there is
 anything to learn from traditional curling, a strategic approach is always more
 effective than playing pure tactics; and thus at the professional level it is
 the teams' best interest that proper strategy on when to use the power play,
@@ -83,11 +84,11 @@ defensive behaviors when using the power play, particularly in the later ends,
 but that these strategic tendencies are not consistent across teams or
 championships. We then focus on non-hammer team behavior, by analyzing common
 counter power play shot types and find that while different opens do not
-significantly affect expeced scoring outcomes for the non-hammer team, they do
+significantly affect expected scoring outcomes for the non-hammer team, they do
 produce significant differences in execution quality and cumulative score
 dynamics. Despite teams systemically varying their shot choice based on game
 context, the data provides no evidence that any particular counter-strategy is
-objectively preferable when opening an end agaisnt the Power Play.
+objectively preferable when opening an end against the Power Play.
 % the key focus of the data challenge is the power play, for which we have no
 % reliable strategy because this is a novel rule powerplay questions: how and
 % when and why is it used how should you use it or For respond to it etc
@@ -107,22 +108,20 @@ objectively preferable when opening an end agaisnt the Power Play.
 
 \subsection{Literature Review}
 
-Previous analysis of
-
 \section{Data}
 
 We use a dataset from Curlit which provides 26,730 shot-by-shot stone positions
 across four competitions, compiled from shot-by-shot images which are entered
 into Curlit's software during the game. Included are unique IDs which
-successfuly distinguish individual competitions, games, ends, participants, and
-preserve chronological shot order.
+successfully distinguish individual competitions, games, ends, participants,
+and preserve chronological shot order.
 
 Perhaps the dataset's most important quality is that it is the first available
 dataset for mixed doubles curling that contains stone-level coordinate data,
-addressing a key limitation of previous analyses. Additionally, columns
+addressing a key limitation of previous analyses. Additionally, columns of
 assessment data such as intended shot-call and execution quality are included
 for every stone, providing necessary information for behavior classification.
-These descriptors are based on a set of objective grading critera such that
+These descriptors are based on a set of objective grading criteria, such that
 that any analyst entering the data would fill each category identically.
 
 With score results for each end, it is possible to wholly reconstruct the
@@ -138,7 +137,7 @@ cluster".
 
 This is reflected in the heatmaps of stone positions
 
-We see that powerplay occurs in t
+We see that powerplay occurs in [insert Table]
 % source is curlit
 
 % Data collection was that curlit analysts entered the stone positions onto a
@@ -170,24 +169,26 @@ We see that powerplay occurs in t
 % Once power play behavior has been identified, clustering analysis for
 % first-stone level data is used to identify ideal response types by the NHT
 % [Power Play intent methodology; source: notebooks/behavior_classes.qmd]
-We classify end-level intent from stone-level task data. Each shot is grouped into
-offensive, defensive, or neutral based on task codes from the data dictionary.
-We then split each end into phases using the Modified Free Guard Zone: the first
-three shots (ShotID 7, 8, 9) are treated as the \emph{early} phase where takeouts
-are prohibited, and the remaining seven shots (ShotID 16--22) are treated as the
-\emph{late} phase. For each team and end, we compute early/late rates of offensive
-and defensive shots. A rule-based intent label is assigned as \texttt{offensive} if
-late-offense $\ge$ late-defense, and \texttt{defensive} otherwise; probing is omitted
-because early-phase draw-heavy behavior is structurally forced.
+We classify end-level intent from stone-level task data. Each shot is grouped
+into offensive, defensive, or neutral based on task codes from the data
+dictionary. We then split each end into phases using the Modified Free Guard
+Zone: the first three shots (ShotID 7, 8, 9) are treated as the \emph{early}
+phase where takeouts are prohibited, and the remaining seven shots (ShotID
+16--22) are treated as the \emph{late} phase. For each team and end, we compute
+early/late rates of offensive and defensive shots. A rule-based intent label is
+assigned as \texttt{offensive} if late-offense $\ge$ late-defense, and
+\texttt{defensive} otherwise; probing is omitted because early-phase draw-heavy
+behavior is structurally forced.
 
-To explore structure beyond the rule-based labels, we cluster end-level patterns
-using standardized features: early/late offense and defense rates, pre-end score
-differential, and a hammer flag. We use K-means with $k=3$ and derive cluster intent
-labels based on each cluster's late-phase rates. Power play indicators are not
-included in clustering to avoid leakage; power play is compared only after labels
-are assigned. We also conduct sensitivity checks by shifting the early/late boundary
-to include the 4th shot (older four-shot assumption) and by testing stricter
-late-offense thresholds (0.55--0.65). See \texttt{notebooks/behavior\_classes.qmd}.
+To explore structure beyond the rule-based labels, we cluster end-level
+patterns using standardized features: early/late offense and defense rates,
+pre-end score differential, and a hammer flag. We use K-means with $k=3$ and
+derive cluster intent labels based on each cluster's late-phase rates. Power
+play indicators are not included in clustering to avoid leakage; power play is
+compared only after labels are assigned. We also conduct sensitivity checks by
+shifting the early/late boundary to include the 4th shot (older four-shot
+assumption) and by testing stricter late-offense thresholds (0.55--0.65). See
+\texttt{notebooks/behavior\_classes.qmd}.
 
 \subsection{First-shot NHT Clustering}
 
@@ -216,26 +217,25 @@ onto the 6-dimensional coordinate data consisting of the x and y coordinates
 for stone 1, 2 and 7. HDBSCAN was selected due to non-circular clusters
 appearing in the 2-D visualizations from graphing 2 components of PCA, t-SNE
 and UMAP. To optimize clustering performance, Parameters of minimum cluster
-size = 5 and min samples = 5 were chosen from a grid search Cluster quality was
-then assessed from DBCV score, coverage, excluded noise sillouhete score and
-cluster membership probabilities. Finally, the clusters were visualized by
+size = 5 and min samples = 5 were chosen from a grid search. Cluster quality
+was then assessed from DBCV score, coverage, excluded noise silhouette score
+and cluster membership probabilities. Finally, the clusters were visualized by
 color on 2-D components of the dimensionality reduction techniques to confirm
 cluster separation.
 
 Histograms and bar charts were used to visualize the distributions and counts
-of key variables. Also, curling sheet scatterplots were used to visualize the
+of key variables. Also, curling sheet scatter plots were used to visualize the
 positions of each stone by cluster and task. Following visualization,
 performance metrics across clusters were compared using Welch’s one-way ANOVA
-to account for unequal group sizes and variances. Cluster comparisons were
-carried out using Welch’s ANOVA to account for unequal group sizes and
-variances. Some variables were highly skewed, which may slightly affect the
-p-values, but bootstrap confidence intervals were used for the means to provide
-robust estimates.Where the overall ANOVA indicated significant differences,
-post-hoc pairwise comparisons were performed using the Games–Howell test.
-Cluster groups were defined as C0 (n = 27), C1 (n = 73), and C2 (n = 62).
-Values are presented as group means with 95\% bootstrap confidence intervals to
-account for the skewed distributions. Detailed results for all variables are
-provided in Table~\ref{tab:cluster_test}.
+to account for unequal group sizes and variances. Some variables were highly
+skewed, which may slightly affect the p-values, but bootstrap confidence
+intervals were used for the means to provide robust estimates. Where the
+overall ANOVA indicated significant differences, post-hoc pairwise comparisons
+were performed using the Games–Howell test. Cluster groups were defined as C0
+(n = 27), C1 (n = 73), and C2 (n = 62). Values are presented as group means
+with 95\% bootstrap confidence intervals to account for the skewed
+distributions. Detailed results for all variables are provided in
+Table~\ref{tab:cluster_test}.
 
 \begin{table}[t]
   \centering
@@ -253,42 +253,29 @@ provided in Table~\ref{tab:cluster_test}.
 \subsection{Power Play Intent Results}
 
 Across 5,274 team-end rows, the rule-based labels classify 76.8\% of ends as
-offensive and 23.2\% as defensive. Power play ends show a clear defensive shift:
-non-power-play ends are 80.6\% offensive (19.4\% defensive), while power play ends
-are 63.6\% offensive (36.4\% defensive). The cluster-derived labels mirror this
-pattern: non-power-play ends are 66.0\% offensive (34.0\% defensive) while power
-play ends are 45.7\% offensive (54.3\% defensive).
+offensive and 23.2\% as defensive. Power play ends show a clear defensive
+shift: non-power-play ends are 80.6\% offensive (19.4\% defensive), while power
+play ends are 63.6\% offensive (36.4\% defensive). The cluster-derived labels
+mirror this pattern: non-power-play ends are 66.0\% offensive (34.0\%
+defensive) while power play ends are 45.7\% offensive (54.3\% defensive).
 
 The clustering yields three groups (sizes 3,239 / 1,753 / 282). One cluster is
-strongly offensive (late-offense $\approx$ 0.87) and has low power play incidence
-(0.17). The two defensive clusters differ in context; one shows moderate power play
-incidence (0.24) and the other is heavily power-play linked (0.80) with a positive
-pre-end score differential (mean $\approx$ 2.34), consistent with a protect-a-lead
-context. Hammer-only shifts are smaller: rule-based intent remains mostly offensive
-(76.9\% $\rightarrow$ 72.4\%), and cluster labels tilt only slightly more defensive
-(51.6\% $\rightarrow$ 53.3\% defensive).
+strongly offensive (late-offense $\approx$ 0.87) and has low power play
+incidence (0.17). The two defensive clusters differ in context; one shows
+moderate power play incidence (0.24) and the other is heavily power-play linked
+(0.80) with a positive pre-end score differential (mean $\approx$ 2.34),
+consistent with a protect-a-lead context. Hammer-only shifts are smaller:
+rule-based intent remains mostly offensive (76.9\% $\rightarrow$ 72.4\%), and
+cluster labels tilt only slightly more defensive (51.6\% $\rightarrow$ 53.3\%
+defensive).
 
-Sensitivity checks do not change the conclusion. Using a four-shot early phase still
-shows a defensive shift in power play ends (defensive 29.0\% $\rightarrow$ 43.4\%).
-Stricter late-offense thresholds (0.55--0.65) yield stable intent shares. See
-\texttt{notebooks/behavior\_classes.qmd} for tables and shift summaries.
+Sensitivity checks do not change the conclusion. Using a four-shot early phase
+still shows a defensive shift in power play ends (defensive 29.0\%
+$\rightarrow$ 43.4\%). Stricter late-offense thresholds (0.55--0.65) yield
+stable intent shares. See \texttt{notebooks/behavior\_classes.qmd} for tables
+and shift summaries.
 
-% [Power Play intent findings; source: notebooks/behavior.qmd]
-\subsection{Power Play Intent Findings}
-
-The core finding is that power play ends are \emph{more defensive} in the late phase,
-despite the rule's intent to open the sheet. The early phase is overwhelmingly
-offensive for both labels, which is consistent with the MFGZ constraint; the late
-phase is where intent diverges sharply. The defensive shift is not driven entirely
-by hammer-team behavior, which only shifts modestly, suggesting that non-hammer
-responses or end-level context are key drivers.
-
-Overall, the evidence supports the analysts' claim that power play does not simply
-increase offensive play and may even induce defensive behavior. The mechanism is
-likely contextual (score state, opponent response, or end timing), which motivates
-the planned hypothesis checks on score differential, end outcomes, and context
-dependence. See \texttt{notebooks/behavior.qmd} for the full interpretation block.
-
+\subsection{First Shot NHT}
 The HDBSCAN clustering (minimum cluster size = 5, minimum samples = 5) produced
 four clusters, with a coverage rate of 0.761 and a DBCV score of 0.428. These
 metrics suggest reasonable clustering structure with a fair amount of noise.
@@ -298,8 +285,8 @@ probabilities of 0.773, 0.753, 0.891, and 0.982, respectively, indicating that
 Cluster 3 contained the most tightly grouped points, while Clusters 0 and 1 had
 weaker assignments. Fifty-five points were labeled as noise, reflecting points
 not clearly assigned to any cluster. Clusters visualized on 2-D components of
-PCA, t-SNE and UMAP revealed well separated clustrs with minimal overlap. With
-noise excluded, sihlouette score was calculated as 0.604 suggesting reasonable
+PCA, t-SNE and UMAP revealed well separated clusters with minimal overlap. With
+noise excluded, silhouette score was calculated as 0.604 suggesting reasonable
 to strong clustering structure.
 
 To further characterize these clusters, we examined the spatial distribution of
@@ -318,7 +305,7 @@ small size.
 We next examined the distribution of shot types within each cluster. Histograms
 of proportion of each task grouped by cluster conclude that Cluster 0 having a
 roughly equal distribution of raise/tapbacks and wick/soft-peeling shots.
-Cluster 1 only consists of draws and Cluster 2 consists of fronts and guards.
+Cluster 1 only consists of draws, and Cluster 2 consists of fronts and guards.
 
 Finally, we assessed whether these cluster groupings corresponded to
 differences in game outcomes. Cumulative score difference differed
@@ -346,6 +333,26 @@ variation, while hammer-related outcomes were similar across groups.
 
 % alejandro: curling strategy says to enter with a game-plan game-plans for how
 % to use powerplay are not observed with this data. 
+
+% [Power Play intent findings; source: notebooks/behavior.qmd]
+\subsection{Power Play Intent Findings}
+
+The core finding is that power play ends are \emph{more defensive} in the late
+phase, despite the rule's intent to open the sheet. The early phase is
+overwhelmingly offensive for both labels, which is consistent with the MFGZ
+constraint; the late phase is where intent diverges sharply. The defensive
+shift is not driven entirely by hammer-team behavior, which only shifts
+modestly, suggesting that non-hammer responses or end-level context are key
+drivers.
+
+Overall, the evidence supports the analysts' claim that power play does not
+simply increase offensive play and may even induce defensive behavior. The
+mechanism is likely contextual (score state, opponent response, or end timing),
+which motivates the planned hypothesis checks on score differential, end
+outcomes, and context dependence. See \texttt{notebooks/behavior.qmd} for the
+full interpretation block.
+
+\subsection{First Shot NHT}
 Analysts have observed different responses for countering the powerplay,
 although there has been no studies to identify exactly which shots teams hit
 and their effect on performance and context metrics. By clustering the board
@@ -360,12 +367,12 @@ non-missed shots and no significant differences in hammer or non-hammer score.
 Post Hoc Games-Howell tests show that significant cumulative score differences
 between the tick and draw around the guard. All shots are utilized when the
 hammer team has the score advantage. However, the tick shot is thrown at when
-the score difference is lesser while the draw is thrown when the hammer team
+the score difference is lesser, while the draw is thrown when the hammer team
 has a blowout lead.
 
 Teams may have tendencies to throw less risky shots when they are behind less
 in the score compared to when they are down many points. Nevertheless, as there
-are no siginificant differences in hammer and non-hammer score between the
+are no significant differences in hammer and non-hammer score between the
 clusters, shot choice may not have an important role in end score performance.
 We suggest that when countering the powerplay as the non-hammer team, that
 teams choose the starting player based on their overall skill in executing one
