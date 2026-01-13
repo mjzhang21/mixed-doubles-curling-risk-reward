@@ -169,6 +169,25 @@ We see that powerplay occurs in t
 
 % Once power play behavior has been identified, clustering analysis for
 % first-stone level data is used to identify ideal response types by the NHT
+% [Power Play intent methodology; source: notebooks/behavior_classes.qmd]
+We classify end-level intent from stone-level task data. Each shot is grouped into
+offensive, defensive, or neutral based on task codes from the data dictionary.
+We then split each end into phases using the Modified Free Guard Zone: the first
+three shots (ShotID 7, 8, 9) are treated as the \emph{early} phase where takeouts
+are prohibited, and the remaining seven shots (ShotID 16--22) are treated as the
+\emph{late} phase. For each team and end, we compute early/late rates of offensive
+and defensive shots. A rule-based intent label is assigned as \texttt{offensive} if
+late-offense $\ge$ late-defense, and \texttt{defensive} otherwise; probing is omitted
+because early-phase draw-heavy behavior is structurally forced.
+
+To explore structure beyond the rule-based labels, we cluster end-level patterns
+using standardized features: early/late offense and defense rates, pre-end score
+differential, and a hammer flag. We use K-means with $k=3$ and derive cluster intent
+labels based on each cluster's late-phase rates. Power play indicators are not
+included in clustering to avoid leakage; power play is compared only after labels
+are assigned. We also conduct sensitivity checks by shifting the early/late boundary
+to include the 4th shot (older four-shot assumption) and by testing stricter
+late-offense thresholds (0.55--0.65). See \texttt{notebooks/behavior\_classes.qmd}.
 
 \subsection{First-shot NHT Clustering}
 
@@ -229,6 +248,46 @@ provided in Table~\ref{tab:cluster_test}.
 \end{table}
 
 \section{Results}
+
+% [Power Play intent results; source: notebooks/behavior_classes.qmd]
+\subsection{Power Play Intent Results}
+
+Across 5,274 team-end rows, the rule-based labels classify 76.8\% of ends as
+offensive and 23.2\% as defensive. Power play ends show a clear defensive shift:
+non-power-play ends are 80.6\% offensive (19.4\% defensive), while power play ends
+are 63.6\% offensive (36.4\% defensive). The cluster-derived labels mirror this
+pattern: non-power-play ends are 66.0\% offensive (34.0\% defensive) while power
+play ends are 45.7\% offensive (54.3\% defensive).
+
+The clustering yields three groups (sizes 3,239 / 1,753 / 282). One cluster is
+strongly offensive (late-offense $\approx$ 0.87) and has low power play incidence
+(0.17). The two defensive clusters differ in context; one shows moderate power play
+incidence (0.24) and the other is heavily power-play linked (0.80) with a positive
+pre-end score differential (mean $\approx$ 2.34), consistent with a protect-a-lead
+context. Hammer-only shifts are smaller: rule-based intent remains mostly offensive
+(76.9\% $\rightarrow$ 72.4\%), and cluster labels tilt only slightly more defensive
+(51.6\% $\rightarrow$ 53.3\% defensive).
+
+Sensitivity checks do not change the conclusion. Using a four-shot early phase still
+shows a defensive shift in power play ends (defensive 29.0\% $\rightarrow$ 43.4\%).
+Stricter late-offense thresholds (0.55--0.65) yield stable intent shares. See
+\texttt{notebooks/behavior\_classes.qmd} for tables and shift summaries.
+
+% [Power Play intent findings; source: notebooks/behavior.qmd]
+\subsection{Power Play Intent Findings}
+
+The core finding is that power play ends are \emph{more defensive} in the late phase,
+despite the rule's intent to open the sheet. The early phase is overwhelmingly
+offensive for both labels, which is consistent with the MFGZ constraint; the late
+phase is where intent diverges sharply. The defensive shift is not driven entirely
+by hammer-team behavior, which only shifts modestly, suggesting that non-hammer
+responses or end-level context are key drivers.
+
+Overall, the evidence supports the analysts' claim that power play does not simply
+increase offensive play and may even induce defensive behavior. The mechanism is
+likely contextual (score state, opponent response, or end timing), which motivates
+the planned hypothesis checks on score differential, end outcomes, and context
+dependence. See \texttt{notebooks/behavior.qmd} for the full interpretation block.
 
 The HDBSCAN clustering (minimum cluster size = 5, minimum samples = 5) produced
 four clusters, with a coverage rate of 0.761 and a DBCV score of 0.428. These
@@ -304,7 +363,7 @@ hammer team has the score advantage. However, the tick shot is thrown at when
 the score difference is lesser while the draw is thrown when the hammer team
 has a blowout lead.
 
-Teams may have tendencies to throw less riskier shots when they are behind less
+Teams may have tendencies to throw less risky shots when they are behind less
 in the score compared to when they are down many points. Nevertheless, as there
 are no siginificant differences in hammer and non-hammer score between the
 clusters, shot choice may not have an important role in end score performance.
@@ -336,4 +395,3 @@ of the three options observed.
 % you but i havent got mine working yet, once i set it back we will use APA
 
 \end{document}
-
