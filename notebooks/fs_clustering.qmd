@@ -1,3 +1,16 @@
+---
+title: "CSAS 2026: Non-hammer First Shot Clustering"
+author: "Mark Zhang"
+date: last-modified
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt
+---
+
 ```{python}
 import numpy as np
 import matplotlib.pyplot as plt
@@ -1055,7 +1068,7 @@ for cluster_id in sorted(df_pp2['hdbscan_cluster'].dropna().unique()):
 
     # Legend with larger font
     ax.legend(fontsize=10)
-    plt.savefig(f"C{cluster_id}.pdf", bbox_inches="tight")
+
     plt.show()
 
 
@@ -1528,42 +1541,6 @@ print(cluster_summary)
 
 ```{python}
 import matplotlib.pyplot as plt
-import pandas as pd
-
-skip_tasks = [5, 6, 8, 10]
-
-# Filter out skipped tasks
-df_filtered = df_pp[~df_pp['task'].isin(skip_tasks)]
-df_filtered = df_filtered.dropna(subset=['task', 'cumulative_score_diff'])
-# Get all NOCs
-nocs = df_filtered['noc'].unique()
-
-for noc in nocs:
-    sub = df_filtered[df_filtered['noc'] == noc]
-
-    # Skip countries with fewer than 20 shots
-    if len(sub) < 20:
-        continue
-
-    # Count shots per task
-    counts = sub['task'].value_counts().sort_index()
-
-    # Convert to proportion within the country
-    prop = counts / counts.sum()
-
-    plt.figure(figsize=(8, 4))
-    plt.bar(prop.index.astype(str), prop.values)
-    plt.title(f"Proportion of Shots by Task for {noc} (n={len(sub)})")
-    plt.xlabel("Task")
-    plt.ylabel("Proportion of Shots")
-    plt.ylim(0, 1)
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.show()
-```
-
-```{python}
-import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.patches import Patch
 
@@ -1577,27 +1554,33 @@ task_groups = {
 # Aggregate proportions
 agg_task_dict = {name: prop_table[tasks].sum(axis=1) for name, tasks in task_groups.items()}
 
-# Get all nations appearing in any top 5
-top_nations = set()
-for data in agg_task_dict.values():
-    top_nations.update(data.sort_values(ascending=False).head(5).index)
-top_nations = sorted(top_nations)
+# Filter nations with at least 20 shots
+valid_nations = df_filtered['noc'].value_counts()
+valid_nations = valid_nations[valid_nations >= 20].index
+agg_task_dict = {name: data.loc[data.index.isin(valid_nations)] for name, data in agg_task_dict.items()}
 
-# Assign colors
-palette = sns.color_palette("Dark2", n_colors=len(top_nations))
-nation_colors = dict(zip(top_nations, palette))
+# Get all nations that appear in any top 5
+all_nations = set()
+for data in agg_task_dict.values():
+    all_nations.update(data.sort_values(ascending=False).head(5).index)
+all_nations = sorted(all_nations)
+
+# Assign a **unique color per country**
+palette = sns.color_palette("tab20", n_colors=len(all_nations))  # tab20 has up to 20 distinct colors
+nation_colors = dict(zip(all_nations, palette))
 
 # Plot
-fig, axes = plt.subplots(1, len(agg_task_dict), figsize=(10, 6), sharey=False)
+fig, axes = plt.subplots(1, len(agg_task_dict), figsize=(12, 6), sharey=False)
 
 for i, (group_name, data) in enumerate(agg_task_dict.items()):
     ax = axes[i]
 
-    # Top 5 nations
+    # Top 5 nations for this group
     data_top = data.sort_values(ascending=True)[-5:]
 
     # Bars with consistent colors
-    ax.barh(data_top.index, data_top.values, color=[nation_colors[n] for n in data_top.index])
+    colors = [nation_colors[n] for n in data_top.index]
+    ax.barh(data_top.index, data_top.values, color=colors)
 
     # Annotate values
     for j, val in enumerate(data_top.values):
@@ -1613,14 +1596,13 @@ for i, (group_name, data) in enumerate(agg_task_dict.items()):
     ax.set_xlabel("Proportion", fontsize=14)
     ax.tick_params(axis='both', labelsize=12)
 
-# Legend on top
+# Legend
 legend_handles = [Patch(color=col, label=n) for n, col in nation_colors.items()]
 fig.legend(handles=legend_handles, loc='upper center', ncol=len(nation_colors), fontsize=9, bbox_to_anchor=(0.5, 1.05))
 
-plt.suptitle("Top Nations by Proportion of Shots (Grouped Tasks)", fontsize=18,y=0.92)
+plt.suptitle("Top Nations by Proportion of Shots (Grouped Tasks, ≥20 Shots)", fontsize=18, y=0.92)
 plt.tight_layout(rect=[0, 0, 1, 0.92])
-plt.savefig(f"noc_pptask.pdf", format="pdf", bbox_inches="tight")
+plt.savefig("noc_pptask.pdf", format="pdf", bbox_inches="tight")
 plt.show()
-
 
 ```

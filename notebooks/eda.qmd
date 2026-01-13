@@ -1,3 +1,16 @@
+---
+title: "CSAS 2026: End level Exploratory Data Analysis"
+author: "Mark Zhang"
+date: last-modified
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt
+---
+
 ```{python}
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,8 +22,6 @@ df['powerplay_value'] = df['powerplay_value'].fillna(0)
 df.info()
 df.head()
 ```
-
-
 
 ```{python}
 # Hammer scores 2+ (Hammer Efficiency numerator)
@@ -96,6 +107,7 @@ plt.ylabel('Team')
 plt.show()
 
 ```
+
 ```{python}
 # -------------------
 # Merge hammer team metrics
@@ -137,6 +149,7 @@ ends_df['weighted_score_diff'] = ends_df['hammer_weighted_score'] - ends_df['non
 
 
 ```
+
 ```{python}
 import pandas as pd
 
@@ -148,13 +161,13 @@ task_data = []
 for k in tasks:
     hammer_col = f'hammer_task_{k}'
     nonhammer_col = f'nonhammer_task_{k}'
-    
+
     hammer_total = ends_df[hammer_col].sum()
     nonhammer_total = ends_df[nonhammer_col].sum()
-    
+
     hammer_mean = ends_df[hammer_col].mean()
     nonhammer_mean = ends_df[nonhammer_col].mean()
-    
+
     task_data.append({
         'task': k,
         'hammer_total': hammer_total,
@@ -171,6 +184,7 @@ task_counts = task_counts.sort_values(by='hammer_total', ascending=False)
 
 print(task_counts)
 ```
+
 ```{python}
 import pandas as pd
 import numpy as np
@@ -304,13 +318,9 @@ print(coef_df_sorted.head(20))
 
 ```
 
-
 # Exploration
 
-
 ## Powerplay ends
-
-
 
 ```{python}
 import pandas as pd
@@ -347,6 +357,7 @@ plt.show()
 
 
 ```
+
 ```{python}
 # hammer & non-hammer win percentage
 hammer_win_pct = df_pp.groupby('hammer_noc')['hammer_win'].mean().mul(100).round(2)
@@ -371,6 +382,7 @@ plt.tight_layout()
 plt.show()
 
 ```
+
 ```{python}
 # Calculate average win % for each nation
 avg_win_df = win_df.mean(axis=1).sort_values(ascending=True)  # ascending so highest at top
@@ -387,8 +399,6 @@ plt.show()
 
 
 ```
-
-
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -431,7 +441,6 @@ plt.show()
 
 ```
 
-
 ```{python}
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -467,6 +476,7 @@ plt.tight_layout()
 plt.show()
 
 ```
+
 ```{python}
 # 1️⃣ Add hammer_2plus flag and Powerplay_Status to full df
 df['hammer_2plus'] = (df['score_hammer'] >= 2).astype(int)
@@ -504,21 +514,3 @@ win_stats_sorted = win_stats.sort_values(by='hammer_2plus_pct', ascending=False)
 win_stats_sorted
 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
