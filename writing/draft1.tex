@@ -8,6 +8,9 @@
 \usepackage{xcolor}
 \usepackage{caption}
 
+\newcommand{\jy}[1]{{\textcolor{violet}{JY:\@ #1}}}
+
+
 \title{Strategic Adaptation to the Power Play in Mixed Doubles Curling}
 
 % \date{[15 January 2026]}
@@ -56,6 +59,13 @@ scoring outcomes.
 % strategy formulated from the tradtional game.
 % this is why we have the data challenge, is so that we can develop
 % strategy independent of the 4 person game.
+
+\jy{Paragraphs are fragmented. I like longer paragraphs, each 130-160 words,
+  with strong topic sentences. A reader could sketch the topic sentences only
+  to get a quick idea about the paper.}
+
+\jy{Three questions to address in introduction and in this order:
+  why important; what've been done; what's new.}
 
 Mixed Doubles Curling is the product of the International Olympic Committee's
 request for a variation of the game that is more fast-paced, dynamic,
@@ -213,6 +223,7 @@ assumption) and by testing stricter late-offense thresholds (0.55--0.65). See
 
 \subsection{First-shot NHT Clustering}
 
+\jy{define acronym at first and only at first occurrence.}
 % Mark std. coordinates use HDBScan for clustering -> visualize w/ PCA, tSNE
 % cluster quality evaluated on coverage, score, and cluster stability use welch
 % ANOVA and bootstrap, use post-hoc test to determine differences between
@@ -258,6 +269,7 @@ with 95\% bootstrap confidence intervals to account for the skewed
 distributions. Detailed results for all variables are provided in
 Table~\ref{tab:cluster_test}.
 
+\jy{n is not $n$}
 \begin{table}[t]
   \centering
   \includegraphics[width=0.8\textwidth]{img/cluster_test.pdf}
@@ -400,6 +412,8 @@ teams choose the starting player based on their overall skill in executing one
 of the three options observed.
 
 \subsection{Limitations}
+\jy{Could be brief, because this is not exactly an academic paper but a
+  report for reference for the coaching team.}
 % lack of powerplay sample size very skewed data. task, points, expected hammer
 % points data quality. i.e. inconsistent coordinate assignments, incosistent
 % column assignments
@@ -416,7 +430,9 @@ of the three options observed.
 % quick summary
 
 %\section{Appendices} if there is a need for code appendix or otherwise, we'll
-%put it at the botton. 
+%put it at the botton.
+
+\jy{Do you have team strategy profiles?}
 \bibliographystyle{apalike}
 \bibliography{references}
 %i have my latex in vscode compiled to use natbib, not bibtex. it will work for
