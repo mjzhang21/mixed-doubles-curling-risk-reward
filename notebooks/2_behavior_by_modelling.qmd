@@ -610,6 +610,100 @@ pd.DataFrame({
 })
 ```
 
+```{python}
+# 1) How often are team and opp scores identical? (should be ~0)
+((out["score_team_9"] == out["score_opp_9"]).mean(),
+ (out["score_team_22"] == out["score_opp_22"]).mean())
+
+# 2) Distribution of absolute differences (should not be near-zero mass)
+(out["score_team_9"] - out["score_opp_9"]).abs().describe(percentiles=[.01,.05,.1,.25,.5,.75,.9,.95,.99])
+```
+
+
+We need component diagnostics for how the zones and weights behave for the scoring.
+This function computes and stores the components for one snapshot, then compares
+powerplay vs non powerplay and s9 vs s22.
+
+```{python}
+def compute_components(df: pd.DataFrame, suffix: str, which: str) -> pd.DataFrame:
+    Xall = df[[f"stone_{i}_x_{suffix}" for i in range(1,13)]].to_numpy(float)
+    Yall = df[[f"stone_{i}_y_{suffix}" for i in range(1,13)]].to_numpy(float)
+    finite = np.isfinite(Xall) & np.isfinite(Yall)
+    not_thrown = finite & (Xall==0) & (Yall==0)
+    off_sheet = finite & ((Xall==4095) | (Yall==4095))
+    Pall = finite & (~not_thrown) & (~off_sheet)
+
+    team_is_team1 = (df["team_id"].to_numpy() == df["team_id1"].to_numpy())
+    use_1to6 = team_is_team1 if which=="team" else ~team_is_team1
+
+    # take block
+    Xt = Xall[:, :6].copy(); Yt = Yall[:, :6].copy(); Pt = Pall[:, :6].copy()
+    m = ~use_1to6
+    Xt[m] = Xall[m, 6:12]; Yt[m] = Yall[m, 6:12]; Pt[m] = Pall[m, 6:12]
+
+    # House
+    d = np.sqrt((Xt - BUTTON_X)**2 + (Yt - BUTTON_Y)**2)
+    ht = np.exp(-d/TAU); ht[~Pt] = 0.0
+    house = ht.sum(axis=1)
+
+    # Guard
+    in_guard = Pt & (np.abs(Xt-CENTER_X)<=GUARD_X_HALF) & (Yt>=GUARD_Y_MIN) & (Yt<=GUARD_Y_MAX)
+    w_guard = np.exp(-np.abs(Xt-CENTER_X)/GUARD_X_SCALE) * np.exp(-np.abs(Yt-GUARD_Y_CENTER)/GUARD_Y_SCALE)
+    w_guard[~in_guard] = 0.0
+    guard = w_guard.sum(axis=1)
+
+    # PPSide
+    pp_side = df["pp_side_end"].fillna("").astype(str).to_numpy()
+    in_band = Pt & (Yt>=GUARD_Y_MIN) & (Yt<=GUARD_Y_MAX)
+    right_ct = (in_band & (Xt>CENTER_X)).sum(axis=1).astype(float)
+    left_ct  = (in_band & (Xt<CENTER_X)).sum(axis=1).astype(float)
+    ppside = np.zeros(len(df), float)
+    ppside[pp_side=="right"] = right_ct[pp_side=="right"]
+    ppside[pp_side=="left"]  = left_ct[pp_side=="left"]
+
+    # Lane (all stones)
+    in_lane = Pall & (np.abs(Xall-CENTER_X)<=LANE_X_HALF) & (Yall>=LANE_Y_MIN) & (Yall<=LANE_Y_MAX)
+    lane = in_lane.sum(axis=1).astype(float)
+
+    return pd.DataFrame({"house": house, "guard": guard, "ppside": ppside, "lane": lane})
+```
+
+Now, we can observe the outputs:
+
+```{python}
+comp9 = compute_components(out, "s9", "team")
+comp22 = compute_components(out, "s22", "team")
+
+# 1) Are components non-degenerate?
+comp9.describe()
+comp22.describe()
+
+# 2) Do they evolve from 9->22? (should, generally)
+(comp22 - comp9).describe()
+
+# 3) Do PP ends look different in components? (directional check)
+out_pp = out["pp_used_end"] if "pp_used_end" in out.columns else (out["pp_side_end"].isin(["left","right"]))
+pd.concat([
+    comp9.assign(t="s9").groupby(out_pp)[["house","guard","ppside","lane"]].mean().rename_axis("pp"),
+    comp22.assign(t="s22").groupby(out_pp)[["house","guard","ppside","lane"]].mean().rename_axis("pp"),
+], keys=["s9","s22"])
+```
+
+This code checks to make sure that no single weight is dominating the metrics, otherwise
+it should be adjusted.
+
+```{python}
+comp22 = compute_components(out, "s22", "team")
+weighted = pd.DataFrame({
+    "W_house*house": W_HOUSE * comp22["house"],
+    "W_guard*guard": W_GUARD * comp22["guard"],
+    "W_ppside*ppside": W_PPSIDE * comp22["ppside"],
+    "-W_lane*lane": -W_LANE * comp22["lane"],
+})
+weighted.abs().mean().sort_values(ascending=False)
+```
+
+====================== 
 Below is a quick visual detailing the selected geometric zones.
 
 ```{python}
