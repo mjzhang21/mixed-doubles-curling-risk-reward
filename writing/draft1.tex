@@ -83,8 +83,8 @@ that little-to-no data-driven strategy exists yet for the sport.
 The power play is the most consequential strategic innovation. Each team may
 use it once, but only when it has the hammer; the pre-placed stones are moved
 to the sides, opening the center of the sheet. This shift changes incentives
-for both teams and demands clear guidelines on when to call the power play,
-how to execute it, and how to respond.
+for both teams and demands clear guidelines on when to call the power play, how
+to execute it, and how to respond.
 % briefly outline what the purpose of the data challenge is exactly -> there isn
 % o data anlysis done on mixed doubles curling all mixed doubles curling
 % strategy and intuition relies on strategy formulated from the tradtional game.
@@ -118,11 +118,11 @@ coming from the non-calling team. We quantify timing effects, provide
 team-level descriptive strategy profiles, and validate the behavioral proxy
 with stone-removal outcomes. We then focus on non-hammer team behavior by
 analyzing common counter power play shot types and show that different openings
-do not significantly alter end-level scoring outcomes, even though they
-produce meaningful differences in execution quality and cumulative score
-dynamics. Despite teams systematically varying shot choice with game context,
-the data provide no evidence that any single counter-strategy is objectively
-dominant when opening an end against the power play.
+do not significantly alter end-level scoring outcomes, even though they produce
+meaningful differences in execution quality and cumulative score dynamics.
+Despite teams systematically varying shot choice with game context, the data
+provide no evidence that any single counter-strategy is objectively dominant
+when opening an end against the power play.
 % the key focus of the data challenge is the power play, for which we have no
 % reliable strategy because this is a novel rule powerplay questions: how and
 % when and why is it used how should you use it or For respond to it etc
@@ -144,12 +144,13 @@ dominant when opening an end against the power play.
 \section{Data}
 
 We use Curlit's mixed doubles tracking data, which records shot-by-shot stone
-positions and analyst annotations across three World Mixed Doubles Championships
-and one Winter Olympics. The dataset contains 26,730 shot rows and includes
-unique identifiers for competition, game, end, team, player, and shot order, so
-that each match can be reconstructed chronologically. In addition to x--y
-stone coordinates after every throw, Curlit provides analyst-graded fields
-for intended task and execution quality, which we use to classify behavior.
+positions and analyst annotations across three World Mixed Doubles
+Championships and one Winter Olympics. The dataset contains 26,730 shot rows
+and includes unique identifiers for competition, game, end, team, player, and
+shot order, so that each match can be reconstructed chronologically. In
+addition to x--y stone coordinates after every throw, Curlit provides
+analyst-graded fields for intended task and execution quality, which we use to
+classify behavior.
 
 This is the first publicly available mixed doubles dataset that combines
 stone-level geometry with end-level context and shot assessment. These features
@@ -157,10 +158,9 @@ allow us to link strategic choices to both sheet state and game state. End
 results are recorded for both teams, which enables reconstruction of score
 progression and pre-end score differential.
 
-At the shot level, the distribution is draw-heavy, consistent with the MFGZ
-and an opportunistic or probing early phase.
-Figure~\ref{fig:thrown_positions_all} summarizes the spatial density of thrown
-stone locations across all shots.
+At the shot level, the distribution is draw-heavy, consistent with the MFGZ and
+an opportunistic or probing early phase. Figure~\ref{fig:thrown_positions_all}
+summarizes the spatial density of thrown stone locations across all shots.
 Power play usage is observed in a minority of ends and varies by end number,
 and task-group shares shift between power play and non-power-play ends
 (Figure~\ref{fig:data_pp_summary}).
@@ -223,21 +223,21 @@ empirical proxy for probing in this analysis.
 
 Our behavioral analysis is conducted at the team-end level, which creates a
 paired structure within each end and allows a direct comparison between the
-power play caller and the opponent. We focus on the late phase of the end
-(the final seven deliveries) because early shots are heavily constrained by
-the Modified Free Guard Zone and the pre-placed stones. Late shots therefore
+power play caller and the opponent. We focus on the late phase of the end (the
+final seven deliveries) because early shots are heavily constrained by the
+Modified Free Guard Zone and the pre-placed stones. Late shots therefore
 provide the clearest window into strategic choice rather than rule-driven
 necessity.
 
 Behavior is operationalized through shot selection, using the task labels
-assigned by analysts. We group tasks into offensive placements (draws,
-guards, raises, freezes, and hit-and-rolls), defensive removals (peels,
-take-outs, clears, doubles, and promotions), and a neutral category for
-throughs or no-shot entries. This choice is deliberate: the task coding is
-the only consistently available, interpretable indicator of intent at the
-shot level. Position-based intent would require model-driven inference and
-introduce a second layer of assumptions, so we treat shot selection as the
-observable behavioral signal and reserve positional data for validation.
+assigned by analysts. We group tasks into offensive placements (draws, guards,
+raises, freezes, and hit-and-rolls), defensive removals (peels, take-outs,
+clears, doubles, and promotions), and a neutral category for throughs or
+no-shot entries. This choice is deliberate: the task coding is the only
+consistently available, interpretable indicator of intent at the shot level.
+Position-based intent would require model-driven inference and introduce a
+second layer of assumptions, so we treat shot selection as the observable
+behavioral signal and reserve positional data for validation.
 
 Power play exposure is assigned at both the end and team-end levels. An end is
 marked as a power play end if either team uses its power play, and within such
@@ -249,11 +249,11 @@ state and repeated context.
 
 For each team-end we compute late-phase shares of offensive, defensive, and
 neutral shots and define the behavior index as defensive share minus offensive
-share, where larger values indicate a more defensive profile. We also split
-the late phase into early-late (shots 16--18) and late-late (shots 19--22) to
-test timing mechanisms. Because hammer teams throw four late shots and non-
-hammer teams throw three, shares are in discrete increments; using shares
-standardizes exposure across teams and ends.
+share, where larger values indicate a more defensive profile. We also split the
+late phase into early-late (shots 16--18) and late-late (shots 19--22) to test
+timing mechanisms. Because hammer teams throw four late shots and non- hammer
+teams throw three, shares are in discrete increments; using shares standardizes
+exposure across teams and ends.
 
 The primary specification is fixed-effects OLS with clustering at the match
 level. Fixed effects for team and match absorb persistent strategy and match-
@@ -269,21 +269,20 @@ proxy for intent.
 
 Formally, the main model is:
 \[
-\begin{aligned}
-\text{behavior\_index}_{i e} =\; & \beta_0 + \beta_1 \text{PP\_caller}_{i e}
- + \beta_2 \text{PP\_noncaller}_{i e} \\
-& + \beta_3 \text{has\_hammer}_{i e}
- + \beta_4 \text{pre\_end\_score\_diff}_{i e} \\
-& + \alpha_e + \gamma_i + \delta_m + \varepsilon_{i e},
-\end{aligned}
+  \begin{aligned}
+    \text{behavior\_index}_{i e} =\; & \beta_0 + \beta_1 \text{PP\_caller}_{i e}
+    + \beta_2 \text{PP\_noncaller}_{i e}                                                     \\
+                                     & + \beta_3 \text{has\_hammer}_{i e}
+    + \beta_4 \text{pre\_end\_score\_diff}_{i e}                                             \\
+                                     & + \alpha_e + \gamma_i + \delta_m + \varepsilon_{i e},
+  \end{aligned}
 \]
-where $i$ indexes team-ends, $e$ indexes ends, and $m$ indexes matches.
-The omitted reference category is non-power-play ends, and standard errors
-are clustered at the match level. We estimate the same specification for
-the lateA and lateB timing splits.
+where $i$ indexes team-ends, $e$ indexes ends, and $m$ indexes matches. The
+omitted reference category is non-power-play ends, and standard errors are
+clustered at the match level. We estimate the same specification for the lateA
+and lateB timing splits.
 
-
-\subsection{First-shot Non-hammer Team Clustering}
+\subsection{First-shot Non-hammer Team Powerplay Adaptation}
 
 % Mark std. coordinates use HDBScan for clustering -> visualize w/ PCA, tSNE
 % cluster quality evaluated on coverage, score, and cluster stability use welch
@@ -374,11 +373,10 @@ contexts for each power-play group.
 The fixed-effects regression corroborates these descriptive patterns after
 controlling for hammer, score differential, end, team, and match
 (Table~\ref{tab:pp_regression}). In the main model, the PP caller coefficient
-is 0.068 ($p<0.05$) while the PP non-caller coefficient is 0.449
-($p<0.01$), indicating a much larger opponent response. Timing models show a
-caller effect in lateA (0.128, $p<0.01$) but not in lateB (0.009, $p=0.82$),
-while the non-caller remains strongly defensive in both lateA (0.516) and
-lateB (0.414).
+is 0.068 ($p<0.05$) while the PP non-caller coefficient is 0.449 ($p<0.01$),
+indicating a much larger opponent response. Timing models show a caller effect
+in lateA (0.128, $p<0.01$) but not in lateB (0.009, $p=0.82$), while the
+non-caller remains strongly defensive in both lateA (0.516) and lateB (0.414).
 
 Positional validation strengthens the behavioral interpretation: the Spearman
 correlation between defensive share and opponent stones removed late is 0.804.
@@ -396,7 +394,7 @@ benchmarks rather than causal estimates.
 
 \input{tables/team_strategy_profiles.tex}
 
-\subsection{First Shot NHT}
+\subsection{First-shot Non-hammer Team Powerplay Adaptation}
 The HDBSCAN clustering (minimum cluster size = 5, minimum samples = 5) produced
 four clusters, with a coverage rate of 0.761 and a DBCV score of 0.428. These
 metrics suggest reasonable clustering structure with a fair amount of noise.
@@ -520,9 +518,8 @@ Across the Pond) suggests that teams often invoke the power play late and in a
 defensive posture. Our results reconcile these views. The late-phase behavior
 shift is decisively toward defense for both teams, and the non-caller’s shift
 is substantially larger and more persistent than the caller’s. This confirms
-the analysts’ intuition that power play does not simply amplify offense and,
-in practice, often corresponds to conservative late-phase shot selection. It
-also
+the analysts’ intuition that power play does not simply amplify offense and, in
+practice, often corresponds to conservative late-phase shot selection. It also
 disconfirms the common expectation that the hammer team becomes more offensive
 in power play ends; the hammer-only shift is modest compared to the opponent’s
 response.
@@ -540,10 +537,10 @@ These patterns translate into actionable guidance. For the hammer team, power
 play should be treated as a situational control tool rather than a guaranteed
 offensive boost. If the objective is to protect a lead, early defensive
 sequencing appears effective; if trailing, teams should anticipate a strong
-defensive counter and build scoring chances early before removal play dominates.
-For the non-hammer team, the evidence supports proactive disruption and removal
-as the default response, with a clear plan for when to transition from probing
-offense to conservative control.
+defensive counter and build scoring chances early before removal play
+dominates. For the non-hammer team, the evidence supports proactive disruption
+and removal as the default response, with a clear plan for when to transition
+from probing offense to conservative control.
 
 Methodologically, we interpret behavior through shot selection because it is
 the only directly observed indicator of intent; positional validation supports
@@ -562,28 +559,27 @@ draw around the guard are all common shots that occur in response to the power
 play.
 
 Welch ANOVA was used to compare differences between clusters, revealing
-significant differences in cumulative score difference and points in
-non-missed shots, and no significant differences in hammer or non-hammer
-score. Post hoc Games–Howell tests show significant cumulative score
-differences between the tick and draw around the guard. All shots are utilized
-when the hammer team has the score advantage. However, the tick shot is thrown
-when the score difference is smaller, while the draw is thrown when the hammer
-team has a blowout lead.
+significant differences in cumulative score difference and points in non-missed
+shots, and no significant differences in hammer or non-hammer score. Post hoc
+Games–Howell tests show significant cumulative score differences between the
+tick and draw around the guard. All shots are utilized when the hammer team has
+the score advantage. However, the tick shot is thrown when the score difference
+is smaller, while the draw is thrown when the hammer team has a blowout lead.
 
 Teams may have tendencies to throw less risky shots when they are behind less
 in the score compared to when they are down many points. Nevertheless, as there
 are no significant differences in hammer and non-hammer score between the
 clusters, shot choice may not have an important role in end score performance.
 We suggest that when countering the power play as the non-hammer team, teams
-choose the starting player based on their overall skill in executing one of
-the three options observed.
+choose the starting player based on their overall skill in executing one of the
+three options observed.
 
 When including all of the power play ends, certain countries play the draw,
-guard or tick shot a lot more than others. The bar chart of proportions of
-task groups by nation indicates the clear difference in strategy in throwing
-the first stone during power play ends (Figure~\ref{fig:noc_pptask}). The tasks
-are grouped by the results discovered through clustering. All teams tend to
-hit more draws and tick shots, with Korea hitting 67\% of their shots as draws.
+guard or tick shot a lot more than others. The bar chart of proportions of task
+groups by nation indicates the clear difference in strategy in throwing the
+first stone during power play ends (Figure~\ref{fig:noc_pptask}). The tasks are
+grouped by the results discovered through clustering. All teams tend to hit
+more draws and tick shots, with Korea hitting 67\% of their shots as draws.
 Germany plays the most guards at 48\%. Sweden along with Scotland hit a large
 majority of their shots as Raise/Tapbacks and Wick/Soft-Peels. These
 differences confirm the analysts' intuition about varying responses to
@@ -622,16 +618,20 @@ draw may be identified as a freeze.
 \subsection{Conclusion}
 % quick summary
 We find that the power play is associated with a consistent late-phase shift
-toward defensive shot selection for both teams, with the non-caller showing
-the larger and more persistent adjustment. These shifts are concentrated in
+toward defensive shot selection for both teams, with the non-caller showing the
+larger and more persistent adjustment. These shifts are concentrated in
 non-tied score states and align with a control-oriented interpretation of the
 open sheet. The behavioral proxy based on task selection is supported by
 positional validation, suggesting it captures meaningful intent under the data
 constraints.
 
 At the shot level, clustering of the non-hammer team’s first response reveals
-three dominant counterplay patterns...
-
+three dominant counterplay patterns. These include the tick shot, draw around
+the guard and a center guard. We conclude that while shot execution and score
+difference when executed varies, the first stone shot selection does not impact
+non-hammer or hammer-team end scores. While teams do show a clear strategy for
+their first stone, it is likely other factors drive powerplay end-level
+success.
 %\section{Appendices} if there is a need for code appendix or otherwise, we'll
 %put it at the botton.
 
