@@ -143,5 +143,91 @@ team_end = team_end.merge(
 team_end[["has_hammer", "pre_end_score_diff", "pp_value_end", "pp_used_end", "pp_side_end"]].head()
 ```
 
-## Attach End-context to both team-end rows.
+# Attach some coordinate information
+
+So right now we are going to use two pictures of the board. the one for shotid 9 and shotid 22.
+Why? because shotid is the end of the mfgz so we can see how behavior diverges from the 
+typical race to the button.
+
+This analysis will measure net late-phase change (not necessarily how). This is a first-pass.
+We select rows were shotid is 9 and 22 irregardless of hammer team, etc. We will add the
+coordiantes for each stone to the team-end rows here.
+
+```{python}
+stone_cols = []
+for i in range(1, 13):
+    stone_cols += [f"stone_{i}_x", f"stone_{i}_y"]
+
+missing = [c for c in stone_cols if c not in df.columns]
+if missing:
+    raise KeyError(f"Missing expected stone coordinate columns: {missing[:10]}")
+```
+
+There are no missing columns. This is because when ends are conceded, the ShotID rows are
+still included in the data, but the coordinates are all filled with NA and the descripters
+are filled with placeholder -1.
+
+This produces the relevant dataframes to meet the "picture" goal.
+
+```{python}
+# state 9 dataframe
+state9 = (
+    df.loc[df["shot_id"] == 9, ["match_id", "end_id"] + stone_cols]
+      .drop_duplicates(subset=["match_id", "end_id"])
+      .rename(columns={c: f"{c}_s9" for c in stone_cols})
+)
+
+#state22 dataframe
+state22 = (
+    df.loc[df["shot_id"] == 22, ["match_id", "end_id"] + stone_cols]
+      .drop_duplicates(subset=["match_id", "end_id"])
+      .rename(columns={c: f"{c}_s22" for c in stone_cols})
+)
+
+# more qc
+# if duplicates exist (more than 1 row for same end at shot 9/22), catch it explicitly
+dup9 = df.loc[df["shot_id"] == 9].duplicated(subset=["match_id", "end_id"]).sum()
+dup22 = df.loc[df["shot_id"] == 22].duplicated(subset=["match_id", "end_id"]).sum()
+if dup9 or dup22:
+    raise ValueError(f"Duplicate snapshot rows found: shot9 dups={dup9}, shot22 dups={dup22}")
+```
+
+More quality control just to make sure every end which contains state 9 also has state 22.
+
+```{python}
+# complete-ends filter
+ends_all = team_end[["match_id", "end_id"]].drop_duplicates()
+ends_with9 = state9[["match_id", "end_id"]].drop_duplicates()
+ends_with22 = state22[["match_id", "end_id"]].drop_duplicates()
+
+ends_kept = ends_all.merge(ends_with9, on=["match_id","end_id"], how="inner") \
+                    .merge(ends_with22, on=["match_id","end_id"], how="inner")
+ends_dropped = ends_all.merge(ends_kept, on=["match_id","end_id"], how="left", indicator=True)
+ends_dropped = ends_dropped[ends_dropped["_merge"] == "left_only"].drop(columns="_merge")
+
+drop_rate = len(ends_dropped) / len(ends_all)
+print(f"Ends total: {len(ends_all)} | kept: {len(ends_kept)} | dropped: {len(ends_dropped)} | drop rate: {drop_rate:.3%}")
+```
+
+All ends are present, but we must later be careful of conceded ends impacting the data.
+
+Final merger:
+
+```{python}
+# merger on team_ends
+team_end_kept = team_end.merge(ends_kept, on=["match_id","end_id"], how="inner", validate="many_to_one")
+
+team_end_kept = team_end_kept.merge(state9, on=["match_id","end_id"], how="left", validate="many_to_one")
+team_end_kept = team_end_kept.merge(state22, on=["match_id","end_id"], how="left", validate="many_to_one")
+
+# Sanity: no missing snapshot cols after merge
+snap_cols = [f"{c}_s9" for c in stone_cols] + [f"{c}_s22" for c in stone_cols]
+miss_snap = team_end_kept[snap_cols].isna().mean().mean()
+print(f"Mean missingness across snapshot coordinate columns: {miss_snap:.6f}")
+
+team_end_kept.head()
+```
+
+We find that 1.7% of coordinate data is missing from the snapshot columns. This is because of
+conceded ends.
 
