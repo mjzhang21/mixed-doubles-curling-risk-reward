@@ -412,67 +412,126 @@ position advantage scores based on the row, then measure the deltas.
 The weights can be changed above.
 
 ```{python}
-def build_xy_matrices(df_team_end: pd.DataFrame, suffix: str) -> tuple[np.ndarray, np.ndarray]:
+# -------------------------
+# REQUIRED COLUMN CHECKS
+# -------------------------
+REQ_META = ["match_id", "end_id", "team_id", "team_id1", "team_id2", "pp_side_end"]
+missing_meta = [c for c in REQ_META if c not in team_end_valid.columns]
+if missing_meta:
+    raise KeyError(f"team_end_valid missing required meta columns: {missing_meta}")
+
+def snap_cols(suffix: str):
+    return [f"stone_{i}_{axis}_{suffix}" for i in range(1, 13) for axis in ("x", "y")]
+
+S9 = snap_cols("s9")
+S22 = snap_cols("s22")
+
+missing_s9 = [c for c in S9 if c not in team_end_valid.columns]
+missing_s22 = [c for c in S22 if c not in team_end_valid.columns]
+if missing_s9 or missing_s22:
+    raise KeyError(f"Missing snapshot cols. s9 missing: {missing_s9[:6]} | s22 missing: {missing_s22[:6]}")
+
+# -------------------------
+# 0) FILTER TO COMPLETE SNAPSHOTS (fix conceded ends / NaNs)
+# -------------------------
+n0 = len(team_end_valid)
+team_end = team_end_valid.dropna(subset=S9 + S22).copy()
+dropped = n0 - len(team_end)
+
+# Optional: report drop rate
+print(f"team_end_valid rows: {n0:,} | kept complete (s9+s22) rows: {len(team_end):,} | dropped: {dropped:,}")
+
+# -------------------------
+# 1) FAST MATRIX BUILDERS
+# -------------------------
+def build_xy(df: pd.DataFrame, suffix: str) -> tuple[np.ndarray, np.ndarray]:
     x_cols = [f"stone_{i}_x_{suffix}" for i in range(1, 13)]
     y_cols = [f"stone_{i}_y_{suffix}" for i in range(1, 13)]
-    missing = [c for c in x_cols + y_cols if c not in df_team_end.columns]
-    if missing:
-        raise KeyError(f"Missing snapshot columns for suffix={suffix}: {missing[:10]}")
-    X = df_team_end[x_cols].to_numpy(dtype=float)
-    Y = df_team_end[y_cols].to_numpy(dtype=float)
+    X = df[x_cols].to_numpy(dtype=float, copy=False)
+    Y = df[y_cols].to_numpy(dtype=float, copy=False)
     return X, Y
 
-
 def in_play_mask(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
-    not_thrown = (X == 0) & (Y == 0)          # not yet thrown
-    off_sheet = (X == 4095) | (Y == 4095)     # knocked off
-    return (~not_thrown) & (~off_sheet)
+    """
+    In play if:
+      - finite coords
+      - not (0,0) [not yet thrown]
+      - not off-sheet (4095 in either coord)
+    """
+    finite = np.isfinite(X) & np.isfinite(Y)
+    not_thrown = (X == 0) & (Y == 0)
+    off_sheet = (X == 4095) | (Y == 4095)
+    return finite & (~not_thrown) & (~off_sheet)
 
+def team_block_mask(df: pd.DataFrame, which: str) -> np.ndarray:
+    """
+    Returns boolean vector: True means use stones 1-6; False means use stones 7-12.
+    Ownership assumption: team_id1->1..6, team_id2->7..12.
+    which='team' => focal team, which='opp' => opponent.
+    """
+    if which not in {"team", "opp"}:
+        raise ValueError("which must be 'team' or 'opp'")
+    team_is_team1 = (df["team_id"].to_numpy() == df["team_id1"].to_numpy())
+    return team_is_team1 if which == "team" else ~team_is_team1
 
-def select_block(X: np.ndarray, Y: np.ndarray, in_play: np.ndarray, use_team1: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    #If use_team1[row]=True -> select stones 1-6 (cols 0..5), else 7-12 (cols 6..11).
-    #Returns (Xt, Yt, in_play_t) each shape (n, 6).
-    
-    X1, Y1, P1 = X[:, :6], Y[:, :6], in_play[:, :6]
-    X2, Y2, P2 = X[:, 6:], Y[:, 6:], in_play[:, 6:]
-    m = use_team1[:, None]
-    Xt = np.where(m, X1, X2)
-    Yt = np.where(m, Y1, Y2)
-    Pt = np.where(m, P1, P2)
-    return Xt, Yt, Pt
+def take_block(X: np.ndarray, Y: np.ndarray, P: np.ndarray, use_1to6: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Slice stones for each row to a (n,6) block based on use_1to6.
+    """
+    use_1to6 = np.asarray(use_1to6, dtype=bool)
+    X_out = X[:, :6].copy()
+    Y_out = Y[:, :6].copy()
+    P_out = P[:, :6].copy()
 
+    m = ~use_1to6
+    X_out[m] = X[m, 6:12]
+    Y_out[m] = Y[m, 6:12]
+    P_out[m] = P[m, 6:12]
+    return X_out, Y_out, P_out
 
-def compute_components(Xt: np.ndarray, Yt: np.ndarray, Pt: np.ndarray,
-                       Xall: np.ndarray, Yall: np.ndarray, Pall: np.ndarray,
-                       pp_side_end: np.ndarray) -> dict[str, np.ndarray]:
-    # HouseThreat
+# -------------------------
+# 2) COMPONENTS -> SCORE
+# -------------------------
+def compute_score(df: pd.DataFrame, suffix: str, which: str) -> np.ndarray:
+    Xall, Yall = build_xy(df, suffix)
+    Pall = in_play_mask(Xall, Yall)
+
+    use_1to6 = team_block_mask(df, which)
+    Xt, Yt, Pt = take_block(Xall, Yall, Pall, use_1to6)
+
+    # --- HouseThreat ---
     d = np.sqrt((Xt - BUTTON_X) ** 2 + (Yt - BUTTON_Y) ** 2)
     ht = np.exp(-d / TAU)
     ht[~Pt] = 0.0
     house = ht.sum(axis=1)
 
-    # GuardQuality
+    # --- GuardPresence (team-owned obstruction near center/front) ---
     in_guard = (
         Pt
         & (np.abs(Xt - CENTER_X) <= GUARD_X_HALF)
         & (Yt >= GUARD_Y_MIN) & (Yt <= GUARD_Y_MAX)
     )
-    w_guard = np.exp(-np.abs(Xt - CENTER_X) / GUARD_X_SCALE) * np.exp(-np.abs(Yt - GUARD_Y_CENTER) / GUARD_Y_SCALE)
+    w_guard = (
+        np.exp(-np.abs(Xt - CENTER_X) / GUARD_X_SCALE)
+        * np.exp(-np.abs(Yt - GUARD_Y_CENTER) / GUARD_Y_SCALE)
+    )
     w_guard[~in_guard] = 0.0
     guard = w_guard.sum(axis=1)
 
-    # PPSideControl (count of stones on chosen side within guard band)
+    # --- PPSideControl (simple count in guard band on PP side; 0 if no PP) ---
+    pp_side = df["pp_side_end"].fillna("").astype(str).to_numpy()
     in_band = Pt & (Yt >= GUARD_Y_MIN) & (Yt <= GUARD_Y_MAX)
+
     right_ct = (in_band & (Xt > CENTER_X)).sum(axis=1).astype(float)
     left_ct  = (in_band & (Xt < CENTER_X)).sum(axis=1).astype(float)
 
-    ppsc = np.zeros(Xt.shape[0], dtype=float)
-    is_right = (pp_side_end == "right")
-    is_left  = (pp_side_end == "left")
-    ppsc[is_right] = right_ct[is_right]
-    ppsc[is_left]  = left_ct[is_left]
+    ppside = np.zeros(len(df), dtype=float)
+    is_right = (pp_side == "right")
+    is_left  = (pp_side == "left")
+    ppside[is_right] = right_ct[is_right]
+    ppside[is_left]  = left_ct[is_left]
 
-    # Lane congestion (all stones)
+    # --- LaneCongestion (all stones in narrow center lane, from button to hog) ---
     in_lane = (
         Pall
         & (np.abs(Xall - CENTER_X) <= LANE_X_HALF)
@@ -480,49 +539,75 @@ def compute_components(Xt: np.ndarray, Yt: np.ndarray, Pt: np.ndarray,
     )
     lane = in_lane.sum(axis=1).astype(float)
 
-    return {"house": house, "guard": guard, "ppside": ppsc, "lane": lane}
-
-
-def score_snapshot(df_team_end: pd.DataFrame, suffix: str, which: str, return_components: bool = False):
-    #which: 'team' or 'opp' (focal team vs opponent).
-    #Ownership assumption: team_id1->stones1-6, team_id2->stones7-12.
-
-    X, Y = build_xy_matrices(df_team_end, suffix)
-    Pall = in_play_mask(X, Y)
-
-    team_is_team1 = (df_team_end["team_id"].to_numpy() == df_team_end["team_id1"].to_numpy())
-    use_team1 = team_is_team1 if which == "team" else ~team_is_team1
-
-    Xt, Yt, Pt = select_block(X, Y, Pall, use_team1)
-
-    pp_side = df_team_end["pp_side_end"].astype("string").fillna("")  # safe comparisons
-    pp_side_arr = pp_side.to_numpy()
-
-    comps = compute_components(Xt, Yt, Pt, X, Y, Pall, pp_side_arr)
-    score = (W_HOUSE * comps["house"]
-             + W_GUARD * comps["guard"]
-             + W_PPSIDE * comps["ppside"]
-             + W_LANE * (-comps["lane"]))
-
-    if return_components:
-        return score, comps
+    score = (
+        W_HOUSE * house
+        + W_GUARD * guard
+        + W_PPSIDE * ppside
+        - W_LANE * lane
+    )
     return score
 ```
-
 
 We use the functions to merge on these new indeces.
 Now, every team end unit is "scored."
 
 ```{python}
-team_end_scored = team_end_kept.copy()
+# -------------------------
+# 3) BUILD SCORES + BEHAVIOR AXES
+# -------------------------
+out = team_end.copy()
 
-team_end_scored["score_team_9"]  = score_snapshot(team_end_scored, "s9",  "team")
-team_end_scored["score_team_22"] = score_snapshot(team_end_scored, "s22", "team")
-team_end_scored["score_opp_9"]   = score_snapshot(team_end_scored, "s9",  "opp")
-team_end_scored["score_opp_22"]  = score_snapshot(team_end_scored, "s22", "opp")
+out["score_team_9"]  = compute_score(out, "s9",  "team")
+out["score_team_22"] = compute_score(out, "s22", "team")
+out["score_opp_9"]   = compute_score(out, "s9",  "opp")
+out["score_opp_22"]  = compute_score(out, "s22", "opp")
 
-team_end_scored["offense"] = team_end_scored["score_team_22"] - team_end_scored["score_team_9"]
-team_end_scored["defense"] = team_end_scored["score_opp_9"] - team_end_scored["score_opp_22"]
+out["offense"] = out["score_team_22"] - out["score_team_9"]
+out["defense"] = out["score_opp_9"]   - out["score_opp_22"]
+
+# -------------------------
+# 4) SANITY CHECKS (fast)
+# -------------------------
+print("corr(offense, defense) =", out[["offense", "defense"]].corr().iloc[0,1])
+print("max |score_team_9 - score_opp_9| =", float((out["score_team_9"] - out["score_opp_9"]).abs().max()))
+print("max |score_team_22 - score_opp_22| =", float((out["score_team_22"] - out["score_opp_22"]).abs().max()))
+```
+
+```{python}
+# 1) Any remaining NaNs in score/behavior?
+out[["score_team_9","score_team_22","score_opp_9","score_opp_22","offense","defense"]].isna().mean()
+
+# 2) Confirm snapshot columns are fully present (should be 0 after drop)
+S9 = [f"stone_{i}_{a}_s9" for i in range(1,13) for a in ("x","y")]
+S22 = [f"stone_{i}_{a}_s22" for i in range(1,13) for a in ("x","y")]
+(out[S9+S22].isna().sum().sum(), out.shape)
+
+# 3) Check duplicates in the analysis unit (should be 1 row per match/end/team)
+out.duplicated(subset=["match_id","end_id","team_id"]).sum()
+```
+
+```{python}
+def stone_state_counts(df, suffix):
+    X = df[[f"stone_{i}_x_{suffix}" for i in range(1,13)]].to_numpy(float)
+    Y = df[[f"stone_{i}_y_{suffix}" for i in range(1,13)]].to_numpy(float)
+
+    finite = np.isfinite(X) & np.isfinite(Y)
+    not_thrown = finite & (X==0) & (Y==0)
+    off_sheet = finite & ((X==4095) | (Y==4095))
+    in_play = finite & (~not_thrown) & (~off_sheet)
+
+    return pd.Series({
+        "finite_share": finite.mean(),
+        "not_thrown_share": not_thrown.mean(),
+        "off_sheet_share": off_sheet.mean(),
+        "in_play_share": in_play.mean(),
+        "weird_share": (finite & ~(not_thrown|off_sheet|in_play)).mean()
+    })
+
+pd.DataFrame({
+    "s9": stone_state_counts(out, "s9"),
+    "s22": stone_state_counts(out, "s22")
+})
 ```
 
 Below is a quick visual detailing the selected geometric zones.
