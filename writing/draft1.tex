@@ -293,49 +293,49 @@ the lateA and lateB timing splits.
 
 % assumptions: ind, approx. normal (for anova)
 The following is a brief summary of the preprocessing steps applied prior to
-analysis. After the coordinates were standardized, the stone level data were
-merged with the end level data and filtered to the first shot of the powerplay
-right formation end. The columns for stones 3 to 6 and 9 to 12 were dropped as
-they are able to be played in the first shot. Columns for stone 2 and 8 were
-combined and shifted into one column for stone 2 due to both belonging to the
-non-hammer team. As for stones 1 and 7, both columns represented preplaced
+analysis. After the coordinates were standardized, the stone-level data were
+merged with the end-level data and filtered to the first shot of the power play
+right-formation end. The columns for stones 3 to 6 and 9 to 12 were dropped
+because they can be played on the first shot. Columns for stone 2 and 8 were
+combined and shifted into one column for stone 2 since both belong to the
+non-hammer team. As for stones 1 and 7, both columns represented pre-placed
 stones, although the designation of guard or house stone was unclear for each
-row. Thus, the coordinates were swapped when either stone 1 had coordinates for
-the hammer preplaced house stone or stone 7 had coordinates for the non-hammer
+row. The coordinates were swapped when either stone 1 had coordinates for the
+hammer pre-placed house stone or stone 7 had coordinates for the non-hammer
 guard. Finally, rows with missing values were dropped. This excludes shots that
-knocked out any stone before the Modified Free Guard Zone from the data.
+removed any stone before the Modified Free Guard Zone.
 
 Next, to identify patterns in stone positions, PCA, t-SNE and UMAP were applied
-onto the 6-dimensional coordinate data consisting of the x and y coordinates
-for stone 1, 2 and 7. HDBSCAN was selected due to non-circular clusters
-appearing in the 2-D visualizations from graphing 2 components of PCA, t-SNE
-and UMAP. To optimize clustering performance, Parameters of minimum cluster
-size = 5 and min samples = 5 were chosen from a grid search. Cluster quality
-was then assessed from DBCV score, coverage, excluded noise silhouette score
-and cluster membership probabilities. Finally, the clusters were visualized by
+to the 6-dimensional coordinate data consisting of the x and y coordinates for
+stones 1, 2, and 7. HDBSCAN was selected because non-circular clusters appear
+in the 2-D visualizations from graphing two components of PCA, t-SNE, and UMAP.
+To optimize clustering performance, parameters of minimum cluster size = 5 and
+min samples = 5 were chosen from a grid search. Cluster quality was then
+assessed using DBCV score, coverage, silhouette score with noise excluded, and
+cluster membership probabilities. Finally, the clusters were visualized by
 color on 2-D components of the dimensionality reduction techniques to confirm
 cluster separation.
 
 Histograms and bar charts were used to visualize the distributions and counts
-of key variables. Also, curling sheet scatter plots were used to visualize the
+of key variables. Curling sheet scatter plots were also used to visualize the
 positions of each stone by cluster and task. Following visualization,
 performance metrics across clusters were compared using Welch’s one-way ANOVA
 to account for unequal group sizes and variances. Some variables were highly
 skewed, which may slightly affect the p-values, but bootstrap confidence
 intervals were used for the means to provide robust estimates. Where the
-overall ANOVA indicated significant differences, post-hoc pairwise comparisons
+overall ANOVA indicated significant differences, post hoc pairwise comparisons
 were performed using the Games–Howell test. Cluster groups were defined as C0
-($n$ = 27), C1 ($n$ = 73), and C2 ($n$ = 62). Values are presented as group
-means with 95\% bootstrap confidence intervals to account for the skewed
+(n = 27), C1 (n = 73), and C2 (n = 62). Values are presented as group means
+with 95\% bootstrap confidence intervals to account for the skewed
 distributions. Detailed results for all variables are provided in
 Table~\ref{tab:cluster_test}.
 
-To observe different countries' first non-hammer shot selection in the
-powerplay, bar charts are created on both left and right powerplay formation
-ends. Teams are only included if they have played more than twenty powerplay
-ends. Based on the results of the clustering, similar type of shots are grouped
+To observe different countries' first non-hammer shot selection in the power
+play, bar charts are created on both left and right power-play formation ends.
+Teams are only included if they have played more than twenty power play ends.
+Based on the results of the clustering, similar type of shots are grouped
 together. The top five countries for each group of shot type are plotted to
-compare playstyles in response to the powerplay.
+compare play styles in response to the power play.
 
 \section{Results}
 
@@ -406,14 +406,14 @@ probabilities of 0.773, 0.753, 0.891, and 0.982, respectively, indicating that
 Cluster 3 contained the most tightly grouped points, while Clusters 0 and 1 had
 weaker assignments. Fifty-five points were labeled as noise, reflecting points
 not clearly assigned to any cluster. Clusters visualized on 2-D components of
-PCA, t-SNE and UMAP revealed well separated clusters with minimal
-overlap.(Figure~\ref{fig:fs_tSNE}) With noise excluded, silhouette score was
-calculated as 0.604 suggesting reasonable to strong clustering structure.
+PCA, t-SNE and UMAP revealed well separated clusters with minimal overlap
+(Figure~\ref{fig:fs_tSNE}). With noise excluded, the silhouette score was
+calculated as 0.604, suggesting reasonable to strong clustering structure.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=1.0\textwidth]{img/fs_t-SNE.pdf}
-  \caption{“t-SNE visualization of the first shot powerplay left formation
+  \caption{“t-SNE visualization of the first-shot power-play left-formation
     dataset in two dimensions.
     Each point represents a sample, colored by cluster.
     Clusters indicate similarity in the feature space.”}
@@ -459,8 +459,8 @@ from further analysis due to its limited representation.
     \label{fig:C2}
   \end{subfigure}
 
-  \caption{Coordinate visualizations after the first shot in the powerplay left
-    formation. Each panel highlights a different cluster, which can be
+  \caption{Coordinate visualizations after the first shot in the power-play
+    left formation. Each panel highlights a different cluster, which can be
     identified as shot types: tick (Panel A), draw around the guard (Panel B),
     and front/guard (Panel C).}
   \label{fig:C_all}
@@ -481,7 +481,7 @@ Games–Howell tests indicated a significant difference between C0 and C1
 ($p=0.016$), while differences between C0 and C2 ($p=0.343$) and C1 and C2
 ($p=0.205$) were not statistically significant. Points also varied across
 clusters (Welch’s ANOVA, $p=0.005$; Table~\ref{tab:cluster_test}), with a
-significant post-hoc difference between C1 and C2 ($p=0.004$), but not between
+significant post hoc difference between C1 and C2 ($p=0.004$), but not between
 C0 and C1 ($p=0.326$) or C0 and C2 ($p=0.845$). Hammer and non-hammer scores
 did not differ significantly across clusters (Welch’s ANOVA, $p=0.769$ and
 $p=0.833$, respectively; Table~\ref{tab:cluster_test}). Overall, these results
@@ -553,48 +553,48 @@ providing an end-level interpretation of power play behavior before we examine
 the non-hammer team’s first-shot response patterns.
 
 \subsection{First Shot NHT}
-Analysts have observed different responses for countering the powerplay,
-although there has been no studies to identify exactly which shots teams hit
+Analysts have observed different responses for countering the power play,
+although there have been no studies to identify exactly which shots teams hit
 and their effect on performance and context metrics. By clustering the board
-positions after the non-hammer team hits their first shot, we can observe the
-three distinct patterns in curling mixed doubles championships. The tick, guard
-and draw around the guard are all common shots that occur in response to the
-powerplay.
+positions after the non-hammer team hits its first shot, we can observe three
+distinct patterns in curling mixed doubles championships. The tick, guard, and
+draw around the guard are all common shots that occur in response to the power
+play.
 
 Welch ANOVA was used to compare differences between clusters, revealing
-significant differences in cumulative score difference and points in the
-non-missed shots and no significant differences in hammer or non-hammer score.
-Post Hoc Games-Howell tests show that significant cumulative score differences
-between the tick and draw around the guard. All shots are utilized when the
-hammer team has the score advantage. However, the tick shot is thrown at when
-the score difference is lesser, while the draw is thrown when the hammer team
-has a blowout lead.
+significant differences in cumulative score difference and points in
+non-missed shots, and no significant differences in hammer or non-hammer
+score. Post hoc Games–Howell tests show significant cumulative score
+differences between the tick and draw around the guard. All shots are utilized
+when the hammer team has the score advantage. However, the tick shot is thrown
+when the score difference is smaller, while the draw is thrown when the hammer
+team has a blowout lead.
 
 Teams may have tendencies to throw less risky shots when they are behind less
 in the score compared to when they are down many points. Nevertheless, as there
 are no significant differences in hammer and non-hammer score between the
 clusters, shot choice may not have an important role in end score performance.
-We suggest that when countering the powerplay as the non-hammer team, that
-teams choose the starting player based on their overall skill in executing one
-of the three options observed.
+We suggest that when countering the power play as the non-hammer team, teams
+choose the starting player based on their overall skill in executing one of
+the three options observed.
 
-When including all of the powerplay ends, certain countries play the draw,
-guard or tick shot a lot more than others. The bar chart of proportion of task
-groups by nation indicate the clear difference in strategy in throwing the
-first stone during powerplay ends (Figure~\ref{fig:noc_pptask}). The tasks are
-grouped by the results discovered through clustering. All teams tend to hit
-more draws and tick shots, with Korea hitting 67\% of their shots as draws.
+When including all of the power play ends, certain countries play the draw,
+guard or tick shot a lot more than others. The bar chart of proportions of
+task groups by nation indicates the clear difference in strategy in throwing
+the first stone during power play ends (Figure~\ref{fig:noc_pptask}). The tasks
+are grouped by the results discovered through clustering. All teams tend to
+hit more draws and tick shots, with Korea hitting 67\% of their shots as draws.
 Germany plays the most guards at 48\%. Sweden along with Scotland hit a large
 majority of their shots as Raise/Tapbacks and Wick/Soft-Peels. These
-differences confirm the analysts' intutition about varying responses to
-countering the powerplay.
+differences confirm the analysts' intuition about varying responses to
+countering the power play.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{img/noc_pptask.pdf}
   \caption{“Proportions of grouped tasks hit by country. Data includes all
-    powerplay ends and is limited to the first stone. Only the top five teams
-    with more than 20 powerplay ends are shown.”}
+    power play ends and is limited to the first stone. Only the top five teams
+    with more than 20 power play ends are shown.”}
   \label{fig:noc_pptask}
 \end{figure}
 
@@ -614,13 +614,23 @@ countering the powerplay.
 
 % the draw cluster has a very small sample size but is recognized as a cluster
 
-Some limitations included small powerplay sample size and heavily skewed data
-in multiple columns such as task, points, hammer score and points. Also,
-coordinates and columns were sometimes assigned inconsistently. For example, a
+Limitations include small power play sample size and heavily skewed data in
+multiple columns such as task labels, execution points, and hammer score.
+Coordinates and columns were sometimes assigned inconsistently; for example, a
 draw may be identified as a freeze.
 
 \subsection{Conclusion}
 % quick summary
+We find that the power play is associated with a consistent late-phase shift
+toward defensive shot selection for both teams, with the non-caller showing
+the larger and more persistent adjustment. These shifts are concentrated in
+non-tied score states and align with a control-oriented interpretation of the
+open sheet. The behavioral proxy based on task selection is supported by
+positional validation, suggesting it captures meaningful intent under the data
+constraints.
+
+At the shot level, clustering of the non-hammer team’s first response reveals
+three dominant counterplay patterns...
 
 %\section{Appendices} if there is a need for code appendix or otherwise, we'll
 %put it at the botton.
