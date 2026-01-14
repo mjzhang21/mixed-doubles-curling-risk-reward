@@ -1,7 +1,17 @@
+---
+title: "CSAS 2026: Class Presentation Exploration and Modelling"
+author: "Mark Zhang"
+date: last-modified
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt
+---
 
-
-
-```{python}                                                                     
+```{python}
 import pandas as pd
 import numpy as np
 
@@ -13,7 +23,9 @@ df_ends         = pd.read_csv("../data/Ends.csv")
 df_stones       = pd.read_csv("../data/Stones.csv")
 
 ```
+
 Merge the ends and games data with the stones data.
+
 ```{python}
 
 merged = pd.merge(
@@ -49,12 +61,15 @@ float_cols = df.select_dtypes(include=['float64']).columns
 df[float_cols] = df[float_cols].astype(np.float32)
 df.head()
 ```
+
 ```{python}
 df.info()
 ```
+
 ```{python}
 df.isnull().sum()
 ```
+
 ```{python}
 categorical_cols = [
     'competition_id',
@@ -76,29 +91,35 @@ for col in categorical_cols:
     freq_table.columns = [col, 'Frequency']
     freq_table['Percentage'] = (freq_table['Frequency'] / \
                                 freq_table['Frequency'].sum() * 100).round(2)
-    
+
     print(f"Frequency table for {col}:\n", freq_table, "\n")
 ```
 
 Fill in data that is supposed to be 0.
+
 ```{python}
 cols_to_fill = ['powerplay', 'timeout']
 df[cols_to_fill] = df[cols_to_fill].fillna(0)
 df[cols_to_fill] = df[cols_to_fill].astype('int')
 
 ```
+
 Turn -1 into NA or invalid data.
+
 ```{python}
 columns_to_fix = ['task', 'handle', 'points']
 
 df[columns_to_fix] = df[columns_to_fix].replace(-1, pd.NA)
 
 ```
+
 Drop rows which dont have any coordinate data.
+
 ```{python}
 df = df.dropna(subset=["stone_3_x"])
 df.isnull().sum()
 ```
+
 ```{python}
 count = 0
 df=df.sort_values(by="shot_id")
@@ -110,7 +131,9 @@ for (mid, eid), game in df.groupby(['match_id', 'end_id']):
     if count >= 10:
         break
 ```
+
 Create hammer column that alternates according to curling rules.
+
 ```{python}
 import pandas as pd
 
@@ -155,6 +178,7 @@ for mid, game in df.groupby("match_id"):
         hammer_team = choice_team
 
 ```
+
 ```{python}
 count = 0
 df = df.sort_values(by="shot_id")
@@ -166,7 +190,9 @@ for (mid, eid), game in df.groupby(['match_id', 'end_id']):
     if count >= 10:
         break
 ```
+
 Fix invalid/ mistyped result and team id.
+
 ```{python}
 shots_per_team = df.groupby(["match_id","end_id","team_id"]).size()
 print(shots_per_team.describe())
@@ -180,6 +206,7 @@ df_invalid_shots = df[(df["competition_id"] == cid) &
 print(df_invalid_shots)
 df.loc[25375, ["team_id", "result"]] = [37, 1]
 ```
+
 ```{python}
 import matplotlib.pyplot as plt
 
@@ -190,12 +217,15 @@ plt.xlabel("End")
 plt.ylabel("Average Points")
 plt.show()
 ```
+
 ```{python}
 df[df["result"] >5][["match_id","end_id","result"]]
 ```
+
 ```{python}
 df.loc[df["result"] > 5, "result"] = pd.NA
 ```
+
 ```{python}
 mean_points = df.groupby("end_id")["result"].mean()
 plt.bar(mean_points.index.astype(str), mean_points.values, color='skyblue')
@@ -204,6 +234,7 @@ plt.xlabel("End")
 plt.ylabel("Average Points")
 plt.show()
 ```
+
 Average points per end looks more evenly spread now.
 
 ```{python}
@@ -211,7 +242,9 @@ df = df.dropna(subset=["result"])
 null_counts = df.isnull().sum()
 print(null_counts)
 ```
+
 Check if all stone coordinates are valid
+
 ```{python}
 x_cols = ['stone_1_x',
             'stone_2_x',
@@ -236,8 +269,8 @@ y_cols   = ['stone_1_y',
             'stone_9_y',
             'stone_10_y',
             'stone_11_y',
-            'stone_12_y']  
-             
+            'stone_12_y']
+
 x_min, x_max = 0, 1500
 y_min, y_max = 0, 3000
 
@@ -254,12 +287,13 @@ rows_out_of_range = df[~rows_ok]
 print(rows_out_of_range)
 
 ```
-All the stone coordinates are in range
 
+All the stone coordinates are in range
 
 ```{python}
 df.info()
 ```
+
 ```{python}
 categorical_cols = [
     'competition_id',
@@ -283,9 +317,10 @@ for col in categorical_cols:
     freq_table.columns = [col, 'Frequency']
     freq_table['Percentage'] = (freq_table['Frequency'] / \
                                 freq_table['Frequency'].sum() * 100).round(2)
-    
+
     print(f"Frequency table for {col}:\n", freq_table, "\n")
 ```
+
 ```{python}
 df_invalid_player = df[(df["player_id"] == 3)][["match_id","end_id"]]
 print("player_id = 3:")
@@ -295,6 +330,7 @@ df_invalid_points = df[(df["points"] > 4)][["match_id","end_id"]]
 print("points > 4:")
 print(df_invalid_points)
 ```
+
 ```{python}
 match_id_to_view = '22230015_48_1'
 df_match = df[df["match_id"] == match_id_to_view]
@@ -308,6 +344,7 @@ for (mid, eid), game in df_match.groupby(['match_id', 'end_id']):
     if count >= 10:
         break
 ```
+
 ```{python}
 match_id_to_view = '0_9_2'
 df_match = df[df["match_id"] == match_id_to_view]
@@ -322,23 +359,13 @@ for (mid, eid), game in df_match.groupby(['match_id', 'end_id']):
         break
 ```
 
-
 EXPLORATION
 
-We will explore the different types of shots
-"0": "Draw"
-"1": "Front"
-"2": "Guard"
-"3": "Raise / Tap-back"
-"4": "Wick / Soft Peeling"
-"5": "Freeze"
-"6": "Take-out"
-"7": "Hit and Roll"
-"8": "Clearing"
-"9": "Double Take-out"
-"10": "Promotion Take-out"
-"11": "through"
-"13": "no statistics"
+We will explore the different types of shots "0": "Draw" "1": "Front" "2":
+"Guard" "3": "Raise / Tap-back" "4": "Wick / Soft Peeling" "5": "Freeze" "6":
+"Take-out" "7": "Hit and Roll" "8": "Clearing" "9": "Double Take-out" "10":
+"Promotion Take-out" "11": "through" "13": "no statistics"
+
 ```{python}
 freq_table = df['task'].value_counts().reset_index()
 freq_table.columns = ['Task', 'Frequency']
@@ -346,7 +373,7 @@ freq_table['Percentage'] = (freq_table['Frequency'] / \
                             freq_table['Frequency'].sum() * 100).round(2)
 print(freq_table)
 bars = plt.bar(
-    freq_table['Task'].astype(str), 
+    freq_table['Task'].astype(str),
     freq_table['Frequency'], color='skyblue'
 )
 plt.title('Frequency of Task Values')
@@ -354,10 +381,10 @@ plt.xlabel('Task')
 plt.ylabel('Frequency')
 ```
 
-Draw is the most common shot by far.
-Freeze and Through are the least common.
+Draw is the most common shot by far. Freeze and Through are the least common.
 
 How often players perfectly execute their shot?
+
 ```{python}
 freq_table = df['points'].value_counts().reset_index()
 freq_table.columns = ['Point', 'Frequency']
@@ -365,7 +392,7 @@ freq_table['Percentage'] = (freq_table['Frequency'] / \
                             freq_table['Frequency'].sum() * 100).round(2)
 print(freq_table)
 bars = plt.bar(
-    freq_table['Point'].astype(str), 
+    freq_table['Point'].astype(str),
     freq_table['Frequency'], color='skyblue'
 )
 plt.title('Frequency of Point Values')
@@ -373,8 +400,8 @@ plt.xlabel('Point')
 plt.ylabel('Frequency')
 ```
 
-Logistic Regression
-Outcome Variable: Steal
+Logistic Regression Outcome Variable: Steal
+
 ```{python}
 df_non_hammer = df[df['hammer'] == 0].copy()
 end_df= df_non_hammer.groupby(['match_id', 'end_id', 'team_id']).agg({
@@ -410,6 +437,7 @@ plt.xlabel('end_id')
 plt.ylabel('Frequency')
 
 ```
+
 ```{python}
 import matplotlib.pyplot as plt
 import numpy as np
@@ -428,7 +456,7 @@ for i, hammer_val in enumerate([1,0]):  # 1=Hammer, 0=Non-Hammer
     hammer_data = avg_results[avg_results['hammer']==hammer_val]
     # Align bars by offset
     offset = (i - 0.5) * width  # i=0 -> left, i=1 -> right
-    ax.bar(hammer_data['end_id'] + offset, hammer_data['result'], width, 
+    ax.bar(hammer_data['end_id'] + offset, hammer_data['result'], width,
            label='Hammer' if hammer_val==1 else 'Non-Hammer')
 
 ax.set_xlabel('End ID')
@@ -438,6 +466,7 @@ ax.set_xticks(ends)
 ax.legend()
 plt.show()
 ```
+
 ```{python}
 end_df = (
     df.sort_values(['match_id','end_id','shot_id'])
@@ -466,17 +495,17 @@ width = 0.35  # width of the bars
 
 fig, ax = plt.subplots(figsize=(8,6))
 ax.bar(
-    x - width/2, 
-    hammer_counts, 
-    width=width, 
-    label='Hammer', 
+    x - width/2,
+    hammer_counts,
+    width=width,
+    label='Hammer',
     color='blue'
 )
 ax.bar(
-    x + width/2, 
-    nonhammer_counts, 
-    width=width, 
-    label='Non-Hammer', 
+    x + width/2,
+    nonhammer_counts,
+    width=width,
+    label='Non-Hammer',
     color='orange'
 )
 
@@ -489,6 +518,7 @@ ax.legend()
 plt.show()
 
 ```
+
 ```{python}
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -544,10 +574,10 @@ nonhammer_df = get_percent_table(df[df['hammer']==0], task_order)
 # Plot Hammer heatmap
 plt.figure(figsize=(12,6))
 sns.heatmap(
-    hammer_df, 
-    annot=True, 
-    fmt='.1f', 
-    cmap='Blues', 
+    hammer_df,
+    annot=True,
+    fmt='.1f',
+    cmap='Blues',
     cbar_kws={'label':'Percent'}
 )
 plt.xlabel('Shot Type')
@@ -558,10 +588,10 @@ plt.show()
 # Plot Non-Hammer heatmap
 plt.figure(figsize=(12,6))
 sns.heatmap(
-    nonhammer_df, 
-    annot=True, 
-    fmt='.1f', 
-    cmap='Oranges', 
+    nonhammer_df,
+    annot=True,
+    fmt='.1f',
+    cmap='Oranges',
     cbar_kws={'label':'Percent'}
 )
 plt.xlabel('Shot Type')
@@ -596,8 +626,8 @@ print(short_ends)
 
 ```{python}
 df['steal'] = np.where(
-                df['hammer'] == 0, 
-                (df['result'] > 0).astype(int), 
+                df['hammer'] == 0,
+                (df['result'] > 0).astype(int),
                 np.nan
             )
 freq_table = df['steal'].value_counts().reset_index()
@@ -606,8 +636,8 @@ freq_table['Percentage'] = (freq_table['Frequency'] / \
                             freq_table['Frequency'].sum() * 100).round(2)
 print(freq_table)
 bars = plt.bar(
-    freq_table['steal'].astype(str), 
-    freq_table['Frequency'], 
+    freq_table['steal'].astype(str),
+    freq_table['Frequency'],
     color='skyblue'
 )
 plt.title('Frequency of steal Values')
@@ -615,6 +645,7 @@ plt.xlabel('Non Hammer Steal')
 plt.ylabel('Frequency')
 
 ```
+
 ```{python}
 # Only non-hammer ends
 non_hammer_ends = df[df['hammer'] == 0]
@@ -626,14 +657,16 @@ team_agg = non_hammer_ends.groupby(['team_id','competition_id'])['steal'].agg(
     steals='sum'             # total steals
 ).reset_index()
 team_agg_sorted = team_agg.sort_values(
-                                by='steal_rate', 
+                                by='steal_rate',
                                 ascending=False
                             ).reset_index(drop=True)
 print(team_agg_sorted.head(10))
 ```
+
 ```{python}
 df = df[df.groupby(['match_id','end_id'])['hammer'].transform('nunique') == 2]
 ```
+
 ```{python}
 BUTTON_X, BUTTON_Y = 750, 800
 
@@ -671,9 +704,9 @@ def compute_end_features_from_coords(df):
         end_feat['nh_min_dist_button'] = nh_dists.min()
         end_feat['nh_max_dist_button'] = nh_dists.max()
         end_feat['nh_avg_dist_button'] = nh_dists.mean()
-        end_feat['nh_std_dist_button']  = nh_dists.std()   
-        end_feat['nh_stones_in_house'] = np.sum(nh_dists <= 183) 
-       
+        end_feat['nh_std_dist_button']  = nh_dists.std()
+        end_feat['nh_stones_in_house'] = np.sum(nh_dists <= 183)
+
 
         end_feat['nh_avg_horiz_offset'] = np.mean(nh_stones_x - BUTTON_X)
         end_feat['nh_avg_vert_offset'] = np.mean(nh_stones_y - BUTTON_Y)
@@ -702,9 +735,9 @@ def compute_end_features_from_coords(df):
         end_feat['h_min_dist_button'] = h_dists.min()
         end_feat['h_max_dist_button'] = h_dists.max()
         end_feat['h_avg_dist_button'] = h_dists.mean()
-        end_feat['h_std_dist_button']  = h_dists.std()  
+        end_feat['h_std_dist_button']  = h_dists.std()
         end_feat['h_stones_in_house'] = np.sum(h_dists <= 183)
-        
+
 
         end_feat['h_avg_horiz_offset'] = np.mean(h_stones_x - BUTTON_X)
         end_feat['h_avg_vert_offset'] = np.mean(h_stones_y - BUTTON_Y)
@@ -738,8 +771,8 @@ def compute_end_features_from_coords(df):
 
         if 'result' in group.columns:
             steal_value = (
-                group.loc[group['team_id'] == non_hammer_team, 
-                'result']       
+                group.loc[group['team_id'] == non_hammer_team,
+                'result']
             ).iloc[0] > 0
 
             end_feat['steal'] = int(steal_value)
@@ -772,6 +805,7 @@ end_features.head()
 
 
 ```
+
 ```{python}
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -850,11 +884,11 @@ for name, clf in classifiers.items():
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
     y_prob = clf.predict_proba(X_test)[:,1]
-    
+
     print(f"\n=== {name} ===")
     print(classification_report(y_test, y_pred))
     print("ROC-AUC:", roc_auc_score(y_test, y_prob))
-    
+
     # Feature importance / coefficients
     if name == 'Logistic L1':
         coefs = clf.named_steps['model'].coef_[0]

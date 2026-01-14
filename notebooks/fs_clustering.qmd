@@ -1,3 +1,16 @@
+---
+title: "CSAS 2026: Non-hammer First Shot Clustering"
+author: "Mark Zhang"
+date: last-modified
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt
+---
+
 ```{python}
 import numpy as np
 import matplotlib.pyplot as plt
@@ -404,7 +417,7 @@ def plot_curling_sheet():
     CENTER_X, BUTTON_Y, BACK_Y, HOG_Y = 750, 800, 200, 2900
     radii = [600, 400, 200, 50]  # house circles
 
-    fig, ax = plt.subplots(figsize=(6, 12))
+    fig, ax = plt.subplots(figsize=(6, 5))
 
     # Draw sheet lines
     ax.axvline(CENTER_X, linestyle='--', linewidth=1)
@@ -968,7 +981,9 @@ plt.legend(
     *scatter.legend_elements(),
     title="Cluster"
 )
+
 plt.show()
+
 ```
 
 ````
@@ -1042,8 +1057,18 @@ for cluster_id in sorted(df_pp2['hdbscan_cluster'].dropna().unique()):
         s=55, alpha=0.7, color='blue', label='Stone 2'
     )
 
-    ax.set_title(f"Cluster {cluster_id} | Powerplay=2")
-    ax.legend()
+    ax.set_title(f"Cluster {cluster_id} | Powerplay=2", fontsize=10)
+
+    # Axis labels (if you have any)
+    ax.set_xlabel("X Position", fontsize=10)
+    ax.set_ylabel("Y Position", fontsize=10)
+
+    # Tick labels
+    ax.tick_params(axis='both', labelsize=7)
+
+    # Legend with larger font
+    ax.legend(fontsize=10)
+
     plt.show()
 
 
@@ -1094,10 +1119,10 @@ import matplotlib.pyplot as plt
 features = [
     'task', 'points','end_id',
     'nonhammer_win',
-    'score_hammer','score_nonhammer','end_score_diff'
+    'score_hammer','score_nonhammer','cumulative_score_diff'
 ]
 # Filter out noise clusters
-df_plot = df_pp2[df_pp2['hdbscan_cluster'] != -1]
+df_plot = df_pp2[~df_pp2['hdbscan_cluster'] .isin([-1,3])]
 
 for feature in features:
     # Compute counts and proportions per cluster
@@ -1134,7 +1159,7 @@ features = [
 ]
 
 # Filter out noise clusters
-df_plot = df_pp2[df_pp2['hdbscan_cluster'] != -1]
+df_plot = df_pp2[~df_pp2['hdbscan_cluster'].isin([-1, 3])]
 
 for feature in features:
     # Compute counts and proportions per cluster
@@ -1516,65 +1541,77 @@ print(cluster_summary)
 
 ```{python}
 import matplotlib.pyplot as plt
-import pandas as pd
+import seaborn as sns
+from matplotlib.patches import Patch
 
 skip_tasks = [5, 6, 8, 10]
 
-# Filter out skipped tasks
+# --- Filter the dataframe ---
 df_filtered = df_pp[~df_pp['task'].isin(skip_tasks)]
 df_filtered = df_filtered.dropna(subset=['task', 'cumulative_score_diff'])
-# Get all NOCs
-nocs = df_filtered['noc'].unique()
 
-for noc in nocs:
-    sub = df_filtered[df_filtered['noc'] == noc]
+# --- Task groups ---
+task_groups = {
+    "Draw": [0],
+    "Front/Guard": [1, 2],
+    "Raise/Tapback + Wick/Soft-Peel": [3, 4]
+}
 
-    # Skip countries with fewer than 20 shots
-    if len(sub) < 20:
-        continue
+# --- Filter valid nations (≥20 shots) ---
+valid_nations = df_filtered['noc'].value_counts()
+valid_nations = valid_nations[valid_nations >= 20].index
 
-    # Count shots per task
-    counts = sub['task'].value_counts().sort_index()
+# --- Compute proportion per country per group ---
+agg_task_dict = {}
+for name, tasks in task_groups.items():
+    agg_task_dict[name] = df_filtered[df_filtered['noc'].isin(valid_nations)].groupby('noc')['task'].apply(
+        lambda x: x.isin(tasks).sum() / len(x)
+    )
 
-    # Convert to proportion within the country
-    prop = counts / counts.sum()
+# --- Top nations across any group ---
+all_nations = set()
+for data in agg_task_dict.values():
+    all_nations.update(data.sort_values(ascending=False).head(5).index)
+all_nations = sorted(all_nations)
 
-    plt.figure(figsize=(8, 4))
-    plt.bar(prop.index.astype(str), prop.values)
-    plt.title(f"Proportion of Shots by Task for {noc} (n={len(sub)})")
-    plt.xlabel("Task")
-    plt.ylabel("Proportion of Shots")
-    plt.ylim(0, 1)
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.show()
-```
+# --- Assign unique color per country ---
+palette = sns.color_palette("tab20", n_colors=len(all_nations))
+nation_colors = dict(zip(all_nations, palette))
 
-```{python}
-import pandas as pd
+# --- Multi-panel plot ---
+fig, axes = plt.subplots(1, len(agg_task_dict), figsize=(14, 6), sharey=False)
 
-skip_tasks = [5, 6, 8, 10]
+for i, (group_name, data) in enumerate(agg_task_dict.items()):
+    ax = axes[i]
 
-# Filter out skipped tasks
-df_filtered = df_pp[~df_pp['task'].isin(skip_tasks)]
+    # Select top 5 nations for this group
+    data_top = data.sort_values(ascending=True)[-5:]
 
-# Only keep countries with ≥20 shots
-df_filtered = df_filtered.groupby('noc').filter(lambda x: len(x) >= 25)
+    # Plot bars
+    ax.barh(data_top.index, data_top.values, color=[nation_colors[n] for n in data_top.index])
 
-# Calculate proportions per country for each task
-prop_table = df_filtered.groupby(['noc', 'task']).size().unstack(fill_value=0)
+    # Annotate values
+    for j, val in enumerate(data_top.values):
+        ax.text(val + 0.01, j, f"{val:.2f}", va='center', fontsize=9)
 
-# Convert to proportion within the country
-prop_table = prop_table.div(prop_table.sum(axis=1), axis=0)
+    # Titles and labels
+    ax.set_title(group_name, fontsize=14)
+    ax.set_xlim(0, 1)
+    if i == 0:
+        ax.set_ylabel("Nation", fontsize=14)
+    else:
+        ax.set_ylabel("")
+    ax.set_xlabel("Proportion", fontsize=14)
+    ax.tick_params(axis='both', labelsize=12)
 
-# For each task, sort countries by proportion
-for task in prop_table.columns:
-    top_countries = prop_table[task].sort_values(ascending=False)
-    print(f"\nTask {task} - countries with highest proportion of shots:")
-    print(top_countries.head(5))  # show top 5 countries
+# --- Legend ---
+legend_handles = [Patch(color=col, label=n) for n, col in nation_colors.items()]
+fig.legend(handles=legend_handles, loc='upper center', ncol=len(nation_colors), fontsize=9, bbox_to_anchor=(0.5, 1.05))
 
-```
+# --- Final touches ---
+plt.suptitle("Top Nations by Proportion of Shots (Grouped Tasks, ≥20 Shots)", fontsize=18, y=0.92)
+plt.tight_layout(rect=[0, 0, 1, 0.92])
+plt.show()
 
-```{python}
-df_filtered['noc'].value_counts()
+
 ```
