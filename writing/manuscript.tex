@@ -74,22 +74,17 @@
 
 \jy{Three questions to address in introduction and in this order:
   why important; what've been done; what's new.}
+\mz{created three paragraphs without fragments and added more references}
 
-Mixed doubles curling introduces a fundamentally different strategic
-environment than traditional curling, making data-driven analysis particularly
-important. It was developed at the International Olympic Committee's request
-for a faster, higher-variance format that is less likely to settle into fixed
-patterns. The modified free guard zone (MFGZ), two pre-placed stones, hammer
-transfer on blanks, eight-end matches, and the power play all alter tactical
-incentives and end-level planning. These rule changes keep more stones in play
-and raise the stakes of single ends. Mixed doubles' novelty, however, means
-that little-to-no data-driven strategy exists yet for the sport.
-
-The power play is the most consequential strategic innovation. Each team may
-use it once, but only when it has the hammer; the pre-placed stones are moved
-to the sides, opening the center of the sheet. This shift changes incentives
-for both teams and demands clear guidelines on when to call the power play, how
-to execute it, and how to respond.
+Mixed doubles curling presents a unique strategic environment with recent rule
+changes—such as the modified free guard zone, pre-placed stones, and the power
+play—that alter tactics and increase the importance of adaptive planning.
+Developed at the IOC's request for a faster, more variable format, it lacks
+extensive data-driven strategies. The power play, a key innovation, can be used
+once per match when a team has the hammer, and it opens the sheet’s center by
+repositioning the pre-placed stones. This shift changes incentives and
+necessitates clear guidelines for calling, executing, and responding to the
+power play.
 % briefly outline what the purpose of the data challenge is exactly -> there isn
 % o data anlysis done on mixed doubles curling all mixed doubles curling
 % strategy and intuition relies on strategy formulated from the tradtional game.
@@ -100,20 +95,20 @@ to execute it, and how to respond.
 % we have no reliable strategy because this is a novel rule
 % powerplay questions: how and when and why is it used
 % how should you use it or or respond to it etc
-Previous research has been conducted on the topic of curling strategy,
-primarily with the goal of confirming or disproving well-known curling ideas.
-\citet{willoughby2005analysis} analyzed an important strategic decision in
-curling—whether to blank an end or score a single point in later ends. He
-observed differences in shot selection between North American and European
-teams and concluded that blanking is generally the superior option.
-\citet{clement2012analysis} extended this analysis by incorporating the free
-guard zone and women’s match data, finding that blanking may not be optimal in
-the ninth end depending on the score differential. Also, the statistical
-significance of hammer possession and end outcome has been
-observed\citep{park2013curling}. Overall, previous research addresses
-curling-specific problems that do not apply to mixed doubles curling. The
-various rule changes and addition of the power play prompt our analysis on the
-unique aspects of mixed doubles curling.
+Strategy, curling physics, and robotics are some of the major research areas in
+curling \citep{zacharias2024examination, maeno2016assignments, gwon2020path}.
+Research specifically in curling strategy use methods including decision
+analysis, logistic regression and deep reinforcement learning
+\citep{willoughby2005analysis, clement2012analysis, han2022game}. For example
+\citet{willoughby2005analysis} and \citet{clement2012analysis} address the
+long-debated question on whether blanking or scoring one is the better choice
+in the seventh end. Furthermore, \citep{park2013curling} confirms the advantage
+of possessing the hammer with statistical evidence. However, these studies do
+not specifically account for the unique dynamics introduced by the recent rule
+changes in mixed doubles curling, particularly the power play. Given that mixed
+doubles and the power play introduce different strategic considerations, it is
+essential to extend research efforts to this format to develop data-driven
+guidelines
 
 Using data from three World Championships and one Winter Olympics, this paper
 offers the first analysis of strategic behavior surrounding the power play in
@@ -394,9 +389,14 @@ effects. This framing sets up the clustering-based discussion that follows by
 providing an end-level interpretation of power play behavior before we examine
 the non-hammer team’s first-shot response patterns.
 
+%==================================================
+% 
+% End of Section 1 
+%
+%==================================================
+
 \section{First-shot Non-hammer Team Powerplay Adaptation}
 \subsection{Data}
-\subsection{Methodology}
 % Mark std. coordinates use HDBScan for clustering -> visualize w/ PCA, tSNE
 % cluster quality evaluated on coverage, score, and cluster stability use welch
 % ANOVA and bootstrap, use post-hoc test to determine differences between
@@ -416,13 +416,15 @@ row. The coordinates were swapped when either stone 1 had coordinates for the
 hammer pre-placed house stone or stone 7 had coordinates for the non-hammer
 guard. Finally, rows with missing values were dropped. This excludes shots that
 removed any stone before the Modified Free Guard Zone.
+\subsection{Methodology}
+
 
 Next, to identify patterns in stone positions, PCA, t-SNE and UMAP were applied
 to the 6-dimensional coordinate data consisting of the x and y coordinates for
 stones 1, 2, and 7. HDBSCAN was selected because non-circular clusters appear
 in the 2-D visualizations from graphing two components of PCA, t-SNE, and UMAP.
 To optimize clustering performance, parameters of minimum cluster size = 5 and
-min samples = 5 were chosen from a grid search. Cluster quality was then
+minimum samples = 5 were chosen from a grid search. Cluster quality was then
 assessed using DBCV score, coverage, silhouette score with noise excluded, and
 cluster membership probabilities. Finally, the clusters were visualized by
 color on 2-D components of the dimensionality reduction techniques to confirm
@@ -437,8 +439,8 @@ skewed, which may slightly affect the p-values, but bootstrap confidence
 intervals were used for the means to provide robust estimates. Where the
 overall ANOVA indicated significant differences, post hoc pairwise comparisons
 were performed using the Games–Howell test. Cluster groups were defined as C0
-(n = 27), C1 (n = 73), and C2 (n = 62). Values are presented as group means
-with 95\% bootstrap confidence intervals to account for the skewed
+($n$ = 27), C1 ($n$ = 73), and C2 ($n$ = 62). Values are presented as group
+means with 95\% bootstrap confidence intervals to account for the skewed
 distributions. Detailed results for all variables are provided in
 Table~\ref{tab:cluster_test}.
 
@@ -542,6 +544,8 @@ indicate that cumulative score difference and points showed cluster-specific
 variation, while hammer-related outcomes were similar across groups.
 
 \jy{n is not $n$}
+\mz{changed}
+
 \begin{table}[t]
   \centering
   \includegraphics[width=0.8\textwidth]{img/cluster_test.pdf}
@@ -600,6 +604,7 @@ countering the power play.
 % \subsection{Limitations}
 \jy{Could be brief, because this is not exactly an academic paper but a
   report for reference for the coaching team.}
+\mz{Removed section, will address briefly in discussion section}
 
 % lack of powerplay sample size very skewed data. task, points, expected hammer
 % points data quality. i.e. inconsistent coordinate assignments, incosistent
@@ -639,6 +644,8 @@ success.
 %put it at the botton.
 
 \jy{Do you have team strategy profiles?}
+\mz{Added team offensive defense metrics along with teams with distinct first shot choice
+}
 \bibliographystyle{apalike}
 \clearpage
 \bibliography{references.bib}
