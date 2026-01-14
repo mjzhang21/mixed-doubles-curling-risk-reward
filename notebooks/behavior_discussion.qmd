@@ -273,6 +273,77 @@ These are framed to be directly testable with the end-level features built later
   - E.g., is power play really used in the final end in a defensive manner?
 - Can our power play analysis inform any new strategic decision making?
 
+
+
+# Express Goals
+
+## Behavior Classifcation
+
+First,
+what is easy to do with our existing data without new feature engineering is find out
+when powerplay is used. We have histograms and crosstabs for that. 
+
+Second, I need to classify behavior, easier said than done.
+
+While it may feel intuitive to classify behavior off of shot-type,
+the shot-type data (especially during power play) may prove too granular and noisy
+to reliably classify. Shot-type is a very strong informer of intended behavior but
+not the complete determinant. 
+
+One alternative is by end-intent in two sections: for the first three stones (where take-outs
+are not allowed) and for the last seven stones (where take-outs are allowed). I.e., before
+and after Modified Free Guard Zone (MFGZ). I keep the 4-shot split as a sensitivity check.
+
+I want to lean towards keeping the predictor set
+smaller here, careful not to introduce categorical variables which could introduce leakage
+or change the structure of the data. For example, even though I have identified strategy
+as something that exists at the team-level, I think adding TeamID as a predictor for classifying
+behavior (the idea would be its a fixed effect or something, because due to coaching
+some teams are inherently more offensive/defensive than others) is too complicated for now. 
+
+We want to see **Offense, Defense, and Probing**.
+**Offensive** shots are typically defined as all of the slow stones, being:
+
+- Draw (0)
+- Front (1)
+- Guard (2)
+- Raise / Tap-back (3)
+- Wick (4)
+- Freeze (5)
+
+These are all carefully placed stones aimed for scoring position and to guard
+stones already in scoring position.
+
+**Defensive** shots are typically defined as all of the fast stones, being: 
+
+- Take-out (6)
+- Hit and roll (7)
+- Clearing (8)
+- Double take-out (9)
+- Promotion take-out (10)
+
+These are high energy stones usually intended to remove a scoring stone or guard from play.
+
+After that, I'd need to classify the same behavior during powerplay (special subset). 
+Then observe Powerplay behaviors. Somehow quantify behavior in these ends.
+
+Finally, I can then answer: How is powerplay used (what behaviors are present)
+
+Next, what else can be observed from when and how powerplay is used? Can we tie this
+to expected win probabilities, etc? Expected points? Do certain teams follow trends
+in how and when they choose to invoke their powerplay?
+
+=========
+
+
+
+
+
+
+
+
+
+===========
 # Findings (Current Run)
 
 This section summarizes what the current intent-classification pipeline actually
@@ -348,62 +419,3 @@ That could mean power play is invoked in defensive contexts (score, end, or matc
 or that opponents force a defensive reaction once PP is called. The next step to nail
 mechanism is the hypothesis block: PP timing vs score diff (H2), within‑PP scoring
 associations (H3), and context dependence (H4).
-
-
-# Express Goals
-
-## Behavior Classifcation
-
-First,
-what is easy to do with our existing data without new feature engineering is find out
-when powerplay is used. We have histograms and crosstabs for that. 
-
-Second, I need to classify behavior, easier said than done.
-
-While it may feel intuitive to classify behavior off of shot-type,
-the shot-type data (especially during power play) may prove too granular and noisy
-to reliably classify. Shot-type is a very strong informer of intended behavior but
-not the complete determinant. 
-
-One alternative is by end-intent in two sections: for the first three stones (where take-outs
-are not allowed) and for the last seven stones (where take-outs are allowed). I.e., before
-and after Modified Free Guard Zone (MFGZ). I keep the 4-shot split as a sensitivity check.
-
-I want to lean towards keeping the predictor set
-smaller here, careful not to introduce categorical variables which could introduce leakage
-or change the structure of the data. For example, even though I have identified strategy
-as something that exists at the team-level, I think adding TeamID as a predictor for classifying
-behavior (the idea would be its a fixed effect or something, because due to coaching
-some teams are inherently more offensive/defensive than others) is too complicated for now. 
-
-We want to see **Offense, Defense, and Probing**.
-**Offensive** shots are typically defined as all of the slow stones, being:
-
-- Draw (0)
-- Front (1)
-- Guard (2)
-- Raise / Tap-back (3)
-- Wick (4)
-- Freeze (5)
-
-These are all carefully placed stones aimed for scoring position and to guard
-stones already in scoring position.
-
-**Defensive** shots are typically defined as all of the fast stones, being: 
-
-- Take-out (6)
-- Hit and roll (7)
-- Clearing (8)
-- Double take-out (9)
-- Promotion take-out (10)
-
-These are high energy stones usually intended to remove a scoring stone or guard from play.
-
-After that, I'd need to classify the same behavior during powerplay (special subset). 
-Then observe Powerplay behaviors. Somehow quantify behavior in these ends.
-
-Finally, I can then answer: How is powerplay used (what behaviors are present)
-
-Next, what else can be observed from when and how powerplay is used? Can we tie this
-to expected win probabilities, etc? Expected points? Do certain teams follow trends
-in how and when they choose to invoke their powerplay?

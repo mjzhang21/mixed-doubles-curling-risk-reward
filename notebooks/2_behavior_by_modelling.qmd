@@ -1,0 +1,784 @@
+---
+title: "CSAS 2026: Behavior Classes"
+author: "Alejandro Haerter"
+date: "2026-01-13"
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt 
+---
+
+The final plan.
+
+# Build the analysis unit: team-end
+
+```{python}
+import pandas as pd
+import numpy as np
+
+df = pd.read_csv("../data/stones_master_1.csv") 
+
+#this is a patch necessitated by section 3. these were 2 ends with mistaken first shot values.
+df.loc[(df["match_id"] == "0_13_1") & (df["end_id"] == 7) & (df["shot_id"] == 7), "stone_2_y"] = 0
+df.loc[(df["match_id"] == "0_8_4") & (df["end_id"] == 2) & (df["shot_id"] == 7), "stone_8_x"] = 0
+
+# Ends is a dataframe which contains two rows per match an end; one for each team.
+ends = (
+    df[["match_id", "end_id", "team_id1", "team_id2"]]
+    .dropna(subset=["match_id", "end_id", "team_id1", "team_id2"])
+    .drop_duplicates(subset=["match_id", "end_id"])
+    .reset_index(drop=True)
+)
+```
+
+```{python}
+# no end should have multiple different team_id1/team_id2 pairs
+dup_check = df.groupby(["match_id", "end_id"])[["team_id1", "team_id2"]].nunique()
+bad_ends = dup_check[(dup_check["team_id1"] > 1) | (dup_check["team_id2"] > 1)]
+if len(bad_ends):
+    raise ValueError(f"Found ends with inconsistent team_id1/team_id2:\n{bad_ends.head()}")
+```
+
+passes quality control.
+
+```{python}
+# ends already has: match_id, end_id, team_id1, team_id2
+
+team_end_a = ends.copy()
+team_end_a["team_id"] = team_end_a["team_id1"]
+team_end_a["opp_team_id"] = team_end_a["team_id2"]
+
+team_end_b = ends.copy()
+team_end_b["team_id"] = team_end_b["team_id2"]
+team_end_b["opp_team_id"] = team_end_b["team_id1"]
+
+team_end = pd.concat([team_end_a, team_end_b], ignore_index=True)[
+    ["match_id", "end_id", "team_id", "opp_team_id", "team_id1", "team_id2"]
+]
+
+# Checks
+assert len(team_end) == 2 * len(ends)
+assert (team_end["team_id"] != team_end["opp_team_id"]).all()
+
+team_end.head()
+```
+
+this new dataframe, team_end, just serves for future assignments.
+
+## Data
+
+A new dataframe must be constructed which creates exactly two rows per
+match_id and end_id; one for team_id1 and one for team_id2.
+Each observational unit (so for each time) is intended to quantify the
+decisions made by each team during the end without using every single
+shot-row (too granular, useless).
+
+The outcome is to see how much each team changed the sheet over the end,
+not what did the shooter do on one shot (stone-level).
+
+We will do this by taking the set of unique ends (match_id, end_id) and
+cross-joining with both team_id_i. We keep these keys and add
+opp_team_id as a new key. 
+
+```{python}
+# now we are adding information on powerplay.
+pp_context = (
+    df.groupby(["match_id", "end_id"], as_index=False)
+      .agg(pp_value_end=("powerplay", "max"))
+)
+
+pp_context["pp_used_end"] = pp_context["pp_value_end"].fillna(0).astype(int).ne(0)
+pp_context["pp_side_end"] = np.select(
+    [
+        pp_context["pp_value_end"].fillna(0).astype(int).eq(1),
+        pp_context["pp_value_end"].fillna(0).astype(int).eq(2),
+    ],
+    ["right", "left"],
+    default=None,
+)
+```
+
+
+```{python}
+# --- B) Team-end context (team-relative; constant within match_id,end_id,team_id) ---
+# Verify constancy within team-end
+team_ctx_nunique = (
+    df.groupby(["match_id", "end_id", "team_id"])[["has_hammer", "pre_end_score_diff"]]
+      .nunique(dropna=False)
+)
+
+# qc. check to make sure has_hammer, pre_end_score_diff don't occur twice.
+bad_team_ctx = team_ctx_nunique[(team_ctx_nunique["has_hammer"] > 1) | (team_ctx_nunique["pre_end_score_diff"] > 1)]
+if len(bad_team_ctx):
+    raise ValueError(f"Non-constant has_hammer or pre_end_score_diff within some team-ends:\n{bad_team_ctx.head()}")
+
+team_context = (
+    df.groupby(["match_id", "end_id", "team_id"], as_index=False)
+      .agg(
+          has_hammer=("has_hammer", "first"),
+          pre_end_score_diff=("pre_end_score_diff", "first"), #fine assumption to make because should all be the same
+      )
+)
+```
+
+passes qc. we can safely add the has_hammer boolean and the pre_end_score_diff. 
+
+```{python}
+# --- C) Merge onto team_end ---
+team_end = team_end.merge(
+    team_context,
+    on=["match_id", "end_id", "team_id"],
+    how="left",
+    validate="one_to_one",
+)
+
+team_end = team_end.merge(
+    pp_context[["match_id", "end_id", "pp_value_end", "pp_used_end", "pp_side_end"]],
+    on=["match_id", "end_id"],
+    how="left",
+    validate="many_to_one",
+)
+
+# Quick check
+team_end[["has_hammer", "pre_end_score_diff", "pp_value_end", "pp_used_end", "pp_side_end"]].head()
+```
+
+# Attach some coordinate information
+
+So right now we are going to use two pictures of the board. the one for shotid 9 and shotid 22.
+Why? because shotid is the end of the mfgz so we can see how behavior diverges from the 
+typical race to the button.
+
+This analysis will measure net late-phase change (not necessarily how). This is a first-pass.
+We select rows were shotid is 9 and 22 irregardless of hammer team, etc. We will add the
+coordiantes for each stone to the team-end rows here.
+
+```{python}
+stone_cols = []
+for i in range(1, 13):
+    stone_cols += [f"stone_{i}_x", f"stone_{i}_y"]
+
+missing = [c for c in stone_cols if c not in df.columns]
+if missing:
+    raise KeyError(f"Missing expected stone coordinate columns: {missing[:10]}")
+```
+
+There are no missing columns. This is because when ends are conceded, the ShotID rows are
+still included in the data, but the coordinates are all filled with NA and the descripters
+are filled with placeholder -1.
+
+This produces the relevant dataframes to meet the "picture" goal.
+
+```{python}
+# state 9 dataframe
+state9 = (
+    df.loc[df["shot_id"] == 9, ["match_id", "end_id"] + stone_cols]
+      .drop_duplicates(subset=["match_id", "end_id"])
+      .rename(columns={c: f"{c}_s9" for c in stone_cols})
+)
+
+#state22 dataframe
+state22 = (
+    df.loc[df["shot_id"] == 22, ["match_id", "end_id"] + stone_cols]
+      .drop_duplicates(subset=["match_id", "end_id"])
+      .rename(columns={c: f"{c}_s22" for c in stone_cols})
+)
+
+# more qc
+# if duplicates exist (more than 1 row for same end at shot 9/22), catch it explicitly
+dup9 = df.loc[df["shot_id"] == 9].duplicated(subset=["match_id", "end_id"]).sum()
+dup22 = df.loc[df["shot_id"] == 22].duplicated(subset=["match_id", "end_id"]).sum()
+if dup9 or dup22:
+    raise ValueError(f"Duplicate snapshot rows found: shot9 dups={dup9}, shot22 dups={dup22}")
+```
+
+More quality control just to make sure every end which contains state 9 also has state 22.
+
+```{python}
+# complete-ends filter
+ends_all = team_end[["match_id", "end_id"]].drop_duplicates()
+ends_with9 = state9[["match_id", "end_id"]].drop_duplicates()
+ends_with22 = state22[["match_id", "end_id"]].drop_duplicates()
+
+ends_kept = ends_all.merge(ends_with9, on=["match_id","end_id"], how="inner") \
+                    .merge(ends_with22, on=["match_id","end_id"], how="inner")
+ends_dropped = ends_all.merge(ends_kept, on=["match_id","end_id"], how="left", indicator=True)
+ends_dropped = ends_dropped[ends_dropped["_merge"] == "left_only"].drop(columns="_merge")
+
+drop_rate = len(ends_dropped) / len(ends_all)
+print(f"Ends total: {len(ends_all)} | kept: {len(ends_kept)} | dropped: {len(ends_dropped)} | drop rate: {drop_rate:.3%}")
+```
+
+All ends are present, but we must later be careful of conceded ends impacting the data.
+
+Final merger:
+
+```{python}
+# merger on team_ends
+team_end_kept = team_end.merge(ends_kept, on=["match_id","end_id"], how="inner", validate="many_to_one")
+
+team_end_kept = team_end_kept.merge(state9, on=["match_id","end_id"], how="left", validate="many_to_one")
+team_end_kept = team_end_kept.merge(state22, on=["match_id","end_id"], how="left", validate="many_to_one")
+
+# Sanity: no missing snapshot cols after merge
+snap_cols = [f"{c}_s9" for c in stone_cols] + [f"{c}_s22" for c in stone_cols]
+miss_snap = team_end_kept[snap_cols].isna().mean().mean()
+print(f"Mean missingness across snapshot coordinate columns: {miss_snap:.6f}")
+
+team_end_kept.head()
+```
+
+We find that 1.7% of coordinate data is missing from the snapshot columns. This is because of
+conceded ends.
+
+# stone_i
+
+We need to make sure each stone is correctly assigned.
+Our findings are that stones 1-6 belong to TeamID 1 for the entirety of a game, and that
+7-12 belong to Team ID for the entirety of the game. This is irregardless of LSFE, hammer,
+etc. This is just a quirk of the data entry.
+
+```{python}
+# Assumes:
+# - df has shot rows 7..22 and stone_{i}_x / stone_{i}_y columns
+# - team_end_kept is your two-rows-per-end table (already filtered to ends with shot 9 and 22)
+
+# prelim: helper
+#stone_active is a function which checks whether it is in-play or off-sheet, i.e, not thrown yet. 
+def stone_active(df_sub: pd.DataFrame, i: int) -> pd.Series:
+
+    x = df_sub[f"stone_{i}_x"]
+    y = df_sub[f"stone_{i}_y"]
+    # Active if not (x==0 and y==0). 4095 indicates off-sheet but still "thrown/exists".
+    return ~((x == 0) & (y == 0))
+```
+
+I will do an activation-based validation strategy.
+
+```{python}
+# We use stones 2 and 8 because they are non-preplaced and belong to blocks 1–6 and 7–12 respectively.
+# We found mapping is fixed to team_id1 (1–6) and team_id2 (7–12) except two anomalous ends.
+
+shots = df[df["shot_id"].between(7, 22)].copy()
+
+# So this checks which is active first, ie the first thrown stone in an end
+# via min shotid (which is 7)
+# First active shot for stone_2 and stone_8 within each end
+first2 = (
+    shots.assign(active2=stone_active(shots, 2))
+         .loc[lambda d: d["active2"]]
+         .groupby(["match_id", "end_id"], as_index=False)["shot_id"]
+         .min()
+         .rename(columns={"shot_id": "stone2_first_shot"})
+)
+
+first8 = (
+    shots.assign(active8=stone_active(shots, 8))
+         .loc[lambda d: d["active8"]]
+         .groupby(["match_id", "end_id"], as_index=False)["shot_id"]
+         .min()
+         .rename(columns={"shot_id": "stone8_first_shot"})
+)
+```
+
+We do more data quality control.
+
+```{python}
+# Identify anomalies where both look active at shot 7 (or other inconsistent patterns)
+# Also catch ends where either stone never becomes active (shouldn't happen in complete ends)
+activation = first2.merge(first8, on=["match_id", "end_id"], how="outer", validate="one_to_one")
+
+activation["stone2_missing"] = activation["stone2_first_shot"].isna()
+activation["stone8_missing"] = activation["stone8_first_shot"].isna()
+
+# Specific anomaly: both activate at shot 7 (can indicate bad coords / prefilled)
+activation["both_active_at_7"] = (
+    activation["stone2_first_shot"].eq(7) & activation["stone8_first_shot"].eq(7)
+)
+
+# Flag ends with any activation issue
+activation["activation_issue"] = (
+    activation["stone2_missing"] | activation["stone8_missing"] | activation["both_active_at_7"]
+)
+
+# List problematic ends
+bad_ends = activation.loc[activation["activation_issue"], ["match_id", "end_id"]].dropna()
+
+print(f"Activation issues flagged: {len(bad_ends)} ends")
+```
+
+In our data we had two bad ends. These were match 0_13_1 end 7 and 0_8_4 end 2.
+Manual inspection revealed:
+- The value for stone_2_y was mistakenly filled for 0_13_1 end 7; should be 0
+- The value for stone_8_x was mistakenly filled for 0_8_4 end 2; should be 0
+We went back and manually patched that when importing the data;
+there are no more issues.
+
+We now have to map the correct ownership back to the team_end dataset.
+Filters for bad ends have been commented out because we no longer require them.
+
+```{python}
+# 2) Ownership mapping decision (fixed mapping)
+# ----------------------------
+# Based on your verification: team_id1 owns stones 1–6, team_id2 owns stones 7–12.
+# No swap repair is applied; we only drop flagged anomalous ends.
+
+# bad_keys = set(map(tuple, bad_ends.to_numpy())) # No longer required.
+
+team_end_valid = team_end_kept.copy()
+# mask_bad = team_end_valid[["match_id", "end_id"]].apply(tuple, axis=1).isin(bad_keys) # no longer required.
+# team_end_valid = team_end_valid.loc[~mask_bad].copy()
+
+# print(f"team_end_kept rows: {len(team_end_kept)} | after dropping bad ends: {len(team_end_valid)}")
+
+#known_bad = {("0_8_4", 2), ("0_13_1", 7)}
+#present_known = known_bad.intersection(set(map(tuple, team_end_kept[["match_id","end_id"]].drop_duplicates().to_numpy())))
+#if present_known:
+#    present_after = known_bad.intersection(set(map(tuple, team_end_valid[["match_id","end_id"]].drop_duplicates().to_numpy())))
+#    assert len(present_after) == 0, f"Known bad ends still present: {present_after}"
+
+# team_end_valid is what you should carry forward
+```
+
+In the end, only two ends were patched, but this section exists because of
+an erroroneous assumption in the original data dictionary.
+
+# Position Advantage Scoring
+
+The next goal is to devise a method to quantify the "position advantage" at
+ShotID 9 and 22, for either team. 
+
+First, I reconstruct the sheet geometry, and add the Guard Corridor and the Lane Corridor.
+The guard corridor is intended to capture all of one team's stones. It will be used as
+an offensive play indicator called Guard Quality, positively weighted.
+
+The lane corridor is very similar but is for all stones, mean to capture the
+lane congestion. This is a negative penalty applied to both teams equally;
+however, can be outweighed with a nice Guard Quality.
+
+The lane corridor is thin because it is meant capture congestion only to the
+easiest draw. it is intentionally thinner than the guard zone. This is,
+of course, modifiable.
+
+```{python}
+# Geometry according to data dictionary
+CENTER_X = 750.0
+BUTTON_X = 750.0
+BUTTON_Y = 800.0
+BACKLINE_Y = 200.0
+HOGLINE_Y = 2900.0
+
+# Guard corridor
+GUARD_X_HALF = 250.0
+GUARD_Y_MIN = 900.0
+GUARD_Y_MAX = 2400.0
+GUARD_Y_CENTER = 2000.0
+GUARD_X_SCALE = 150.0
+GUARD_Y_SCALE = 300.0
+
+# Lane corridor
+LANE_X_HALF = 200.0
+LANE_Y_MIN = 800.0
+LANE_Y_MAX = 2900.0
+```
+
+Here we have arbitrary weights and a tunable parameter Tau.
+Tau is intended to measure the threat of scoring stones;
+all stones within Tau are considered a scoring threat.
+
+The aforementioned guard corridor is defined as the width of Tau.
+
+The weights are chosen arbitrarily but this is not a problem
+because we are not measuring the raw score but the difference in score.
+I concede that this is not very intrepretable in a raw sense, but
+is the best way to capture late-stage behaviors.
+
+```{python}
+# I have an arbitrary tunable 
+TAU = 250.0  # HouseThreat scale
+
+# Weights
+W_HOUSE = 1.0
+W_GUARD = 0.6
+W_PPSIDE = 0.2
+W_LANE = 0.1  # applied to -LaneCongestion
+```
+
+The following script builds a series of functions which assign
+position advantage scores based on the row, then measure the deltas.
+The weights can be changed above.
+
+```{python}
+# -------------------------
+# REQUIRED COLUMN CHECKS
+# -------------------------
+REQ_META = ["match_id", "end_id", "team_id", "team_id1", "team_id2", "pp_side_end"]
+missing_meta = [c for c in REQ_META if c not in team_end_valid.columns]
+if missing_meta:
+    raise KeyError(f"team_end_valid missing required meta columns: {missing_meta}")
+
+def snap_cols(suffix: str):
+    return [f"stone_{i}_{axis}_{suffix}" for i in range(1, 13) for axis in ("x", "y")]
+
+S9 = snap_cols("s9")
+S22 = snap_cols("s22")
+
+missing_s9 = [c for c in S9 if c not in team_end_valid.columns]
+missing_s22 = [c for c in S22 if c not in team_end_valid.columns]
+if missing_s9 or missing_s22:
+    raise KeyError(f"Missing snapshot cols. s9 missing: {missing_s9[:6]} | s22 missing: {missing_s22[:6]}")
+
+# -------------------------
+# 0) FILTER TO COMPLETE SNAPSHOTS (fix conceded ends / NaNs)
+# -------------------------
+n0 = len(team_end_valid)
+team_end = team_end_valid.dropna(subset=S9 + S22).copy()
+dropped = n0 - len(team_end)
+
+# Optional: report drop rate
+print(f"team_end_valid rows: {n0:,} | kept complete (s9+s22) rows: {len(team_end):,} | dropped: {dropped:,}")
+
+# -------------------------
+# 1) FAST MATRIX BUILDERS
+# -------------------------
+def build_xy(df: pd.DataFrame, suffix: str) -> tuple[np.ndarray, np.ndarray]:
+    x_cols = [f"stone_{i}_x_{suffix}" for i in range(1, 13)]
+    y_cols = [f"stone_{i}_y_{suffix}" for i in range(1, 13)]
+    X = df[x_cols].to_numpy(dtype=float, copy=False)
+    Y = df[y_cols].to_numpy(dtype=float, copy=False)
+    return X, Y
+
+def in_play_mask(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
+    """
+    In play if:
+      - finite coords
+      - not (0,0) [not yet thrown]
+      - not off-sheet (4095 in either coord)
+    """
+    finite = np.isfinite(X) & np.isfinite(Y)
+    not_thrown = (X == 0) & (Y == 0)
+    off_sheet = (X == 4095) | (Y == 4095)
+    return finite & (~not_thrown) & (~off_sheet)
+
+def team_block_mask(df: pd.DataFrame, which: str) -> np.ndarray:
+    """
+    Returns boolean vector: True means use stones 1-6; False means use stones 7-12.
+    Ownership assumption: team_id1->1..6, team_id2->7..12.
+    which='team' => focal team, which='opp' => opponent.
+    """
+    if which not in {"team", "opp"}:
+        raise ValueError("which must be 'team' or 'opp'")
+    team_is_team1 = (df["team_id"].to_numpy() == df["team_id1"].to_numpy())
+    return team_is_team1 if which == "team" else ~team_is_team1
+
+def take_block(X: np.ndarray, Y: np.ndarray, P: np.ndarray, use_1to6: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Slice stones for each row to a (n,6) block based on use_1to6.
+    """
+    use_1to6 = np.asarray(use_1to6, dtype=bool)
+    X_out = X[:, :6].copy()
+    Y_out = Y[:, :6].copy()
+    P_out = P[:, :6].copy()
+
+    m = ~use_1to6
+    X_out[m] = X[m, 6:12]
+    Y_out[m] = Y[m, 6:12]
+    P_out[m] = P[m, 6:12]
+    return X_out, Y_out, P_out
+
+# -------------------------
+# 2) COMPONENTS -> SCORE
+# -------------------------
+def compute_score(df: pd.DataFrame, suffix: str, which: str) -> np.ndarray:
+    Xall, Yall = build_xy(df, suffix)
+    Pall = in_play_mask(Xall, Yall)
+
+    use_1to6 = team_block_mask(df, which)
+    Xt, Yt, Pt = take_block(Xall, Yall, Pall, use_1to6)
+
+    # --- HouseThreat ---
+    d = np.sqrt((Xt - BUTTON_X) ** 2 + (Yt - BUTTON_Y) ** 2)
+    ht = np.exp(-d / TAU)
+    ht[~Pt] = 0.0
+    house = ht.sum(axis=1)
+
+    # --- GuardPresence (team-owned obstruction near center/front) ---
+    in_guard = (
+        Pt
+        & (np.abs(Xt - CENTER_X) <= GUARD_X_HALF)
+        & (Yt >= GUARD_Y_MIN) & (Yt <= GUARD_Y_MAX)
+    )
+    w_guard = (
+        np.exp(-np.abs(Xt - CENTER_X) / GUARD_X_SCALE)
+        * np.exp(-np.abs(Yt - GUARD_Y_CENTER) / GUARD_Y_SCALE)
+    )
+    w_guard[~in_guard] = 0.0
+    guard = w_guard.sum(axis=1)
+
+    # --- PPSideControl (simple count in guard band on PP side; 0 if no PP) ---
+    pp_side = df["pp_side_end"].fillna("").astype(str).to_numpy()
+    in_band = Pt & (Yt >= GUARD_Y_MIN) & (Yt <= GUARD_Y_MAX)
+
+    right_ct = (in_band & (Xt > CENTER_X)).sum(axis=1).astype(float)
+    left_ct  = (in_band & (Xt < CENTER_X)).sum(axis=1).astype(float)
+
+    ppside = np.zeros(len(df), dtype=float)
+    is_right = (pp_side == "right")
+    is_left  = (pp_side == "left")
+    ppside[is_right] = right_ct[is_right]
+    ppside[is_left]  = left_ct[is_left]
+
+    # --- LaneCongestion (all stones in narrow center lane, from button to hog) ---
+    in_lane = (
+        Pall
+        & (np.abs(Xall - CENTER_X) <= LANE_X_HALF)
+        & (Yall >= LANE_Y_MIN) & (Yall <= LANE_Y_MAX)
+    )
+    lane = in_lane.sum(axis=1).astype(float)
+
+    score = (
+        W_HOUSE * house
+        + W_GUARD * guard
+        + W_PPSIDE * ppside
+        - W_LANE * lane
+    )
+    return score
+```
+
+We use the functions to merge on these new indeces.
+Now, every team end unit is "scored."
+
+```{python}
+# -------------------------
+# 3) BUILD SCORES + BEHAVIOR AXES
+# -------------------------
+out = team_end.copy()
+
+out["score_team_9"]  = compute_score(out, "s9",  "team")
+out["score_team_22"] = compute_score(out, "s22", "team")
+out["score_opp_9"]   = compute_score(out, "s9",  "opp")
+out["score_opp_22"]  = compute_score(out, "s22", "opp")
+
+out["offense"] = out["score_team_22"] - out["score_team_9"]
+out["defense"] = out["score_opp_9"]   - out["score_opp_22"]
+
+# -------------------------
+# 4) SANITY CHECKS (fast)
+# -------------------------
+print("corr(offense, defense) =", out[["offense", "defense"]].corr().iloc[0,1])
+print("max |score_team_9 - score_opp_9| =", float((out["score_team_9"] - out["score_opp_9"]).abs().max()))
+print("max |score_team_22 - score_opp_22| =", float((out["score_team_22"] - out["score_opp_22"]).abs().max()))
+```
+
+```{python}
+# 1) Any remaining NaNs in score/behavior?
+out[["score_team_9","score_team_22","score_opp_9","score_opp_22","offense","defense"]].isna().mean()
+
+# 2) Confirm snapshot columns are fully present (should be 0 after drop)
+S9 = [f"stone_{i}_{a}_s9" for i in range(1,13) for a in ("x","y")]
+S22 = [f"stone_{i}_{a}_s22" for i in range(1,13) for a in ("x","y")]
+(out[S9+S22].isna().sum().sum(), out.shape)
+
+# 3) Check duplicates in the analysis unit (should be 1 row per match/end/team)
+out.duplicated(subset=["match_id","end_id","team_id"]).sum()
+```
+
+```{python}
+def stone_state_counts(df, suffix):
+    X = df[[f"stone_{i}_x_{suffix}" for i in range(1,13)]].to_numpy(float)
+    Y = df[[f"stone_{i}_y_{suffix}" for i in range(1,13)]].to_numpy(float)
+
+    finite = np.isfinite(X) & np.isfinite(Y)
+    not_thrown = finite & (X==0) & (Y==0)
+    off_sheet = finite & ((X==4095) | (Y==4095))
+    in_play = finite & (~not_thrown) & (~off_sheet)
+
+    return pd.Series({
+        "finite_share": finite.mean(),
+        "not_thrown_share": not_thrown.mean(),
+        "off_sheet_share": off_sheet.mean(),
+        "in_play_share": in_play.mean(),
+        "weird_share": (finite & ~(not_thrown|off_sheet|in_play)).mean()
+    })
+
+pd.DataFrame({
+    "s9": stone_state_counts(out, "s9"),
+    "s22": stone_state_counts(out, "s22")
+})
+```
+
+```{python}
+# 1) How often are team and opp scores identical? (should be ~0)
+((out["score_team_9"] == out["score_opp_9"]).mean(),
+ (out["score_team_22"] == out["score_opp_22"]).mean())
+
+# 2) Distribution of absolute differences (should not be near-zero mass)
+(out["score_team_9"] - out["score_opp_9"]).abs().describe(percentiles=[.01,.05,.1,.25,.5,.75,.9,.95,.99])
+```
+
+
+We need component diagnostics for how the zones and weights behave for the scoring.
+This function computes and stores the components for one snapshot, then compares
+powerplay vs non powerplay and s9 vs s22.
+
+```{python}
+def compute_components(df: pd.DataFrame, suffix: str, which: str) -> pd.DataFrame:
+    Xall = df[[f"stone_{i}_x_{suffix}" for i in range(1,13)]].to_numpy(float)
+    Yall = df[[f"stone_{i}_y_{suffix}" for i in range(1,13)]].to_numpy(float)
+    finite = np.isfinite(Xall) & np.isfinite(Yall)
+    not_thrown = finite & (Xall==0) & (Yall==0)
+    off_sheet = finite & ((Xall==4095) | (Yall==4095))
+    Pall = finite & (~not_thrown) & (~off_sheet)
+
+    team_is_team1 = (df["team_id"].to_numpy() == df["team_id1"].to_numpy())
+    use_1to6 = team_is_team1 if which=="team" else ~team_is_team1
+
+    # take block
+    Xt = Xall[:, :6].copy(); Yt = Yall[:, :6].copy(); Pt = Pall[:, :6].copy()
+    m = ~use_1to6
+    Xt[m] = Xall[m, 6:12]; Yt[m] = Yall[m, 6:12]; Pt[m] = Pall[m, 6:12]
+
+    # House
+    d = np.sqrt((Xt - BUTTON_X)**2 + (Yt - BUTTON_Y)**2)
+    ht = np.exp(-d/TAU); ht[~Pt] = 0.0
+    house = ht.sum(axis=1)
+
+    # Guard
+    in_guard = Pt & (np.abs(Xt-CENTER_X)<=GUARD_X_HALF) & (Yt>=GUARD_Y_MIN) & (Yt<=GUARD_Y_MAX)
+    w_guard = np.exp(-np.abs(Xt-CENTER_X)/GUARD_X_SCALE) * np.exp(-np.abs(Yt-GUARD_Y_CENTER)/GUARD_Y_SCALE)
+    w_guard[~in_guard] = 0.0
+    guard = w_guard.sum(axis=1)
+
+    # PPSide
+    pp_side = df["pp_side_end"].fillna("").astype(str).to_numpy()
+    in_band = Pt & (Yt>=GUARD_Y_MIN) & (Yt<=GUARD_Y_MAX)
+    right_ct = (in_band & (Xt>CENTER_X)).sum(axis=1).astype(float)
+    left_ct  = (in_band & (Xt<CENTER_X)).sum(axis=1).astype(float)
+    ppside = np.zeros(len(df), float)
+    ppside[pp_side=="right"] = right_ct[pp_side=="right"]
+    ppside[pp_side=="left"]  = left_ct[pp_side=="left"]
+
+    # Lane (all stones)
+    in_lane = Pall & (np.abs(Xall-CENTER_X)<=LANE_X_HALF) & (Yall>=LANE_Y_MIN) & (Yall<=LANE_Y_MAX)
+    lane = in_lane.sum(axis=1).astype(float)
+
+    return pd.DataFrame({"house": house, "guard": guard, "ppside": ppside, "lane": lane})
+```
+
+Now, we can observe the outputs:
+
+```{python}
+comp9 = compute_components(out, "s9", "team")
+comp22 = compute_components(out, "s22", "team")
+
+# 1) Are components non-degenerate?
+comp9.describe()
+comp22.describe()
+
+# 2) Do they evolve from 9->22? (should, generally)
+(comp22 - comp9).describe()
+
+# 3) Do PP ends look different in components? (directional check)
+out_pp = out["pp_used_end"] if "pp_used_end" in out.columns else (out["pp_side_end"].isin(["left","right"]))
+pd.concat([
+    comp9.assign(t="s9").groupby(out_pp)[["house","guard","ppside","lane"]].mean().rename_axis("pp"),
+    comp22.assign(t="s22").groupby(out_pp)[["house","guard","ppside","lane"]].mean().rename_axis("pp"),
+], keys=["s9","s22"])
+```
+
+This code checks to make sure that no single weight is dominating the metrics, otherwise
+it should be adjusted.
+
+```{python}
+comp22 = compute_components(out, "s22", "team")
+weighted = pd.DataFrame({
+    "W_house*house": W_HOUSE * comp22["house"],
+    "W_guard*guard": W_GUARD * comp22["guard"],
+    "W_ppside*ppside": W_PPSIDE * comp22["ppside"],
+    "-W_lane*lane": -W_LANE * comp22["lane"],
+})
+weighted.abs().mean().sort_values(ascending=False)
+```
+
+====================== 
+Below is a quick visual detailing the selected geometric zones.
+
+```{python}
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle, Circle
+# unit inference:
+# Source: back line is 6 ft (1.829 m) from tee line; tee line runs through the button.
+button_y - backline_y = 600 units => 100 units per foot.
+units_per_foot = (BUTTON_Y - BACKLINE_Y) / 6.0
+foot_per_unit = 1.0 / units_per_foot
+
+print(f"Inferred scale (assuming regulation geometry): {units_per_foot:.2f} units/ft  (~{foot_per_unit:.4f} ft/unit)")
+print(f"TAU = {TAU} units ≈ {TAU/units_per_foot:.2f} ft")
+
+# house rings (12', 8', 4' diameters => radii 6', 4', 2') ----
+r_outer = 6.0 * units_per_foot  # 12-foot circle radius
+r_mid   = 4.0 * units_per_foot  # 8-foot circle radius
+r_inner = 2.0 * units_per_foot  # 4-foot circle radius
+
+# ---- Plot bounds (adjust if you want full sheet) ----
+x_min, x_max = 0, 1500
+y_min, y_max = 0, 3200
+
+fig, ax = plt.subplots(figsize=(7, 10))
+
+# Lines
+ax.axvline(CENTER_X, linewidth=1, linestyle="--", label="Centerline x=750")
+ax.axhline(BACKLINE_Y, linewidth=1, linestyle="-.", label="Backline y=200")
+ax.axhline(HOGLINE_Y, linewidth=1, linestyle="-.", label="Hogline y=2900")
+
+# Button
+ax.scatter([BUTTON_X], [BUTTON_Y], s=60, marker="x", label="Button (750,800)")
+
+# Tau circle around button
+ax.add_patch(Circle((BUTTON_X, BUTTON_Y), TAU, fill=False, linewidth=1.5, linestyle="--", label=f"Tau radius = {TAU} units"))
+
+# Guard corridor rectangle
+guard_rect = Rectangle(
+    (CENTER_X - GUARD_X_HALF, GUARD_Y_MIN),
+    2*GUARD_X_HALF,
+    GUARD_Y_MAX - GUARD_Y_MIN,
+    fill=False,
+    linewidth=2,
+    linestyle="-",
+    label="Guard corridor"
+)
+ax.add_patch(guard_rect)
+
+# Lane corridor rectangle
+lane_rect = Rectangle(
+    (CENTER_X - LANE_X_HALF, LANE_Y_MIN),
+    2*LANE_X_HALF,
+    LANE_Y_MAX - LANE_Y_MIN,
+    fill=False,
+    linewidth=2,
+    linestyle=":",
+    label="Lane corridor"
+)
+ax.add_patch(lane_rect)
+
+# Optional house rings (inferred)
+ax.add_patch(Circle((BUTTON_X, BUTTON_Y), r_outer, fill=False, linewidth=1.5, label="House outer (12-ft) inferred"))
+ax.add_patch(Circle((BUTTON_X, BUTTON_Y), r_mid,   fill=False, linewidth=1.0, linestyle="--", label="House 8-ft inferred"))
+ax.add_patch(Circle((BUTTON_X, BUTTON_Y), r_inner, fill=False, linewidth=1.0, linestyle="--", label="House 4-ft inferred"))
+
+# Formatting
+ax.set_xlim(x_min, x_max)
+ax.set_ylim(y_max, y_min)  # invert y so "backline" appears near top like a sheet view; remove if you dislike
+ax.set_xlabel("x (data units)")
+ax.set_ylabel("y (data units)")
+ax.set_title("Curling Sheet Geometry + Scoring Corridors (Data Units)")
+ax.legend(loc="lower right", fontsize=9)
+ax.grid(True, linewidth=0.5, alpha=0.4)
+
+plt.tight_layout()
+plt.show()
+```
+

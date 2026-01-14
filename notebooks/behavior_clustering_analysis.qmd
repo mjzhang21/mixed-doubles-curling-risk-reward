@@ -1,0 +1,331 @@
+---
+title: "Behavior Hypotheses: Follow-up Tests"
+author: "Alejandro Haerter"
+date: "2026-01-01"
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    number-sections: true
+    geometry: margin=1in
+    fontsize: 11pt
+---
+
+# Overview
+
+This notebook completes the remaining hypothesis tests from `behavior.qmd`,
+using the same intent-label construction as `behavior_classes.qmd`. The goal
+is to test power play timing, intent vs end outcomes during power play, and
+context dependence (score state vs behavior).
+
+# Load Data
+
+```{python}
+import numpy as np
+import pandas as pd
+from sklearn.mixture import GaussianMixture
+from sklearn.preprocessing import StandardScaler
+
+df = pd.read_csv("../data/stones_master_1.csv")
+```
+
+# Build End-Level Intent Labels (Same as behavior_classes.qmd)
+
+```{python}
+rename_map = {
+    "MatchID": "match_id",
+    "EndID": "end_id",
+    "TeamID": "team_id",
+    "ShotID": "shot_id",
+    "Task": "task",
+    "PowerPlay": "powerplay",
+    "HasHammer_C": "has_hammer",
+    "PreEndScoreDiff": "pre_end_score_diff",
+    "Result": "result",
+}
+for old, new in rename_map.items():
+    if old in df.columns and new not in df.columns:
+        df.rename(columns={old: new}, inplace=True)
+
+df["powerplay"] = df["powerplay"].fillna(0).astype(int)
+df["has_hammer"] = df["has_hammer"].fillna(0).astype(int)
+df["pre_end_score_diff"] = pd.to_numeric(df["pre_end_score_diff"], errors="coerce")
+df["result"] = pd.to_numeric(df["result"], errors="coerce")
+
+offensive_tasks = {0, 1, 2, 3, 5, 7}
+defensive_tasks = {4, 6, 8, 9, 10, 11}
+neutral_tasks = {13, -1}
+
+df["task_group"] = np.select(
+    [
+        df["task"].isin(offensive_tasks),
+        df["task"].isin(defensive_tasks),
+        df["task"].isin(neutral_tasks),
+    ],
+    ["offensive", "defensive", "neutral"],
+    default="neutral",
+)
+
+# MFGZ split: first three shots early, remaining seven late.
+early_ids = {7, 8, 9}
+late_ids = {16, 17, 18, 19, 20, 21, 22}
+
+df["phase"] = np.where(
+    df["shot_id"].isin(early_ids),
+    "early",
+    np.where(df["shot_id"].isin(late_ids), "late", "other"),
+)
+
+keys = ["match_id", "end_id", "team_id"]
+
+df_phase = df[df["phase"] != "other"].copy()
+phase_counts = (
+    df_phase.groupby(keys + ["phase", "task_group"])
+    .size()
+    .reset_index(name="n")
+)
+phase_counts["col"] = phase_counts["phase"] + "_" + phase_counts["task_group"]
+phase_pivot = phase_counts.pivot_table(
+    index=keys, columns="col", values="n", fill_value=0, aggfunc="sum"
+).reset_index()
+
+for col in [
+    "early_offensive", "early_defensive", "early_neutral",
+    "late_offensive", "late_defensive", "late_neutral",
+]:
+    if col not in phase_pivot.columns:
+        phase_pivot[col] = 0
+
+phase_pivot["early_total"] = phase_pivot[
+    ["early_offensive", "early_defensive", "early_neutral"]
+].sum(axis=1)
+phase_pivot["late_total"] = phase_pivot[
+    ["late_offensive", "late_defensive", "late_neutral"]
+].sum(axis=1)
+
+for phase in ["early", "late"]:
+    total = phase_pivot[f"{phase}_total"].replace(0, np.nan)
+    for label in ["offensive", "defensive", "neutral"]:
+        phase_pivot[f"{phase}_{label}_rate"] = (
+            phase_pivot[f"{phase}_{label}"] / total
+        )
+
+context = (
+    df.groupby(keys, as_index=False)
+    .agg(
+        powerplay_value=("powerplay", "max"),
+        has_hammer=("has_hammer", "max"),
+        pre_end_score_diff=("pre_end_score_diff", "first"),
+        result=("result", "first"),
+    )
+)
+context["powerplay_by_team"] = context["powerplay_value"].fillna(0).astype(int).ne(0)
+
+powerplay_end = (
+    df.groupby(["match_id", "end_id"], as_index=False)["powerplay"]
+    .max()
+    .rename(columns={"powerplay": "powerplay_value_end"})
+)
+powerplay_end["powerplay_used_end"] = powerplay_end["powerplay_value_end"].fillna(0).astype(int).ne(0)
+
+end_features = phase_pivot.merge(context, on=keys, how="left", validate="one_to_one")
+end_features = end_features.merge(
+    powerplay_end[["match_id", "end_id", "powerplay_used_end"]],
+    on=["match_id", "end_id"],
+    how="left",
+    validate="many_to_one",
+)
+rate_cols = [c for c in end_features.columns if c.endswith("_rate")]
+end_features[rate_cols] = end_features[rate_cols].fillna(0)
+
+end_features["intent"] = np.where(
+    end_features["late_offensive_rate"] >= end_features["late_defensive_rate"],
+    "offensive",
+    "defensive",
+)
+```
+
+# Cluster Labels (Same features as behavior_classes.qmd)
+
+```{python}
+cluster_feature_cols = [
+    "early_offensive_rate",
+    "early_defensive_rate",
+    "late_offensive_rate",
+    "late_defensive_rate",
+    "pre_end_score_diff",
+    "has_hammer",
+]
+
+X = end_features[cluster_feature_cols].copy().fillna(0)
+X["has_hammer"] = X["has_hammer"].astype(int)
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# GMM model selection via BIC (k=2..6).
+gmm_grid = []
+for k in range(2, 7):
+    gmm_k = GaussianMixture(n_components=k, covariance_type="full", random_state=42)
+    gmm_k.fit(X_scaled)
+    gmm_grid.append({
+        "k": k,
+        "bic": gmm_k.bic(X_scaled),
+        "aic": gmm_k.aic(X_scaled),
+    })
+
+gmm_table = pd.DataFrame(gmm_grid).sort_values("bic")
+best_k = int(gmm_table.iloc[0]["k"])
+gmm = GaussianMixture(n_components=best_k, covariance_type="full", random_state=42)
+end_features["cluster_gmm"] = gmm.fit_predict(X_scaled)
+
+cluster_means = (
+    end_features.groupby("cluster_gmm")[
+        ["early_offensive_rate", "early_defensive_rate", "late_offensive_rate", "late_defensive_rate"]
+    ]
+    .mean()
+)
+cluster_intents = cluster_means.apply(
+    lambda row: "offensive" if row["late_offensive_rate"] >= row["late_defensive_rate"] else "defensive",
+    axis=1,
+)
+end_features["cluster_intent_gmm"] = end_features["cluster_gmm"].map(cluster_intents)
+```
+
+# H2: Power Play Timing vs Score Differential
+
+Power play should be used more often when the hammer team is trailing or within
+one point, compared to leading by two or more.
+
+```{python}
+hammer_rows = end_features[end_features["has_hammer"] == 1].copy()
+hammer_rows["close_or_trailing"] = hammer_rows["pre_end_score_diff"] <= 1
+
+pp_rate_simple = (
+    hammer_rows.groupby("close_or_trailing")["powerplay_by_team"]
+    .mean()
+    .rename("pp_rate")
+    .reset_index()
+)
+pp_rate_simple
+```
+
+```{python}
+def score_bucket(diff):
+    if pd.isna(diff):
+        return "missing"
+    if diff <= -2:
+        return "trail_2plus"
+    if diff == -1:
+        return "trail_1"
+    if diff == 0:
+        return "tied"
+    if diff == 1:
+        return "lead_1"
+    return "lead_2plus"
+
+hammer_rows["score_bucket"] = hammer_rows["pre_end_score_diff"].apply(score_bucket)
+pp_rate_buckets = (
+    hammer_rows.groupby("score_bucket")["powerplay_by_team"]
+    .mean()
+    .reset_index()
+    .sort_values("score_bucket")
+)
+pp_rate_buckets
+```
+
+# H3: Behavior vs End Points During Power Play
+
+Within power play ends, higher late-offense should align with higher hammer-team
+end points, while higher late-defense should align with lower variance.
+
+```{python}
+pp_hammer = hammer_rows[hammer_rows["powerplay_used_end"]].copy()
+
+pp_hammer[["late_offensive_rate", "result"]].corr(method="spearman")
+```
+
+```{python}
+pp_hammer[["late_defensive_rate", "result"]].corr(method="spearman")
+```
+
+```{python}
+pp_hammer["def_rate_bin"] = pd.qcut(
+    pp_hammer["late_defensive_rate"],
+    q=4,
+    duplicates="drop",
+)
+
+pp_def_variance = (
+    pp_hammer.groupby("def_rate_bin")["result"]
+    .agg(["count", "mean", "var"])
+    .reset_index()
+)
+pp_def_variance
+```
+
+# H4: Context Dependence (PP vs Non-PP)
+
+If context matters more outside of power play, the correlation between score
+differential and late-phase behavior should be stronger in non-PP ends.
+
+```{python}
+def corr_by_flag(frame, flag_value):
+    subset = frame[frame["powerplay_used_end"] == flag_value]
+    return {
+        "late_offense_corr": subset["pre_end_score_diff"].corr(
+            subset["late_offensive_rate"], method="spearman"
+        ),
+        "late_defense_corr": subset["pre_end_score_diff"].corr(
+            subset["late_defensive_rate"], method="spearman"
+        ),
+    }
+
+corr_pp = corr_by_flag(end_features, True)
+corr_nonpp = corr_by_flag(end_features, False)
+
+pd.DataFrame([corr_nonpp, corr_pp], index=["non_pp", "pp"])
+```
+
+# NHT Behavior During Power Play
+
+Describe non-hammer team response by comparing intent shares during PP vs non-PP ends.
+
+```{python}
+nht_rows = end_features[end_features["has_hammer"] == 0].copy()
+
+nht_rule_shift = pd.crosstab(
+    nht_rows["intent"],
+    nht_rows["powerplay_used_end"],
+    normalize="columns",
+)
+nht_rule_shift
+```
+
+```{python}
+nht_cluster_shift = pd.crosstab(
+    nht_rows["cluster_intent_gmm"],
+    nht_rows["powerplay_used_end"],
+    normalize="columns",
+)
+nht_cluster_shift
+```
+
+# Summary Notes (Fill in After Run)
+
+- **H2 (PP timing vs score diff):** Not supported. Hammer PP use is higher when
+  leading by >1 (0.307) than when close/trailing (0.217). By buckets, PP use is
+  lowest when tied (0.113) and higher when leading 2+ (0.307) or trailing 2+
+  (0.293), suggesting PP is least used in neutral states.
+- **H3 (behavior vs PP end points):** Not supported. Spearman correlations between
+  late-offense and result (‑0.019) and late-defense and result (‑0.006) are near
+  zero. Defensive-rate bins do not show a monotonic drop in variance; the highest
+  variance is in the 0.5–0.75 bin (var≈3.98), and the most defensive bin has lower
+  variance (var≈1.49) but small n=49.
+- **H4 (context dependence):** Not supported. Context dependence is stronger in PP
+  ends: pre-end score diff correlates with late offense at ‑0.444 (PP) vs 0.074
+  (non‑PP), and with late defense at 0.448 (PP) vs ‑0.058 (non‑PP). This suggests
+  score state shapes late-phase behavior more during PP, not less.
+- **NHT response:** Strong defensive shift in PP. Rule-based NHT defensive share
+  rises from 0.156 (non‑PP) to 0.452 (PP). GMM labels (k=6) show an even stronger
+  shift: defensive share rises from 0.421 to 0.749.

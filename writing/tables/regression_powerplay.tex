@@ -1,0 +1,24 @@
+\begin{table}[t]
+  \centering
+  \caption{Power play effects on late-phase behavior index}
+  \label{tab:pp_regression}
+  \begin{tabular}{lccc}
+    \hline
+    & Main & LateA & LateB \\
+    \hline
+    PP caller & 0.068** & 0.128*** & 0.009 \\
+    & (0.030) & (0.038) & (0.038) \\
+    PP non-caller & 0.449*** & 0.516*** & 0.414*** \\
+    & (0.035) & (0.046) & (0.043) \\
+    \hline
+    N & 5,274 & 5,274 & 5,274 \\
+    R$^2$ & 0.232 & 0.221 & 0.161 \\
+    End FE & Yes & Yes & Yes \\
+    Team FE & Yes & Yes & Yes \\
+    Match FE & Yes & Yes & Yes \\
+    \hline
+  \end{tabular}
+  \begin{flushleft}
+  \footnotesize Notes: Cluster-robust standard errors at the match level in parentheses. $^{*}$ $p<0.10$, $^{**}$ $p<0.05$, $^{***}$ $p<0.01$.
+  \end{flushleft}
+\end{table}
