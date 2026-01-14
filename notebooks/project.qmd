@@ -11,6 +11,15 @@ format:
     fontsize: 11pt
 ---
 
+# Overview
+
+This notebook was originally for class project for Introduction to Data Science.
+It primarily contains steps for data cleaning as well as histograms to visualize
+important variables Basic exploration and binary classification was used to
+identify important features and predict whether a steal occured in an end
+
+# Data Wrangling
+
 ```{python}
 import pandas as pd
 import numpy as np
@@ -69,6 +78,8 @@ df.info()
 ```{python}
 df.isnull().sum()
 ```
+
+Create frequency tables for categorical variables
 
 ```{python}
 categorical_cols = [
@@ -207,6 +218,8 @@ print(df_invalid_shots)
 df.loc[25375, ["team_id", "result"]] = [37, 1]
 ```
 
+Plot the average score per end
+
 ```{python}
 import matplotlib.pyplot as plt
 
@@ -217,6 +230,8 @@ plt.xlabel("End")
 plt.ylabel("Average Points")
 plt.show()
 ```
+
+There are a disproportionate score amount in end 8
 
 ```{python}
 df[df["result"] >5][["match_id","end_id","result"]]
@@ -294,6 +309,8 @@ All the stone coordinates are in range
 df.info()
 ```
 
+Recreate frequency tables
+
 ```{python}
 categorical_cols = [
     'competition_id',
@@ -359,7 +376,7 @@ for (mid, eid), game in df_match.groupby(['match_id', 'end_id']):
         break
 ```
 
-EXPLORATION
+# Exploration
 
 We will explore the different types of shots "0": "Draw" "1": "Front" "2":
 "Guard" "3": "Raise / Tap-back" "4": "Wick / Soft Peeling" "5": "Freeze" "6":
@@ -400,7 +417,9 @@ plt.xlabel('Point')
 plt.ylabel('Frequency')
 ```
 
-Logistic Regression Outcome Variable: Steal
+# Modelling Logistic Regression
+
+Create the steal variable if nonhammer team scores more than 0.
 
 ```{python}
 df_non_hammer = df[df['hammer'] == 0].copy()
@@ -424,6 +443,8 @@ df_non_hammer = df_non_hammer.merge(
 
 ```
 
+Check end counts
+
 ```{python}
 freq_table = df['end_id'].value_counts().reset_index()
 freq_table.columns = ['end_id', 'Frequency']
@@ -437,6 +458,8 @@ plt.xlabel('end_id')
 plt.ylabel('Frequency')
 
 ```
+
+Plot average score for both teams by end
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -466,6 +489,10 @@ ax.set_xticks(ends)
 ax.legend()
 plt.show()
 ```
+
+Hammer team scores a lot more in later ends and in general.
+
+Plot the result split by nonhammer and hammer team
 
 ```{python}
 end_df = (
@@ -518,6 +545,10 @@ ax.legend()
 plt.show()
 
 ```
+
+Hammer team hits more multipoint ends
+
+Create heatmap for types of shots hit
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -601,6 +632,10 @@ plt.show()
 
 ```
 
+Hammer team hits more takeouts, non-hammer team htis more guards
+
+See which rows have less shots than 10, indicating a forfeit or other issues.
+
 ```{python}
 group_cols = ['match_id', 'end_id']
 shots_per_group = df.groupby(group_cols)['shot_id'].count().reset_index()
@@ -646,6 +681,8 @@ plt.ylabel('Frequency')
 
 ```
 
+Create Histogram for Steal
+
 ```{python}
 # Only non-hammer ends
 non_hammer_ends = df[df['hammer'] == 0]
@@ -663,9 +700,15 @@ team_agg_sorted = team_agg.sort_values(
 print(team_agg_sorted.head(10))
 ```
 
+Steal occurs around 30% of the time
+
 ```{python}
 df = df[df.groupby(['match_id','end_id'])['hammer'].transform('nunique') == 2]
 ```
+
+Create several variables that describe spatial position of the coordinates, as
+well as type of shot hit. For example, minimum distance to the button and guard
+count.
 
 ```{python}
 BUTTON_X, BUTTON_Y = 750, 800
@@ -806,6 +849,11 @@ end_features.head()
 
 ```
 
+Put as features differences between hammer and non hammer type of shots. Also
+include differences between average, max, min, standard deviation distance from
+the button. Steal is the binary outcome variable. Logistic Regression, Random
+Forest and XGBoost are tested.
+
 ```{python}
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -918,6 +966,13 @@ for name, clf in classifiers.items():
 
 ```
 
+Logistic F1 score has a weighted average of .66. Top features include takeout
+difference, guard difference and draw difference. Takeout difference is
+negatively associated with a steal and Guard difference is positively associated
+with a steal. When the hammer team hits more guards and draws than the
+non-hammer team it increases the odds of a steal. When the hammer team more
+takeouts than the non-hammer team it decreases the odds of a steal.
+
 ```{python}
 import shap
 
@@ -941,3 +996,6 @@ shap_values = explainer(X_test, check_additivity=False)
 shap.summary_plot(shap_values, X_test)
 
 ```
+
+Shap plots help verify Random forest and XGBoost features have about the same
+impact as logistic regression.
