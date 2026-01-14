@@ -194,13 +194,20 @@ We see that powerplay occurs in [insert Table]
 \section{Methodology}
 \subsection{Power Play and Late-Phase Shot Selection - Methodology}
 
-Our behavioral analysis is conducted at the team-end level, which
-creates a paired structure within each end and allows a direct comparison
-between the power play caller and the opponent. We focus on the late
-phase of the end (the final seven deliveries) because early shots are
-heavily constrained by the Modified Free Guard Zone and the pre-placed
-stones. Late shots therefore provide the clearest window into strategic
-choice rather than rule-driven necessity.
+Conceptually, we define behavior as offensive, defensive, or probing
+(opportunistic). These behaviors can appear tactically within a single end
+(shot-to-shot choices) and strategically across ends (an intended end goal or
+game plan). Because probing behavior is inherently reactive and not uniquely
+encoded in the task labels, we treat neutral or ambiguous shots as the closest
+empirical proxy for probing in this analysis.
+
+Our behavioral analysis is conducted at the team-end level, which creates a
+paired structure within each end and allows a direct comparison between the
+power play caller and the opponent. We focus on the late phase of the end
+(the final seven deliveries) because early shots are heavily constrained by
+the Modified Free Guard Zone and the pre-placed stones. Late shots therefore
+provide the clearest window into strategic choice rather than rule-driven
+necessity.
 
 Behavior is operationalized through shot selection, using the task labels
 assigned by analysts. We group tasks into offensive placements (draws,
@@ -212,33 +219,33 @@ shot level. Position-based intent would require model-driven inference and
 introduce a second layer of assumptions, so we treat shot selection as the
 observable behavioral signal and reserve positional data for validation.
 
-Power play exposure is assigned at both the end and team-end levels. An
-end is marked as a power play end if either team uses its power play, and
-within such ends we identify the caller and the non-caller. This yields a
-three-category comparison group: non-power-play ends, power-play callers,
-and power-play non-callers. Each team-end is also annotated with hammer
-status, pre-end score differential, end number, team identity, and match
-identity to control for state and repeated context.
+Power play exposure is assigned at both the end and team-end levels. An end is
+marked as a power play end if either team uses its power play, and within such
+ends we identify the caller and the non-caller. This yields a three-category
+comparison group: non-power-play ends, power-play callers, and power-play
+non-callers. Each team-end is also annotated with hammer status, pre-end score
+differential, end number, team identity, and match identity to control for
+state and repeated context.
 
-For each team-end we compute late-phase shares of offensive, defensive,
-and neutral shots and define the behavior index as defensive share minus
-offensive share, where larger values indicate a more defensive profile.
-We also split the late phase into early-late (shots 16--18) and late-late
-(shots 19--22) to test timing mechanisms. Because hammer teams throw four
-late shots and non-hammer teams throw three, shares are in discrete
-increments; using shares standardizes exposure across teams and ends.
+For each team-end we compute late-phase shares of offensive, defensive, and
+neutral shots and define the behavior index as defensive share minus offensive
+share, where larger values indicate a more defensive profile. We also split
+the late phase into early-late (shots 16--18) and late-late (shots 19--22) to
+test timing mechanisms. Because hammer teams throw four late shots and non-
+hammer teams throw three, shares are in discrete increments; using shares
+standardizes exposure across teams and ends.
 
-The primary specification is fixed-effects OLS with clustering at the
-match level. Fixed effects for team and match absorb persistent strategy
-and match-specific conditions, while end fixed effects control for
-systematic end-of-game dynamics. This specification favors interpretability
-of the power play coefficients in share points and is conservative with
-respect to within-match correlation. Diagnostics include residual plots,
-Q--Q plots, and influence measures. As a validation, we test whether higher
-defensive shares correspond to more opponent stones removed during late
-shots, using the off-sheet sentinel to identify removals. Limitations
-include the discrete nature of the outcome, potential selection into power
-play usage, and reliance on task coding as a proxy for intent.
+The primary specification is fixed-effects OLS with clustering at the match
+level. Fixed effects for team and match absorb persistent strategy and match-
+specific conditions, while end fixed effects control for systematic end-of-
+game dynamics. This specification favors interpretability of the power play
+coefficients in share points and is conservative with respect to within-match
+correlation. Diagnostics include residual plots, Q--Q plots, and influence
+measures. As a validation, we test whether higher defensive shares correspond
+to more opponent stones removed during late shots, using the off-sheet sentinel
+to identify removals. Limitations include the discrete nature of the outcome,
+potential selection into power play usage, and reliance on task coding as a
+proxy for intent.
 
 Formally, the main model is:
 \[
@@ -349,6 +356,14 @@ shift for both teams, with a substantially larger and more persistent response
 from the non-caller.
 
 \input{tables/regression_powerplay.tex}
+
+To address team strategy profiles, Table~\ref{tab:team_profiles} reports
+descriptive late-phase behavior by team. These profiles summarize each team’s
+late-phase defensive share, offensive share, and behavior index, alongside
+power-play calling rate and hammer frequency. They are intended as descriptive
+benchmarks rather than causal estimates.
+
+\input{tables/team_strategy_profiles.tex}
 
 \subsection{First Shot NHT}
 The HDBSCAN clustering (minimum cluster size = 5, minimum samples = 5) produced
