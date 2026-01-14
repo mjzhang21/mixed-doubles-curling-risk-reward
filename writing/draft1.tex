@@ -240,6 +240,21 @@ shots, using the off-sheet sentinel to identify removals. Limitations
 include the discrete nature of the outcome, potential selection into power
 play usage, and reliance on task coding as a proxy for intent.
 
+Formally, the main model is:
+\[
+\begin{aligned}
+\text{behavior\_index}_{i e} =\; & \beta_0 + \beta_1 \text{PP\_caller}_{i e}
+ + \beta_2 \text{PP\_noncaller}_{i e} \\
+& + \beta_3 \text{has\_hammer}_{i e}
+ + \beta_4 \text{pre\_end\_score\_diff}_{i e} \\
+& + \alpha_e + \gamma_i + \delta_m + \varepsilon_{i e},
+\end{aligned}
+\]
+where $i$ indexes team-ends, $e$ indexes ends, and $m$ indexes matches.
+The omitted reference category is non-power-play ends, and standard errors
+are clustered at the match level. We estimate the same specification for
+the lateA and lateB timing splits.
+
 
 \subsection{First-shot Non-hammer Team Clustering}
 
@@ -300,42 +315,38 @@ compare playstyles in response to the powerplay.
 % [Power Play intent results; source: notebooks/behavior_classes.qmd]
 \subsection{Power Play and Late-Phase Shot Selection - Results}
 
-The late-phase sample contains 5,274 team-end rows (2,637 ends). Descriptively,
-non-power-play ends are strongly offensive: mean
-\texttt{def\_share\_late} is 0.295 while \texttt{off\_share\_late} is 0.690,
-yielding a mean \texttt{behavior\_index} of $-0.395$ (median $-0.500$). Power
-play ends shift toward defense for both teams. For PP callers,
-\texttt{def\_share\_late} rises to 0.426 and \texttt{off\_share\_late} falls to
-0.566, producing a mean \texttt{behavior\_index} of $-0.141$ (median 0.000).
-For PP non-callers, \texttt{def\_share\_late} is 0.455 and
-\texttt{off\_share\_late} is 0.540, with a mean \texttt{behavior\_index} of
-$-0.085$ (median $-0.333$). Thus, both teams become more defensive in power
-play ends, with the larger shift occurring for the opponent.
+Across the late-phase sample (5,274 team-ends), non-power-play ends are
+predominantly offensive. The mean defensive share is 0.295 while the offensive
+share is 0.690, yielding a mean behavior index of $-0.395$. Power-play ends
+shift toward defense for both teams. For callers, the defensive share rises to
+0.426 and the offensive share falls to 0.566 (behavior index $-0.141$). For
+non-callers, the defensive share is 0.455 and the offensive share is 0.540
+(behavior index $-0.085$). These descriptive contrasts show a clear defensive
+shift in power-play ends, with the larger shift occurring for the opponent.
 
-Score-state stratification shows that power play is rarely used when tied
-(0.113) and is more common when trailing or leading (0.265 each). Within PP
-ends, the caller becomes markedly more defensive when tied or leading
-(\texttt{def\_share\_late} 0.503 tied; 0.658 leading), while the non-caller is
-especially defensive when the caller is leading (\texttt{def\_share\_late}
-0.587). Timing splits support an early shift for the caller and a sustained
-shift for the non-caller: in lateA, defensive shares are 0.417 (caller) and
-0.457 (non-caller) versus 0.266 in non-PP ends; in lateB they are 0.434 and
-0.455 versus 0.314 in non-PP ends.
+Power play usage is concentrated in non-tied score states: it is used in 0.113
+of tied ends versus 0.265 when trailing or leading. Within power-play ends, the
+defensive shift is strongest in protective contexts. For example, when the
+caller is leading, the caller's defensive share rises to 0.658 and the
+non-caller's rises to 0.587. Timing splits show that the caller's adjustment
+appears early, while the non-caller remains defensive throughout: in lateA,
+defensive shares are 0.266 (non-PP), 0.417 (caller), and 0.457 (non-caller),
+and in lateB they are 0.314, 0.434, and 0.455, respectively.
 
-The fixed-effects regression confirms these patterns after controlling for
-hammer, score differential, end, team, and match (Table~\ref{tab:pp_regression}).
-Both PP caller and PP non-caller coefficients are positive and statistically
-significant in the main model, with the non-caller effect substantially larger.
-Timing models show the caller's shift concentrated early (lateA), while the
-non-caller remains defensive in both lateA and lateB. Diagnostics indicate
-no influential observations and a well-behaved residual pattern for this
-discrete outcome.
+The fixed-effects regression corroborates these descriptive patterns after
+controlling for hammer, score differential, end, team, and match
+(Table~\ref{tab:pp_regression}). In the main model, the PP caller coefficient
+is 0.068 ($p<0.05$) while the PP non-caller coefficient is 0.449
+($p<0.01$), indicating a much larger opponent response. Timing models show a
+caller effect in lateA (0.128, $p<0.01$) but not in lateB (0.009, $p=0.82$),
+while the non-caller remains strongly defensive in both lateA (0.516) and
+lateB (0.414).
 
-The positional validation supports the behavioral interpretation: the Spearman
-correlation between \texttt{def\_share\_late} and opponent stones removed late
-is 0.804. Together, the descriptive and controlled results indicate that power
-play ends induce a defensive shift for both teams, with a substantially larger
-and more persistent response from the non-caller.
+Positional validation strengthens the behavioral interpretation: the Spearman
+correlation between defensive share and opponent stones removed late is 0.804.
+Taken together, the results indicate that power-play ends induce a defensive
+shift for both teams, with a substantially larger and more persistent response
+from the non-caller.
 
 \input{tables/regression_powerplay.tex}
 
@@ -452,23 +463,46 @@ variation, while hammer-related outcomes were similar across groups.
 % alejandro: curling strategy says to enter with a game-plan game-plans for how
 % to use powerplay are not observed with this data. 
 
-% [Power Play intent findings; source: notebooks/behavior.qmd]
-\subsection{Power Play Intent Findings}
+% [Power Play intent findings; updated discussion of methods + results]
+\subsection{Power Play Behavior: Interpretation and Strategy}
 
-The core finding is that power play ends are \emph{more defensive} in the late
-phase, despite the rule's intent to open the sheet. The early phase is
-overwhelmingly offensive for both labels, which is consistent with the MFGZ
-constraint; the late phase is where intent diverges sharply. The defensive
-shift is not driven entirely by hammer-team behavior, which only shifts
-modestly, suggesting that non-hammer responses or end-level context are key
-drivers.
+Analysts describe the power play as a mechanism to clear the center of the
+sheet by moving the pre-placed stones to the side, which should make offense
+easier. At the same time, practitioner intuition (e.g., CurlTech and Rocks
+Across the Pond) suggests that teams often invoke the power play late and in a
+defensive posture. Our results reconcile these views. The late-phase behavior
+shift is decisively toward defense for both teams, and the non-caller’s shift
+is substantially larger and more persistent than the caller’s. This confirms
+the analysts’ intuition that power play does not simply amplify offense and, in
+practice, often corresponds to conservative late-phase shot selection. It also
+disconfirms the common expectation that the hammer team becomes more offensive
+in power play ends; the hammer-only shift is modest compared to the opponent’s
+response.
 
-Overall, the evidence supports the analysts' claim that power play does not
-simply increase offensive play and may even induce defensive behavior. The
-mechanism is likely contextual (score state, opponent response, or end timing),
-which motivates the planned hypothesis checks on score differential, end
-outcomes, and context dependence. See \texttt{notebooks/behavior.qmd} for the
-full interpretation block.
+The state dependence of usage supports a strategic interpretation. Power play
+is used much less when tied and more when teams are either trailing or leading,
+precisely the contexts in which variance management matters most. The cleared
+sheet lowers the cost of removal play and raises the risk of large swings, so
+both teams appear to prioritize control once takeouts are available. The
+caller’s early defensive adjustment is consistent with stabilizing the end,
+while the non-caller’s sustained defensive profile suggests a deliberate
+attempt to neutralize the caller’s positional leverage in open ice.
+
+These patterns translate into actionable guidance. For the hammer team, power
+play should be treated as a situational control tool rather than a guaranteed
+offensive boost. If the objective is to protect a lead, early defensive
+sequencing appears effective; if trailing, teams should anticipate a strong
+defensive counter and build scoring chances early before removal play dominates.
+For the non-hammer team, the evidence supports proactive disruption and removal
+as the default response, with a clear plan for when to transition from probing
+offense to conservative control.
+
+Methodologically, we interpret behavior through shot selection because it is
+the only directly observed indicator of intent; positional validation supports
+this proxy, but the estimates are behavioral associations rather than causal
+effects. This framing sets up the clustering-based discussion that follows by
+providing an end-level interpretation of power play behavior before we examine
+the non-hammer team’s first-shot response patterns.
 
 \subsection{First Shot NHT}
 Analysts have observed different responses for countering the powerplay,
