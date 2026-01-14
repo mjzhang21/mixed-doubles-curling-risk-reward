@@ -9,6 +9,8 @@
 \usepackage{caption}
 \usepackage{subcaption}  
 
+\graphicspath{{img/}{writing/img/}}
+
 \newcommand{\jy}[1]{{\textcolor{violet}{JY:\@ #1}}}
 
 
@@ -45,7 +47,8 @@
   scoring outcomes.
 \end{abstract}
 
-% Note: % is comment character, \ backslash is the escape character (needed for $, %, etc.)
+% Note: % is comment character, \ backslash is the escape character (needed for
+% $, %, etc.)
 
 % New paragraphs will be formed automatically similar to quarto, just leave a
 % blank line in between lines. Inline math can be called by wrapping with $, for
@@ -125,7 +128,8 @@ dominant when opening an end against the power play.
 % when and why is it used how should you use it or For respond to it etc
 
 % THESES:
-% what behavior is seen during powerplay -> these behaviors are seen -> do they lead to anything
+% what behavior is seen during powerplay -> these behaviors are seen -> do they
+% lead to anything
 
 % Defensive behavior is observed during powerplay typically in later ends,
 % strategic trends are not apparent across teams or championships. 
@@ -139,40 +143,64 @@ dominant when opening an end against the power play.
 
 \section{Data}
 
-We use a dataset from Curlit which provides 26,730 shot-by-shot stone positions
-across four competitions, compiled from shot-by-shot images which are entered
-into Curlit's software during the game. Included are unique IDs which
-successfully distinguish individual competitions, games, ends, participants,
-and preserve chronological shot order.
+We use Curlit's mixed doubles tracking data, which records shot-by-shot stone
+positions and analyst annotations across three World Mixed Doubles Championships
+and one Winter Olympics. The dataset contains 26,730 shot rows and includes
+unique identifiers for competition, game, end, team, player, and shot order, so
+that each match can be reconstructed chronologically. In addition to x--y
+stone coordinates after every throw, Curlit provides analyst-graded fields
+for intended task and execution quality, which we use to classify behavior.
 
-Perhaps the dataset's most important quality is that it is the first available
-dataset for mixed doubles curling that contains stone-level coordinate data,
-addressing a key limitation of previous analyses. Additionally, columns of
-assessment data such as intended shot-call and execution quality are included
-for every stone, providing necessary information for behavior classification.
-These descriptors are based on a set of objective grading criteria, such that
-that any analyst entering the data would fill each category identically.
+This is the first publicly available mixed doubles dataset that combines
+stone-level geometry with end-level context and shot assessment. These features
+allow us to link strategic choices to both sheet state and game state. End
+results are recorded for both teams, which enables reconstruction of score
+progression and pre-end score differential.
 
-With score results for each end, it is possible to wholly reconstruct the
-entire process of each game, allowing new insights.
+At the shot level, the distribution is draw-heavy, consistent with the MFGZ
+and an opportunistic or probing early phase.
+Figure~\ref{fig:thrown_positions_all} summarizes the spatial density of thrown
+stone locations across all shots.
+Power play usage is observed in a minority of ends and varies by end number,
+and task-group shares shift between power play and non-power-play ends
+(Figure~\ref{fig:data_pp_summary}).
 
-%some chart/table will go here, detailing the championships, number of ends, number of games,
-% number of nocs, number of stones, etc etc etc
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.6\textwidth]{img/thrown_positions_all.png}
+  \caption{Stone position density across all shots, illustrating the regions
+    of the sheet most frequently occupied after a throw.}
+  \label{fig:thrown_positions_all}
+\end{figure}
 
-At the shot-level, the data is heavily skewed towards draws, supporting the
-idea that the most dominant strategy is an opportunistic/probing strategy,
-where teams continue to draw until it is determined advantageous to "break the
-cluster".
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}[b]{0.47\textwidth}
+    \centering
+    \includegraphics[width=\linewidth, height=0.23\textheight,
+      keepaspectratio]{img/powerplay_end_frequency.png}
+    \caption{Power play usage by end number.}
+    \label{fig:powerplay_end_frequency}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.47\textwidth}
+    \centering
+    \includegraphics[width=\linewidth, height=0.23\textheight,
+      keepaspectratio]{img/task_by_powerplay.png}
+    \caption{Task-group shares by power play status.}
+    \label{fig:task_by_powerplay}
+  \end{subfigure}
+  \caption{Power play usage context and task composition.}
+  \label{fig:data_pp_summary}
+\end{figure}
 
-This is reflected in the heatmaps of stone positions
-
-We see that powerplay occurs in [insert Table]
-% source is curlit
+% Data collection was that Curlit analysts entered the stone positions into
+% the software and evaluated shot quality on objective criteria.
 
 % Data collection was that curlit analysts entered the stone positions onto a
 % softeware and evaluated shot quality on objective criteria (awarding points)
 
-% 2 world champsionships 1 winter olympics (beijing 2022)
+% 3 world champsionships 1 winter olympics (beijing 2022)
 
 % This is the first data set that:
 % 1. Contains stone-level coordiante data for geometric analyses
@@ -335,9 +363,9 @@ Figure~\ref{fig:pp_def_share_by_score} summarizes the score-state pattern by
 plotting mean late-phase defensive share across trailing, tied, and leading
 contexts for each power-play group.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.9\textwidth]{img/pp_def_share_by_score.pdf}
+  \includegraphics[width=0.8\textwidth]{img/pp_def_share_by_score.pdf}
   \caption{Mean late-phase defensive share by score state, with separate lines
     for non-power-play ends, power-play callers, and power-play non-callers.}
   \label{fig:pp_def_share_by_score}
@@ -431,9 +459,10 @@ from further analysis due to its limited representation.
     \label{fig:C2}
   \end{subfigure}
 
-  \caption{Coordinate visualizations after the first shot in the powerplay left formation.
-    Each panel highlights a different cluster, which can be identified as shot types:
-    tick (Panel A), draw around the guard (Panel B), and front/guard (Panel C)}
+  \caption{Coordinate visualizations after the first shot in the powerplay left
+    formation. Each panel highlights a different cluster, which can be
+    identified as shot types: tick (Panel A), draw around the guard (Panel B),
+    and front/guard (Panel C).}
   \label{fig:C_all}
 \end{figure}
 
@@ -491,8 +520,9 @@ Across the Pond) suggests that teams often invoke the power play late and in a
 defensive posture. Our results reconcile these views. The late-phase behavior
 shift is decisively toward defense for both teams, and the non-caller’s shift
 is substantially larger and more persistent than the caller’s. This confirms
-the analysts’ intuition that power play does not simply amplify offense and, in
-practice, often corresponds to conservative late-phase shot selection. It also
+the analysts’ intuition that power play does not simply amplify offense and,
+in practice, often corresponds to conservative late-phase shot selection. It
+also
 disconfirms the common expectation that the hammer team becomes more offensive
 in power play ends; the hammer-only shift is modest compared to the opponent’s
 response.
@@ -562,9 +592,9 @@ countering the powerplay.
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{img/noc_pptask.pdf}
-  \caption{“Proportions of grouped tasks hit by country. Data includes all powerplay
-    ends and is limited to the first stone. Only the top five teams with more than 20
-    powerplay ends are shown.”}
+  \caption{“Proportions of grouped tasks hit by country. Data includes all
+    powerplay ends and is limited to the first stone. Only the top five teams
+    with more than 20 powerplay ends are shown.”}
   \label{fig:noc_pptask}
 \end{figure}
 
