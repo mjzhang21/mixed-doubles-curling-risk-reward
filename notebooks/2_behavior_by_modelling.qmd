@@ -19,8 +19,11 @@ The final plan.
 import pandas as pd
 import numpy as np
 
-df = pd.read_csv("../data/stones_master_1.csv")  # you already have this
+df = pd.read_csv("../data/stones_master_1.csv") 
 
+#this is a patch necessitated by section 3. these were 2 ends with mistaken first shot values.
+df.loc[(df["match_id"] == "0_13_1") & (df["end_id"] == 7) & (df["shot_id"] == 7), "stone_2_y"] = 0
+df.loc[(df["match_id"] == "0_8_4") & (df["end_id"] == 2) & (df["shot_id"] == 7), "stone_8_x"] = 0
 
 # Ends is a dataframe which contains two rows per match an end; one for each team.
 ends = (
@@ -231,3 +234,114 @@ team_end_kept.head()
 We find that 1.7% of coordinate data is missing from the snapshot columns. This is because of
 conceded ends.
 
+# stone_i
+
+We need to make sure each stone is correctly assigned.
+Our findings are that stones 1-6 belong to TeamID 1 for the entirety of a game, and that
+7-12 belong to Team ID for the entirety of the game. This is irregardless of LSFE, hammer,
+etc. This is just a quirk of the data entry.
+
+```{python}
+# Assumes:
+# - df has shot rows 7..22 and stone_{i}_x / stone_{i}_y columns
+# - team_end_kept is your two-rows-per-end table (already filtered to ends with shot 9 and 22)
+
+# prelim: helper
+#stone_active is a function which checks whether it is in-play or off-sheet, i.e, not thrown yet. 
+def stone_active(df_sub: pd.DataFrame, i: int) -> pd.Series:
+
+    x = df_sub[f"stone_{i}_x"]
+    y = df_sub[f"stone_{i}_y"]
+    # Active if not (x==0 and y==0). 4095 indicates off-sheet but still "thrown/exists".
+    return ~((x == 0) & (y == 0))
+```
+
+I will do an activation-based validation strategy.
+
+```{python}
+# We use stones 2 and 8 because they are non-preplaced and belong to blocks 1–6 and 7–12 respectively.
+# We found mapping is fixed to team_id1 (1–6) and team_id2 (7–12) except two anomalous ends.
+
+shots = df[df["shot_id"].between(7, 22)].copy()
+
+# So this checks which is active first, ie the first thrown stone in an end
+# via min shotid (which is 7)
+# First active shot for stone_2 and stone_8 within each end
+first2 = (
+    shots.assign(active2=stone_active(shots, 2))
+         .loc[lambda d: d["active2"]]
+         .groupby(["match_id", "end_id"], as_index=False)["shot_id"]
+         .min()
+         .rename(columns={"shot_id": "stone2_first_shot"})
+)
+
+first8 = (
+    shots.assign(active8=stone_active(shots, 8))
+         .loc[lambda d: d["active8"]]
+         .groupby(["match_id", "end_id"], as_index=False)["shot_id"]
+         .min()
+         .rename(columns={"shot_id": "stone8_first_shot"})
+)
+```
+
+We do more data quality control.
+
+```{python}
+# Identify anomalies where both look active at shot 7 (or other inconsistent patterns)
+# Also catch ends where either stone never becomes active (shouldn't happen in complete ends)
+activation = first2.merge(first8, on=["match_id", "end_id"], how="outer", validate="one_to_one")
+
+activation["stone2_missing"] = activation["stone2_first_shot"].isna()
+activation["stone8_missing"] = activation["stone8_first_shot"].isna()
+
+# Specific anomaly: both activate at shot 7 (can indicate bad coords / prefilled)
+activation["both_active_at_7"] = (
+    activation["stone2_first_shot"].eq(7) & activation["stone8_first_shot"].eq(7)
+)
+
+# Flag ends with any activation issue
+activation["activation_issue"] = (
+    activation["stone2_missing"] | activation["stone8_missing"] | activation["both_active_at_7"]
+)
+
+# List problematic ends
+bad_ends = activation.loc[activation["activation_issue"], ["match_id", "end_id"]].dropna()
+
+print(f"Activation issues flagged: {len(bad_ends)} ends")
+```
+
+In our data we had two bad ends. These were match 0_13_1 end 7 and 0_8_4 end 2.
+Manual inspection revealed:
+- The value for stone_2_y was mistakenly filled for 0_13_1 end 7; should be 0
+- The value for stone_8_x was mistakenly filled for 0_8_4 end 2; should be 0
+We went back and manually patched that when importing the data;
+there are no more issues.
+
+We now have to map the correct ownership back to the team_end dataset.
+Filters for bad ends have been commented out because we no longer require them.
+
+```{python}
+# 2) Ownership mapping decision (fixed mapping)
+# ----------------------------
+# Based on your verification: team_id1 owns stones 1–6, team_id2 owns stones 7–12.
+# No swap repair is applied; we only drop flagged anomalous ends.
+
+# bad_keys = set(map(tuple, bad_ends.to_numpy())) # No longer required.
+
+team_end_valid = team_end_kept.copy()
+# mask_bad = team_end_valid[["match_id", "end_id"]].apply(tuple, axis=1).isin(bad_keys) # no longer required.
+# team_end_valid = team_end_valid.loc[~mask_bad].copy()
+
+# print(f"team_end_kept rows: {len(team_end_kept)} | after dropping bad ends: {len(team_end_valid)}")
+
+#known_bad = {("0_8_4", 2), ("0_13_1", 7)}
+#present_known = known_bad.intersection(set(map(tuple, team_end_kept[["match_id","end_id"]].drop_duplicates().to_numpy())))
+#if present_known:
+#    present_after = known_bad.intersection(set(map(tuple, team_end_valid[["match_id","end_id"]].drop_duplicates().to_numpy())))
+#    assert len(present_after) == 0, f"Known bad ends still present: {present_after}"
+
+# team_end_valid is what you should carry forward
+```
+
+In the end, only two ends were patched, but this section exists because of
+an erroroneous assumption in the original data dictionary.
