@@ -192,44 +192,59 @@ We see that powerplay occurs in [insert Table]
 % shots
 
 \section{Methodology}
-\subsection{Power Play Behavior Clustering}
-% Alejandro std. coordinates estimate behavior class binary on end-level
-% predictor set
+\subsection{Power Play and Late-Phase Shot Selection - Methodology}
 
-% finding of mine was that behavior 
+This analysis uses the master stone-level file
+\texttt{stones\_master\_1.csv} and defines the unit of analysis as a
+team-end (two rows per end, one per team). We restrict all behavioral
+measurement to the late phase of the end (\texttt{ShotID} 16--22) to
+avoid the rule-constrained early phase. Each late-phase shot is mapped
+into a coarse behavioral class using the analyst task codes:
+offensive (\texttt{Draw}, \texttt{Front}, \texttt{Guard},
+\texttt{Raise}, \texttt{Freeze}, \texttt{Hit and roll}), defensive
+(\texttt{Wick/soft peel}, \texttt{Take-out}, \texttt{Clearing},
+\texttt{Double take-out}, \texttt{Promotion take-out}), and neutral
+(\texttt{Through} or \texttt{No shot}). This operationalization treats
+behavior as shot selection, which is the only directly observed
+strategic signal in the data.
 
-% Bridge section flowwwww
+Power play exposure is defined at two levels. At the end level we set
+\texttt{pp\_used\_end} to 1 if any team used the power play in that end.
+At the team-end level we set \texttt{pp\_by\_team} to 1 if that team
+called the power play. These are combined into a three-level indicator:
+\texttt{nonPP} (no power play used), \texttt{PP\_caller} (team called the
+power play), and \texttt{PP\_noncaller} (opponent of the caller). Each
+team-end inherits \texttt{has\_hammer}, \texttt{pre\_end\_score\_diff},
+\texttt{end\_id}, and team and match identifiers from the merged data.
 
-% The behavior of the HT is much easier to identify during power play
-%
+For each team-end we compute late-phase counts of offensive, defensive,
+and neutral shots and divide by the number of late shots observed to
+form shares. The primary continuous outcome is the behavior index,
+\texttt{behavior\_index} $=$ \texttt{def\_share\_late} $-$
+\texttt{off\_share\_late}, where positive values indicate more defensive
+shot selection. We also compute two timing splits: lateA (shots 16--18)
+and lateB (shots 19--22). Because hammer teams throw four late shots and
+non-hammer teams throw three, shares are in 1/4 or 1/3 increments; this
+is expected and handled through share-based outcomes rather than raw
+counts.
 
-% Once power play behavior has been identified, clustering analysis for
-% first-stone level data is used to identify ideal response types by the NHT
-% [Power Play intent methodology; source: notebooks/behavior_classes.qmd]
-We classify end-level intent from stone-level task data. Each shot is grouped
-into offensive, defensive, or neutral based on task codes from the data
-dictionary. We then split each end into phases using the Modified Free Guard
-Zone: the first three shots (ShotID 7, 8, 9) are treated as the \emph{early}
-phase where takeouts are prohibited, and the remaining seven shots (ShotID
-16--22) are treated as the \emph{late} phase. For each team and end, we compute
-early/late rates of offensive and defensive shots. A rule-based intent label is
-assigned as \texttt{offensive} if late-offense $\ge$ late-defense, and
-\texttt{defensive} otherwise; probing is omitted because early-phase draw-heavy
-behavior is structurally forced.
+The core model is fixed-effects OLS with clustered inference:
+\texttt{behavior\_index} $\sim$ \texttt{C(pp\_group)} +
+\texttt{has\_hammer} + \texttt{pre\_end\_score\_diff} +
+\texttt{C(end\_id)} + \texttt{C(team\_id)} + \texttt{C(match\_id)}.
+Team and match fixed effects absorb persistent strategy differences and
+match-level conditions, while clustering by match accounts for within-
+match correlation. We fit identical models for \texttt{behavior\_index}
+lateA and lateB. Diagnostics include residual summaries, residuals vs
+fitted plots, Q--Q plots, and influence measures. As a validation (not a
+behavior definition), we compute \texttt{opp\_offsheet\_late}, the number
+of opponent stones that transition to the off-sheet sentinel (4095)
+during late shots, using the fixed stone ownership (stones 1--6 for
+\texttt{team\_id1}, stones 7--12 for \texttt{team\_id2}).
 
-To explore structure beyond the rule-based labels, we cluster end-level
-patterns using standardized features: early/late offense and defense rates,
-pre-end score differential, and a hammer flag. We use K-means with $k=3$ and
-derive cluster intent labels based on each cluster's late-phase rates. Power
-play indicators are not included in clustering to avoid leakage; power play is
-compared only after labels are assigned. We also conduct sensitivity checks by
-shifting the early/late boundary to include the 4th shot (older four-shot
-assumption) and by testing stricter late-offense thresholds (0.55--0.65). See
-\texttt{notebooks/behavior\_classes.qmd}.
 
-\subsection{First-shot NHT Clustering}
+\subsection{First-shot Non-hammer Team Clustering}
 
-\jy{define acronym at first and only at first occurrence.}
 % Mark std. coordinates use HDBScan for clustering -> visualize w/ PCA, tSNE
 % cluster quality evaluated on coverage, score, and cluster stability use welch
 % ANOVA and bootstrap, use post-hoc test to determine differences between
@@ -285,30 +300,47 @@ compare playstyles in response to the powerplay.
 \section{Results}
 
 % [Power Play intent results; source: notebooks/behavior_classes.qmd]
-\subsection{Power Play Intent Results}
+\subsection{Power Play and Late-Phase Shot Selection - Results}
 
-Across 5,274 team-end rows, the rule-based labels classify 76.8\% of ends as
-offensive and 23.2\% as defensive. Power play ends show a clear defensive
-shift: non-power-play ends are 80.6\% offensive (19.4\% defensive), while power
-play ends are 63.6\% offensive (36.4\% defensive). The cluster-derived labels
-mirror this pattern: non-power-play ends are 66.0\% offensive (34.0\%
-defensive) while power play ends are 45.7\% offensive (54.3\% defensive).
+The late-phase sample contains 5,274 team-end rows (2,637 ends). Descriptively,
+non-power-play ends are strongly offensive: mean
+\texttt{def\_share\_late} is 0.295 while \texttt{off\_share\_late} is 0.690,
+yielding a mean \texttt{behavior\_index} of $-0.395$ (median $-0.500$). Power
+play ends shift toward defense for both teams. For PP callers,
+\texttt{def\_share\_late} rises to 0.426 and \texttt{off\_share\_late} falls to
+0.566, producing a mean \texttt{behavior\_index} of $-0.141$ (median 0.000).
+For PP non-callers, \texttt{def\_share\_late} is 0.455 and
+\texttt{off\_share\_late} is 0.540, with a mean \texttt{behavior\_index} of
+$-0.085$ (median $-0.333$). Thus, both teams become more defensive in power
+play ends, with the larger shift occurring for the opponent.
 
-The clustering yields three groups (sizes 3,239 / 1,753 / 282). One cluster is
-strongly offensive (late-offense $\approx$ 0.87) and has low power play
-incidence (0.17). The two defensive clusters differ in context; one shows
-moderate power play incidence (0.24) and the other is heavily power-play linked
-(0.80) with a positive pre-end score differential (mean $\approx$ 2.34),
-consistent with a protect-a-lead context. Hammer-only shifts are smaller:
-rule-based intent remains mostly offensive (76.9\% $\rightarrow$ 72.4\%), and
-cluster labels tilt only slightly more defensive (51.6\% $\rightarrow$ 53.3\%
-defensive).
+Score-state stratification shows that power play is rarely used when tied
+(0.113) and is more common when trailing or leading (0.265 each). Within PP
+ends, the caller becomes markedly more defensive when tied or leading
+(\texttt{def\_share\_late} 0.503 tied; 0.658 leading), while the non-caller is
+especially defensive when the caller is leading (\texttt{def\_share\_late}
+0.587). Timing splits support an early shift for the caller and a sustained
+shift for the non-caller: in lateA, defensive shares are 0.417 (caller) and
+0.457 (non-caller) versus 0.266 in non-PP ends; in lateB they are 0.434 and
+0.455 versus 0.314 in non-PP ends.
 
-Sensitivity checks do not change the conclusion. Using a four-shot early phase
-still shows a defensive shift in power play ends (defensive 29.0\%
-$\rightarrow$ 43.4\%). Stricter late-offense thresholds (0.55--0.65) yield
-stable intent shares. See \texttt{notebooks/behavior\_classes.qmd} for tables
-and shift summaries.
+The fixed-effects regression confirms these patterns after controlling for
+hammer, score differential, end, team, and match. Relative to non-PP ends, the
+PP caller coefficient is 0.068 (SE 0.030, $p=0.024$) and the PP non-caller
+coefficient is 0.449 (SE 0.035, $p\approx 1.3\times10^{-37}$) in the main
+model ($R^2=0.232$). Timing models show the caller's effect concentrated in
+lateA (0.128, SE 0.038, $p=8.5\times10^{-4}$) and absent in lateB (0.009,
+SE 0.038, $p=0.82$), whereas the non-caller remains strongly defensive in both
+lateA (0.516, SE 0.046, $p\approx 1.3\times10^{-29}$) and lateB (0.414,
+SE 0.043, $p\approx 3.1\times10^{-22}$). Diagnostics show no single
+observation dominates the fit (max Cook's distance 0.0025; max leverage 0.10),
+and residuals are centered with moderate dispersion (SD $\approx$ 0.55).
+
+The positional validation supports the behavioral interpretation: the Spearman
+correlation between \texttt{def\_share\_late} and opponent stones removed late
+is 0.804. Together, the descriptive and controlled results indicate that power
+play ends induce a defensive shift for both teams, with a substantially larger
+and more persistent response from the non-caller.
 
 \subsection{First Shot NHT}
 The HDBSCAN clustering (minimum cluster size = 5, minimum samples = 5) produced
