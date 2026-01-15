@@ -13,6 +13,16 @@ format:
 
 # Overview
 
+In this exploratory notebook, we explore the different win percentages and
+counts of different nations. Team strength is a created as a variable to attempt
+to create a explanatory feature for analysis. Later, powerplay ends are narrowed
+down. We explore if end id or cumulative score difference impacts hammer team
+win percentage in powerplay ends. Finally, we observe powerplay seems to
+positively impact hammer win percentage and multi-point percentage, with teams
+strongly opting to use powerplay when they are up 3 or more points.
+
+# Team Strength
+
 ```{python}
 import numpy as np
 import matplotlib.pyplot as plt
@@ -24,6 +34,9 @@ df['powerplay_value'] = df['powerplay_value'].fillna(0)
 df.info()
 df.head()
 ```
+
+Attempt to create team strength metric. The team strength metric would be a
+weighted average of hammer efficiency, force efficiency and steal efficiency.
 
 ```{python}
 # Hammer scores 2+ (Hammer Efficiency numerator)
@@ -110,6 +123,12 @@ plt.show()
 
 ```
 
+The team strength metric proves to be pretty accurate, as top teams in the World
+Mixed Doubles Rankings are also in the top 10 for weighted average of the three
+efficiencies.
+
+Next, merge the metrics to the end level data.
+
 ```{python}
 # -------------------
 # Merge hammer team metrics
@@ -152,6 +171,12 @@ ends_df['weighted_score_diff'] = ends_df['hammer_weighted_score'] - ends_df['non
 
 ```
 
+Differences are computed to get relative strength difference.
+
+Now we try to get a better understanding of how tasks impact hammer and
+non-hammer scores. For each task plot number of each and mean hammer and
+non-hammer score
+
 ```{python}
 import pandas as pd
 
@@ -186,6 +211,15 @@ task_counts = task_counts.sort_values(by='hammer_total', ascending=False)
 
 print(task_counts)
 ```
+
+Draws are the most frequent and contribute the most to scoring as expected. The
+raise/tapback is also similar to a guard and it makes sense it also contributes
+to scoring for both teams.
+
+To see which features impact hammer win percentage in power play ends, we run a
+regularized logistic regression model with hammer score greater than 1 as a
+binary outcome variable. We include strength differences between teams, task
+differences, cumulative score difference and end id into the model.
 
 ```{python}
 import pandas as pd
@@ -320,14 +354,27 @@ print(coef_df_sorted.head(20))
 
 ```
 
+The model is decently predictive with a weighted avg f1 score of 0.65. Weighted
+Score difference is the top contributor to winning as the hammer team. This
+makes sense because if the hammer team is up more in the score they have a
+higher chance of winning. Other predictors are relatively difficult to
+interpret, as task differences are not the most reliable since some shots are
+much more common than others.
+
 # Exploration
 
 ## Powerplay ends
+
+Now we explore specifically the powerplay ends and how they compare to normal
+ends. We first see basic counts of how many ends each nation plays.
 
 ```{python}
 import pandas as pd
 import matplotlib.pyplot as plt
 
+df_pp = ends_df[ends_df['powerplay_value'] != 0].copy()
+df_pp['hammer_win'] = (df_pp['score_hammer'] > df_pp['score_nonhammer']).astype(int)
+df_pp['nonhammer_win'] = (df_pp['score_nonhammer'] > df_pp['score_hammer']).astype(int)
 # Count hammer ends
 hammer_counts = df_pp['hammer_noc'].value_counts()
 
@@ -360,10 +407,29 @@ plt.show()
 
 ```
 
+There are several countries with limited powerplay experience in the mixed
+doubles and olympic championships. These may be ruled out in possible further
+analysis.
+
+We graph non-hammer and hammer-win percentage to see if there are significant
+differences between nations
+
 ```{python}
 # hammer & non-hammer win percentage
-hammer_win_pct = df_pp.groupby('hammer_noc')['hammer_win'].mean().mul(100).round(2)
-nonhammer_win_pct = df_pp.groupby('nonhammer_noc')['nonhammer_win'].mean().mul(100).round(2)
+hammer_win_pct = (
+    df_pp.groupby('hammer_noc')['hammer_win']
+    .mean()
+    .mul(100)
+    .round(2)
+)
+
+nonhammer_win_pct = (
+    df_pp.groupby('nonhammer_noc')['nonhammer_win']
+    .mean()
+    .mul(100)
+    .round(2)
+)
+
 
 win_df = pd.DataFrame({
     'Hammer': hammer_win_pct,
@@ -385,22 +451,11 @@ plt.show()
 
 ```
 
-```{python}
-# Calculate average win % for each nation
-avg_win_df = win_df.mean(axis=1).sort_values(ascending=True)  # ascending so highest at top
+Results may be misleading due to small sample sizes, Teams have varying win
+percentages when they are the hammer or non-hammer team.
 
-# Plot horizontal bar chart
-plt.figure(figsize=(12,8))
-plt.barh(avg_win_df.index, avg_win_df.values, color='skyblue')
-plt.xlabel('Average Win Percentage (%)')
-plt.ylabel('Nation')
-plt.title('Average Win Percentage by Nation (Power Play Ends)')
-plt.xlim(0, 100)  # horizontal axis limit
-plt.tight_layout()
-plt.show()
-
-
-```
+Next, we analyze how cumulative score difference leading up to an end impacts
+win percentage.
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -443,6 +498,13 @@ plt.show()
 
 ```
 
+In all score difference bins, hammer and non hammer win percentage are similar.
+However, a majority of the time, powerplay is used when the hammer team is up
+1-5 or 6-10 points over the non-hammer team.
+
+To see how end_id impacts hammer and non-hammer win percentage we draw a
+histogram.
+
 ```{python}
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -479,15 +541,23 @@ plt.show()
 
 ```
 
+Powerplay is used mostly in end 6 and 7, showing small increases in hammer score
+and decreases in non-hammer score. Whether this is due to sample size is
+unclear.
+
+Finally, lets make a crosstable of score difference, powerplay status, and
+hammer scoring 2 or more percentage to what factors may impact the hammer team
+scoring multi-point ends.
+
 ```{python}
-# 1️⃣ Add hammer_2plus flag and Powerplay_Status to full df
+# Add hammer_2plus flag and Powerplay_Status to full df
 df['hammer_2plus'] = (df['score_hammer'] >= 2).astype(int)
 df['Powerplay_Status'] = df['powerplay_value'].apply(lambda x: 'Powerplay' if x != 0 else 'No Powerplay')
 
-# 2️⃣ Filter to ends 6 and 7
+# Filter to ends 6 and 7
 df_subset = df.copy()
 
-# 3️⃣ Apply bins to df_subset
+# Apply bins to df_subset
 bins = [-float('inf'), -2, 0, 2, float('inf')]
 labels = [
     'Behind (≤ -2)',
@@ -502,7 +572,7 @@ df_subset['score_diff_bin'] = pd.cut(
     labels=labels
 )
 
-# 4️⃣ Aggregate hammer 2+ %
+# Aggregate hammer 2+ %
 win_stats = (
     df_subset.groupby(['score_diff_bin', 'Powerplay_Status'])
     .agg(
@@ -516,3 +586,8 @@ win_stats_sorted = win_stats.sort_values(by='hammer_2plus_pct', ascending=False)
 win_stats_sorted
 
 ```
+
+Powerplay clearly increases hammer 2+ percentage. The percentage increases as
+the hammer team is leading more. Teams overwhelmingly use powerplay when they
+are up 3 or more points over the non0hammer team. Limited data exists when the
+hammer team uses powerplay in closer score situations.

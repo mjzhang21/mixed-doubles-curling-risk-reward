@@ -1,0 +1,46 @@
+\begin{table}[t]
+    \centering
+    \caption{Group means (with 95\% bootstrap confidence intervals) for each
+        outcome variable by HDBSCAN cluster. p-values are from Welch’s one-way
+        ANOVA. Significant pairwise differences were assessed using Games–Howell
+        post hoc tests.}
+    \label{tab:cluster_test}
+    \small
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{lcccc}
+        \hline
+        Variable & C0 ($n$=27)       & C1 ($n$=76) & C2 ($n$=65) & $p$-value \\
+        \hline
+        Cumulative score difference
+                 & 3.44 (1.93--5.00)
+                 & 6.12 (5.21--7.03)
+                 & 4.98 (3.86--6.09)
+                 & 0.017                                                     \\
+        Points
+                 & 3.63 (3.26--3.93)
+                 & 3.34 (3.17--3.50)
+                 & 3.74 (3.57--3.88)
+                 & 0.005                                                     \\
+        Hammer score
+                 & 1.30 (0.85--1.78)
+                 & 1.44 (1.16--1.73)
+                 & 1.52 (1.18--1.87)
+                 & 0.769                                                     \\
+        Non-hammer score
+                 & 0.37 (0.15--0.63)
+                 & 0.37 (0.21--0.56)
+                 & 0.31 (0.18--0.47)
+                 & 0.833                                                     \\
+        \hline
+    \end{tabular}
+
+    \begin{flushleft}
+        \footnotesize
+        Notes: Values are means with 95\% confidence intervals in parentheses.
+        Pairwise Games--Howell comparisons for significant variables:
+        Cumulative score difference—C0 vs C1 ($p=0.018$), C0 vs C2 ($p=0.281$),
+        C1 vs C2 ($p=0.279$);
+        Points—C0 vs C1 ($p=0.326$), C0 vs C2 ($p=0.845$), C1 vs C2 ($p=0.004$).
+    \end{flushleft}
+\end{table}
+
