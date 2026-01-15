@@ -8,55 +8,39 @@ execute:
 
 ## Goal and definitions
 
-- Unit: team-end (two rows per end). Treat rows as paired, not independent. -
-  Phase restriction: late phase only, shot_id 16-22. - Behavior labels (shot
-  selection only): - Defensive = opponent-addressing (takeouts, peels,
-  clears). - Offensive = placement or pressure (draws, guards, raises). -
-  Neutral/unknown = through, no-shot, or unknown.
+- Unit: team-end (two rows per end). Treat rows as paired, not independent. 
+- Phase restriction: late phase only, shot_id 16-22. 
+- Behavior labels (shot selection only): 
+    - Defensive = opponent-addressing (takeouts, peels, clears). 
+    - Offensive = placement or pressure (draws, guards, raises). 
+    - Neutral/unknown = through, no-shot, or unknown.
 
-## Setup
-
-We load the core libraries for data manipulation, plotting, and regression. The
-plotnine and statsmodels imports are required for the figures and inference;
-the notebook will fail fast if they are missing so you know exactly what needs
-to be installed.
+## Import Modules and Data
 
 ```{python}
 import importlib.util
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-try:
-    from plotnine import (
-        ggplot,
-        aes,
-        geom_violin,
-        geom_boxplot,
-        geom_line,
-        geom_point,
-        geom_col,
-        geom_smooth,
-        geom_hline,
-        geom_abline,
-        labs,
-        theme_minimal,
-        scale_x_discrete,
-    )
-except ImportError as exc:
-    raise ImportError("plotnine is required for plots.") from exc
-
-try:
-    import statsmodels.formula.api as smf
-except ImportError as exc:
-    raise ImportError("statsmodels is required for regression models.") from exc
-
-try:
-    from scipy import stats
-except ImportError as exc:
-    raise ImportError("scipy is required for diagnostics.") from exc
+from plotnine import (
+    ggplot,
+    aes,
+    geom_violin,
+    geom_boxplot,
+    geom_line,
+    geom_point,
+    geom_col,
+    geom_smooth,
+    geom_hline,
+    geom_abline,
+    labs,
+    theme_minimal,
+    scale_x_discrete,
+)
+import statsmodels.formula.api as smf
+from scipy import stats
 ```
-
-## Load data
 
 We run the stone-level cleaning script directly to construct the master table
 in memory, which keeps the analysis reproducible without relying on a stored
@@ -67,6 +51,7 @@ where appropriate. The preview confirms the core identifiers and fields were
 loaded correctly.
 
 ```{python}
+# load data.
 CLEANING_PATH = Path("../code/stone_level_cleaning.py")
 spec = importlib.util.spec_from_file_location("stone_level_cleaning",
                                               CLEANING_PATH)
