@@ -158,26 +158,29 @@ mapping_df
 ## Build team-end dataset and powerplay attribution
 
 Here we aggregate the stone-level data to the team-end unit, attach end
-context, and build the three-level power-play exposure variable. We also create score
-bins from pre-end score differential for descriptive stratification.
+context, and build the three-level power-play exposure variable. We also
+create score bins from pre-end score differential for descriptive
+stratification.
 
-The end-goal here is to identify behavior and its changes in various game-states while
-*controlling* / attributing *importance* to these various gamestates (e.g., hammer
-possession, score differential, etc.), making the data fed into the model incredibly
-important. Each end contains the same context for both teams, but the `team_end`
-observational unit allows modelling nuance not available to pure end-level data.
+The end-goal here is to identify behavior and its changes in various
+game-states while *controlling* / attributing *importance* to these various
+gamestates (e.g., hammer possession, score differential, etc.), making the
+data fed into the model incredibly important. Each end contains the same
+context for both teams, but the `team_end` observational unit allows modelling
+nuance not available to pure end-level data.
 
-Behavior in curling is not mutually informative, i.e., one team's behavior does not
-necessarily dictate another's. This implies that for modelling to capture every team's
-behavior by their shot-selection using every end, we need an observational unit that
-captures the aforementioned behavior for every team using every end. Hence the team-end.
+Behavior in curling is not mutually informative, i.e., one team's behavior
+does not necessarily dictate another's. This implies that for modelling to
+capture every team's behavior by their shot-selection using every end, we need
+an observational unit that captures the aforementioned behavior for every team
+using every end. Hence the team-end.
 
-It is possible to use end-level data by containing both team's behavior in a single
-row for each end, but this would counterproductively add complexity to the model and
-would make a TeamID fixed effect impossible. 
+It is possible to use end-level data by containing both team's behavior in a
+single row for each end, but this would counterproductively add complexity to
+the model and would make a TeamID fixed effect impossible.
 
-Obviously, each team-end comes in a pair where everything will be the same except,
-of-course, behavior.
+Obviously, each team-end comes in a pair where everything will be the same
+except, of-course, behavior.
 
 ```{python}
 keys = ["match_id", "end_id", "team_id"]
@@ -259,23 +262,27 @@ I'd say this succeeds in the goal of making mixed-doubles a more high-stakes
 game.
 
 The "late" phase of the end consists of the final 7 tosses; these throws
-are those that have no rules. I do a sub-split of the data into categories
-`lateA` and `lateB` intended to capture the change in behavior (elaborated
-upon later). Essentially, these are supposed to represent the early
-and late throwing windows respectievly.
-This is a pragamatic timing split intended to isolate closing behavior,
-which I consider likely to differ from mid-end behavior which might still be
-offensively-skewed.
+are those that have no rules. I do a sub-split of the data into `mid`
+(shots 16--18) and `close` (shots 19--22) windows intended to capture the
+change in behavior (elaborated upon later). These represent the early and
+closing windows of the late phase, respectively. This is a pragmatic timing
+split intended to isolate closing behavior, which I consider likely to differ
+from mid-end behavior that might still be offensively-skewed. Because non-
+hammer teams throw only one stone in the mid window (shots 16--18), mid shares
+are discrete (0 or 1) for the non-hammer team. This does not affect the main
+late-phase estimates, but the timing split should be read as a descriptive
+diagnostic rather than a precise causal contrast.
 
 This block filters to late shots (16-22), computes defensive/offensive/neutral
 counts and shares per team-end, and constructs the behavior index (defensive
-share minus offensive share). The same logic is applied to lateA (16-18) and
-lateB (19-22) for timing diagnostics, then merged back into the team-end table.
+share minus offensive share). The same logic is applied to mid (16--18) and
+close (19--22) for timing diagnostics, then merged back into the team-end
+table.
 
 ```{python}
 late_ids = [16, 17, 18, 19, 20, 21, 22]
-lateA_ids = [16, 17, 18]
-lateB_ids = [19, 20, 21, 22]
+mid_ids = [16, 17, 18]
+close_ids = [19, 20, 21, 22]
 
 
 def summarize_phase(df_phase: pd.DataFrame, label: str) -> pd.DataFrame:
@@ -311,18 +318,18 @@ def summarize_phase(df_phase: pd.DataFrame, label: str) -> pd.DataFrame:
 
 
 late = df[df["shot_id"].isin(late_ids)].copy()
-lateA = df[df["shot_id"].isin(lateA_ids)].copy()
-lateB = df[df["shot_id"].isin(lateB_ids)].copy()
+mid = df[df["shot_id"].isin(mid_ids)].copy()
+close = df[df["shot_id"].isin(close_ids)].copy()
 
 late_metrics = summarize_phase(late, "late")
-lateA_metrics = summarize_phase(lateA, "lateA")
-lateB_metrics = summarize_phase(lateB, "lateB")
+mid_metrics = summarize_phase(mid, "mid")
+close_metrics = summarize_phase(close, "close")
 
 team_end = (
     team_end
     .merge(late_metrics, on=keys, how="left")
-    .merge(lateA_metrics, on=keys, how="left")
-    .merge(lateB_metrics, on=keys, how="left")
+    .merge(mid_metrics, on=keys, how="left")
+    .merge(close_metrics, on=keys, how="left")
 )
 
 # Main outcome alias
@@ -512,21 +519,21 @@ plot_def_by_score = (
 plot_def_by_score
 ```
 
-This bar chart compares lateA versus lateB defensive share within each PP group
-to provide a timing mechanism check.
+This bar chart compares mid-window versus closing-window defensive share within
+each PP group to provide a timing mechanism check.
 
 ```{python}
-# 3) Timing split: lateA vs lateB defensive share by pp_group
+# 3) Timing split: mid vs close defensive share by pp_group
 mean_timing = (
     team_end.groupby(["pp_group"], as_index=False)
     .agg(
-        def_share_lateA=("def_share_lateA", "mean"),
-        def_share_lateB=("def_share_lateB", "mean"),
+        def_share_mid=("def_share_mid", "mean"),
+        def_share_close=("def_share_close", "mean"),
     )
 )
 mean_timing = mean_timing.melt(
     id_vars=["pp_group"],
-    value_vars=["def_share_lateA", "def_share_lateB"],
+    value_vars=["def_share_mid", "def_share_close"],
     var_name="phase",
     value_name="def_share",
 )
@@ -538,7 +545,7 @@ plot_timing = (
     ggplot(mean_timing, aes(x="pp_group", y="def_share", fill="phase"))
     + geom_col(position="dodge")
     + labs(
-        title="Late-phase defensive share: lateA vs lateB",
+        title="Late-phase defensive share: mid vs close",
         x="PP group",
         y="Defensive share",
         fill="Phase",
@@ -575,8 +582,8 @@ def fit_model(outcome: str):
 
 models = {
     "behavior_index": fit_model("behavior_index"),
-    "behavior_index_lateA": fit_model("behavior_index_lateA"),
-    "behavior_index_lateB": fit_model("behavior_index_lateB"),
+    "behavior_index_mid": fit_model("behavior_index_mid"),
+    "behavior_index_close": fit_model("behavior_index_close"),
 }
 
 pp_terms = {
@@ -775,8 +782,8 @@ core specification is fixed-effects OLS with `nonPP` as the reference group:
 
 `behavior_index ~ C(pp_group) + has_hammer + pre_end_score_diff + C(end_id)
 + C(team_id) + C(match_id)`, with standard errors clustered at `match_id`.
-Identical specifications are fit for the timing splits `behavior_index_lateA`
-and `behavior_index_lateB`. The sample includes 5,274 team-end rows (2,637
+Identical specifications are fit for the timing splits `behavior_index_mid`
+and `behavior_index_close`. The sample includes 5,274 team-end rows (2,637
 ends), and late-shot coverage is complete: all rows have at least three late
 shots and half have four, consistent with mixed doubles rules.
 
@@ -796,13 +803,13 @@ selection for both teams relative to non-PP ends. The PP caller coefficient is
 than the caller's shift after controlling for hammer, score differential, end,
 team, and match fixed effects. The model R² is 0.232.
 
-Timing splits clarify when this shift occurs. In lateA (shots 16-18), the PP
-caller effect is 0.128 (SE 0.038, p=8.5e-4) and the PP non-caller effect is
-0.516 (SE 0.046, p≈1.3e-29). In lateB (shots 19-22), the PP caller effect is
-0.009 (SE 0.038, p=0.82; not significant), while the PP non-caller effect
-remains large at 0.414 (SE 0.043, p≈3.1e-22). This pattern indicates that the
-caller’s defensive shift happens early, whereas the non-caller remains
-defensive throughout the late phase.
+Timing splits clarify when this shift occurs. In the mid window (shots 16--18),
+the PP caller effect is 0.128 (SE 0.038, p=8.5e-4) and the PP non-caller effect
+is 0.516 (SE 0.046, p≈1.3e-29). In the closing window (shots 19--22), the PP
+caller effect is 0.009 (SE 0.038, p=0.82; not significant), while the PP non-
+caller effect remains large at 0.414 (SE 0.043, p≈3.1e-22). This pattern
+indicates that the caller’s defensive shift happens early, whereas the non-
+caller remains defensive throughout the late phase.
 
 Diagnostics support the linear specification. Residuals are centered near zero
 with moderate spread (SD ≈ 0.55), and the residual-versus-fitted plot shows no
