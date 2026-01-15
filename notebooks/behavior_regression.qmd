@@ -118,7 +118,7 @@ task_labels = {
     -1: "No shot",
 }
 
-# Behavior groups (late-phase shot selection)
+# Behavior groups (late-phase shot selection, which i'll elaborate on)
 offensive_tasks = {0, 1, 2, 3, 5, 7}
 defensive_tasks = {4, 6, 8, 9, 10}
 neutral_tasks = {11, -1}
@@ -155,11 +155,29 @@ mapping_df = pd.DataFrame(mapping_rows)
 mapping_df
 ```
 
-## Build team-end dataset and PP attribution
+## Build team-end dataset and powerplay attribution
 
 Here we aggregate the stone-level data to the team-end unit, attach end
-context, and build the three-level PP exposure variable. We also create score
+context, and build the three-level power-play exposure variable. We also create score
 bins from pre-end score differential for descriptive stratification.
+
+The end-goal here is to identify behavior and its changes in various game-states while
+*controlling* / attributing *importance* to these various gamestates (e.g., hammer
+possession, score differential, etc.), making the data fed into the model incredibly
+important. Each end contains the same context for both teams, but the `team_end`
+observational unit allows modelling nuance not available to pure end-level data.
+
+Behavior in curling is not mutually informative, i.e., one team's behavior does not
+necessarily dictate another's. This implies that for modelling to capture every team's
+behavior by their shot-selection using every end, we need an observational unit that
+captures the aforementioned behavior for every team using every end. Hence the team-end.
+
+It is possible to use end-level data by containing both team's behavior in a single
+row for each end, but this would counterproductively add complexity to the model and
+would make a TeamID fixed effect impossible. 
+
+Obviously, each team-end comes in a pair where everything will be the same except,
+of-course, behavior.
 
 ```{python}
 keys = ["match_id", "end_id", "team_id"]
