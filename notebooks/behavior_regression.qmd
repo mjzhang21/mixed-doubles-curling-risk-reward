@@ -26,16 +26,16 @@ import pandas as pd
 from plotnine import (
     ggplot,
     aes,
-    geom_violin,
-    geom_boxplot,
     geom_line,
     geom_point,
     geom_col,
+    geom_tile,
     geom_smooth,
     geom_hline,
     geom_abline,
     labs,
     theme_minimal,
+    scale_fill_gradient,
     scale_x_discrete,
 )
 import statsmodels.formula.api as smf
@@ -376,7 +376,8 @@ print("Max abs error in share sums:", max_abs_err)
 ```
 
 We next confirm that each PP group has a meaningful number of observations. If
-PP_caller or PP_noncaller is too small, we would flag it before modeling. It ends up being fine.
+PP_caller or PP_noncaller is too small, we would flag it before modeling. It
+ends up being fine.
 
 ```{python}
 #PP group sample sizes
@@ -469,19 +470,37 @@ summary_pp_score
 The following figures visualize the descriptive patterns. Each plot uses
 plotnine to keep the graphics consistent across the notebook.
 
-This violin+box plot summarizes the distribution of the behavior index by PP
-group, showing both central tendency and spread.
+This heatmap summarizes the discrete behavior-index distribution by PP group,
+showing the share of team-ends at each possible value.
 
 ```{python}
-# 1) Behavior index by pp_group
+# 1) Behavior index distribution by pp_group (discrete heatmap)
+dist = team_end[["pp_group", "behavior_index"]].copy()
+dist["behavior_index"] = dist["behavior_index"].round(3)
+dist = (
+    dist.groupby(["pp_group", "behavior_index"], as_index=False)
+    .size()
+    .rename(columns={"size": "count"})
+)
+dist["share"] = dist.groupby("pp_group")["count"].transform(
+    lambda s: s / s.sum()
+)
+levels = sorted(dist["behavior_index"].unique())
+dist["behavior_index_str"] = pd.Categorical(
+    dist["behavior_index"].map(lambda v: f"{v:.3f}"),
+    categories=[f"{v:.3f}" for v in levels],
+    ordered=True,
+)
+
 plot_behavior_index = (
-    ggplot(team_end, aes(x="pp_group", y="behavior_index"))
-    + geom_violin(fill="#9ecae1", alpha=0.6, color="#2b6cb0")
-    + geom_boxplot(width=0.2, outlier_alpha=0.25)
+    ggplot(dist, aes(x="pp_group", y="behavior_index_str", fill="share"))
+    + geom_tile(color="white")
+    + scale_fill_gradient(low="#f7fbff", high="#08306b")
     + labs(
-        title="Behavior index by PP group (late phase)",
+        title="Behavior index distribution by PP group (late phase)",
         x="PP group",
         y="Behavior index (def - off)",
+        fill="Share",
     )
     + theme_minimal()
 )
