@@ -28,7 +28,6 @@ from plotnine import (
     aes,
     geom_line,
     geom_point,
-    geom_col,
     geom_tile,
     geom_smooth,
     geom_hline,
@@ -568,42 +567,6 @@ plot_def_by_score = (
     + theme_minimal()
 )
 plot_def_by_score
-```
-
-This bar chart compares mid-window versus closing-window defensive share within
-each PP group to provide a timing mechanism check.
-
-```{python}
-# 3) Timing split: mid vs close defensive share by pp_group
-mean_timing = (
-    team_end.groupby(["pp_group"], as_index=False)
-    .agg(
-        def_share_mid=("def_share_mid", "mean"),
-        def_share_close=("def_share_close", "mean"),
-    )
-)
-mean_timing = mean_timing.melt(
-    id_vars=["pp_group"],
-    value_vars=["def_share_mid", "def_share_close"],
-    var_name="phase",
-    value_name="def_share",
-)
-mean_timing["phase"] = mean_timing["phase"].str.replace(
-    "def_share_", "", regex=False
-)
-
-plot_timing = (
-    ggplot(mean_timing, aes(x="pp_group", y="def_share", fill="phase"))
-    + geom_col(position="dodge")
-    + labs(
-        title="Late-phase defensive share: mid vs close",
-        x="PP group",
-        y="Defensive share",
-        fill="Phase",
-    )
-    + theme_minimal()
-)
-plot_timing
 ```
 
 ## Regression models
