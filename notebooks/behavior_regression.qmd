@@ -275,9 +275,16 @@ diagnostic rather than a precise causal contrast.
 
 This block filters to late shots (16-22), computes defensive/offensive/neutral
 counts and shares per team-end, and constructs the behavior index (defensive
-share minus offensive share). The same logic is applied to mid (16--18) and
-close (19--22) for timing diagnostics, then merged back into the team-end
-table.
+share minus offensive share). We use shares rather than raw counts because
+teams throw a different number of late shots (hammer throws four, non-hammer
+throws three), so shares standardize exposure and make team-ends comparable.
+The behavior index then summarizes the balance of defensive versus offensive
+selection on a common scale where zero indicates equal shares, positive values
+indicate more defensive selection, and negative values indicate more offensive
+selection. This makes regression coefficients interpretable in share points
+and avoids conflating behavior with the mechanical shot-count differences.
+The same logic is applied to mid (16--18) and close (19--22) for timing
+diagnostics, then merged back into the team-end table.
 
 ```{python}
 late_ids = [16, 17, 18, 19, 20, 21, 22]
