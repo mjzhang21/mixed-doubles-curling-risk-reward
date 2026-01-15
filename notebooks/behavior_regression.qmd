@@ -244,6 +244,29 @@ team_end.head()
 
 ## Late-phase behavior metrics
 
+I define an "early" and "late" phase of each end according to the Modified
+Free Guard Zone (MFGZ), which states that no take-outs can be attemped
+for the first 3 tosses of the game. When considering offensive/defensive
+behavior, this structure forces the first three stones to be considered
+"offensive" under pretty much any definition. 
+This explains the skew towards draws, but this skew must be remedied for any
+model.
+
+Thus, I filter out the "early" first three stones. This can intuitvely be
+explained by filtering out probing/opportunistic behavior that sets the stage
+for many stones to be in play before teams decide to choose a behavioral path;
+I'd say this succeeds in the goal of making mixed-doubles a more high-stakes
+game.
+
+The "late" phase of the end consists of the final 7 tosses; these throws
+are those that have no rules. I do a sub-split of the data into categories
+`lateA` and `lateB` intended to capture the change in behavior (elaborated
+upon later). Essentially, these are supposed to represent the early
+and late throwing windows respectievly.
+This is a pragamatic timing split intended to isolate closing behavior,
+which I consider likely to differ from mid-end behavior which might still be
+offensively-skewed.
+
 This block filters to late shots (16-22), computes defensive/offensive/neutral
 counts and shares per team-end, and constructs the behavior index (defensive
 share minus offensive share). The same logic is applied to lateA (16-18) and
