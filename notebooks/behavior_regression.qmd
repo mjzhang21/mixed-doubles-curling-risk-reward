@@ -338,14 +338,14 @@ team_end["behavior_index"] = team_end["behavior_index_late"]
 team_end.head()
 ```
 
-## QA checks (ship / no-ship)
+## Data quality checks
 
-We first check coverage of late shots per team-end. Mixed doubles should yield
+I first check coverage of late shots per team-end. Mixed doubles should yield
 3 or 4 late shots per team-end; the coverage rates and counts by hammer confirm
 whether late-phase metrics are broadly available.
 
 ```{python}
-# 1) Coverage
+# Coverage
 coverage_4 = (team_end["shots_late"] >= 4).mean()
 coverage_3 = (team_end["shots_late"] >= 3).mean()
 coverage_by_hammer = (
@@ -365,7 +365,7 @@ defensive, offensive, and neutral shares should be 1 for every team-end, with
 only tiny floating-point error.
 
 ```{python}
-# 2) Accounting: shares sum to 1
+# Accounting: shares sum to 1
 share_sum = (
     team_end["def_share_late"]
     + team_end["off_share_late"]
@@ -376,30 +376,30 @@ print("Max abs error in share sums:", max_abs_err)
 ```
 
 We next confirm that each PP group has a meaningful number of observations. If
-PP_caller or PP_noncaller is too small, we would flag it before modeling.
+PP_caller or PP_noncaller is too small, we would flag it before modeling. It ends up being fine.
 
 ```{python}
-# 3) PP group sample sizes
+#PP group sample sizes
 team_end["pp_group"].value_counts()
 ```
 
-This sanity table shows how many shots fall into each behavior group under the
+This  table shows how many shots fall into each behavior group under the
 chosen mapping. It verifies that defensive and offensive buckets are populated
 and that neutral shots remain a small residual class.
 
 ```{python}
-# 4) Sanity: show task mapping counts by group
+#show task mapping counts by group
 (df.groupby("task_group")["task"].count()
  .rename("shot_count")
  .reset_index())
 ```
 
-We document selection into power play by score state. This gives the
+I document selection into power play by score state. This gives the
 descriptive context for why PP might be associated with different late-phase
 behavior.
 
 ```{python}
-# 5) Selection: PP usage by score and hammer
+# Selection: PP usage by score and hammer
 pp_by_score = (
     team_end.groupby("score_bin")["pp_used_end"]
     .mean()
@@ -414,6 +414,9 @@ pp_by_score_hammer = (
 print("PP usage by score_bin:")
 pp_by_score
 ```
+
+As expected it is symmetrical due to the nature
+of the team-end.
 
 Here we add hammer status to the selection summary to see whether PP usage
 differs for teams with or without hammer within each score bin.
