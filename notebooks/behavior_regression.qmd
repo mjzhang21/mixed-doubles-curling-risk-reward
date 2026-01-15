@@ -42,13 +42,8 @@ import statsmodels.formula.api as smf
 from scipy import stats
 ```
 
-We run the stone-level cleaning script directly to construct the master table
-in memory, which keeps the analysis reproducible without relying on a stored
-CSV. After loading the cleaned dataframe, we standardize the key columns used
-throughout the analysis. Tasks are coerced to integers and missing tasks are
-set to -1 (neutral/unknown), while other fields are converted to integers
-where appropriate. The preview confirms the core identifiers and fields were
-loaded correctly.
+The stone-level cleaning script is run directly in this notebook to produce
+a master table. I make take some precautions to ensure data quality.
 
 ```{python}
 # load data.
@@ -91,6 +86,19 @@ This chunk defines the task-to-behavior mapping used in the study, then tags
 every shot as offensive, defensive, or neutral. A mapping table is produced to
 make the operational definition explicit and to show how many shots fall into
 each category.
+
+I assign each task to some behavior based on the curling rule-of-thumb
+that offensive shots are those that seek to advance the scoring potential
+by landing near the button and setting guards to protect scoring stones,
+essentially ignoring the opponent's stones, and that defensive shots
+are those that seek to mitigate opponent scoring potential via take-outs
+of scoring stones and guards.
+
+Conveniently, 0-5 are "slow stones" and 6-11 are "fast stones" (from Curlit)
+which provide very good proxies for offensive/defensive behavior, respectively.
+
+I include task labels from the data dictionary for reference.
+
 
 ```{python}
 # Task labels for reference
