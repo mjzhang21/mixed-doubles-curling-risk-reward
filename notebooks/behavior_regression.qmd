@@ -35,6 +35,7 @@ from plotnine import (
     geom_abline,
     labs,
     theme_minimal,
+    scale_color_manual,
     scale_fill_gradient,
     scale_x_discrete,
 )
@@ -515,14 +516,32 @@ plot_behavior_index
 ```
 
 This line plot shows how mean defensive share varies by score state, with
-separate lines for PP group. It highlights whether PP changes behavior
-differently when trailing, tied, or leading.
+separate lines for hammer/non-hammer in PP and non-PP ends. It highlights
+whether PP changes behavior differently when trailing, tied, or leading.
 
 ```{python}
-# 2) Mean defensive share by score_bin, lines by pp_group
-mean_def = team_end.groupby(
-    ["score_bin", "pp_group"], as_index=False
-)["def_share_late"].mean()
+# 2) Mean defensive share by score_bin, lines by hammer x PP status
+def_line = np.select(
+    [
+        (team_end["pp_used_end"] == 0) & (team_end["has_hammer"] == 1),
+        (team_end["pp_used_end"] == 0) & (team_end["has_hammer"] == 0),
+        (team_end["pp_used_end"] == 1) & (team_end["pp_by_team"] == 1),
+        (team_end["pp_used_end"] == 1) & (team_end["pp_by_team"] == 0),
+    ],
+    ["HT non-PP", "NHT non-PP", "HT PP", "NHT PP"],
+    default="unknown",
+)
+mean_def = (
+    team_end.assign(def_line=def_line)
+    .groupby(["score_bin", "def_line"], as_index=False)["def_share_late"]
+    .mean()
+)
+def_line_order = ["HT non-PP", "NHT non-PP", "HT PP", "NHT PP"]
+mean_def["def_line"] = pd.Categorical(
+    mean_def["def_line"],
+    categories=def_line_order,
+    ordered=True,
+)
 
 plot_def_by_score = (
     ggplot(
@@ -530,18 +549,21 @@ plot_def_by_score = (
         aes(
             x="score_bin",
             y="def_share_late",
-            color="pp_group",
-            group="pp_group",
+            color="def_line",
+            group="def_line",
         ),
     )
     + geom_line()
     + geom_point()
     + scale_x_discrete(limits=["trail", "tied", "lead"])
+    + scale_color_manual(
+        values=["#0072B2", "#56B4E9", "#D55E00", "#E69F00"],
+        breaks=def_line_order,
+    )
     + labs(
-        title="Mean late-phase defensive share by score bin",
-        x="Score bin",
+        x="Score state",
         y="Defensive share (late)",
-        color="PP group",
+        color="Group",
     )
     + theme_minimal()
 )
