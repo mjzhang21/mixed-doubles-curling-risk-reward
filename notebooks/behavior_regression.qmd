@@ -22,6 +22,7 @@ the notebook will fail fast if they are missing so you know exactly what needs
 to be installed.
 
 ```{python}
+import importlib.util
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -57,15 +58,22 @@ except ImportError as exc:
 
 ## Load data
 
-We read the cleaned stone-level file and standardize the key columns used
+We run the stone-level cleaning script directly to construct the master table
+in memory, which keeps the analysis reproducible without relying on a stored
+CSV. After loading the cleaned dataframe, we standardize the key columns used
 throughout the analysis. Tasks are coerced to integers and missing tasks are
-set to -1 (neutral/unknown), while other fields are converted to integers where
-appropriate. The preview confirms the core identifiers and fields were loaded
-correctly.
+set to -1 (neutral/unknown), while other fields are converted to integers
+where appropriate. The preview confirms the core identifiers and fields were
+loaded correctly.
 
 ```{python}
-DATA_PATH = Path("../data/stones_master_1.csv")
-df = pd.read_csv(DATA_PATH)
+CLEANING_PATH = Path("../code/stone_level_cleaning.py")
+spec = importlib.util.spec_from_file_location("stone_level_cleaning",
+                                              CLEANING_PATH)
+cleaning = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(cleaning)
+
+df = cleaning.stones_master.copy()
 
 # Minimal cleanup
 for col in ["has_hammer", "powerplay", "pre_end_score_diff", "task", "shot_id"]:
