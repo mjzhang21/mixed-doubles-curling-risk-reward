@@ -856,8 +856,12 @@ core conclusions do not hinge on any single task coding choice.
 ## Model diagnostics
 
 We evaluate residual structure and influence for the main late-phase model.
-The diagnostics below summarize residual location and scale, outliers, and
-influence, and the plots check for curvature or heavy tails.
+Because the outcome is discrete and the model includes many fixed effects,
+normality is not expected; the Q-Q plot is descriptive only. The core checks
+here are (1) residual location/scale and outliers, (2) influence, (3) mean
+residuals by fitted-value bins to assess functional form, and (4) a
+heteroskedasticity signal. These diagnostics are meant to assess stability,
+not to enforce strict normality.
 
 ```{python}
 main_res = models["behavior_index"]
@@ -884,6 +888,65 @@ diag_summary = pd.DataFrame({
 })
 diag_summary
 ```
+
+```{python}
+from statsmodels.stats.diagnostic import het_breuschpagan
+from statsmodels.stats.stattools import jarque_bera
+
+jb_stat, jb_p, skew, kurt = jarque_bera(diag_df["resid"])
+dist_summary = pd.DataFrame({
+    "jb_stat": [jb_stat],
+    "jb_pvalue": [jb_p],
+    "skew": [skew],
+    "kurtosis": [kurt],
+})
+dist_summary
+```
+
+```{python}
+bin_df = diag_df.copy()
+bin_df["fitted_bin"] = pd.qcut(
+    bin_df["fitted"], q=10, duplicates="drop"
+)
+bin_summary = (
+    bin_df.groupby("fitted_bin", observed=True)["resid"]
+    .agg(mean="mean", mean_abs=lambda x: x.abs().mean(), n="size")
+    .reset_index()
+)
+bin_summary
+```
+
+```{python}
+bp_stat, bp_p, f_stat, f_p = het_breuschpagan(
+    diag_df["resid"], main_res.model.exog
+)
+het_summary = pd.DataFrame({
+    "bp_stat": [bp_stat],
+    "bp_pvalue": [bp_p],
+    "f_stat": [f_stat],
+    "f_pvalue": [f_p],
+    "corr_abs_resid_fitted": [
+        diag_df["resid"].abs().corr(diag_df["fitted"])
+    ],
+})
+het_summary
+```
+
+The normality test is expected to reject because the outcome is discrete and
+fixed effects absorb much of the variation. The binned residual table checks
+for systematic mean deviations across fitted values; large deviations would
+signal functional-form issues. The heteroskedasticity test is descriptive
+only; we rely on clustered standard errors for inference in the presence of
+non-constant variance. Influence diagnostics in `diag_summary` confirm whether
+any single team-end is unduly driving results.
+
+In this run, residuals are centered (mean ≈ 0) with SD ≈ 0.55. There are 197
+|studentized residuals| > 2 (3.7%) and 9 > 3 (0.17%). Influence is modest
+(Cook's D max ≈ 0.0025; leverage max ≈ 0.10). The JB test rejects normality
+(p ≈ 1e-48), as expected. The BP test indicates heteroskedasticity
+(p ≈ 2e-6), with a mild |resid|–fitted correlation ≈ 0.16; clustered SEs are
+therefore appropriate. Binned residual means range roughly −0.09 to 0.08 with
+no strong drift, suggesting no major functional-form misspecification.
 
 ```{python}
 plot_resid = (
