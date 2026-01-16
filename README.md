@@ -1,14 +1,15 @@
 # Mixed Doubles Curling Risk/Reward
 
 ## Quick start (required order)
-1. Import the data challenge CSVs into `data/`:
+1. `-r pip install requirements`
+2. Import the data challenge CSVs into `data/`:
    - `data/Competition.csv`
    - `data/Competitors.csv`
    - `data/Games.csv`
    - `data/Teams.csv`
    - `data/Ends.csv`
    - `data/Stones.csv`
-2. Run the two Python scripts (in this order):
+3. Run the two Python scripts (in this order):
    - `python code/stone_level_cleaning.py`
    - `python code/data_merger.py`
 
