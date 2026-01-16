@@ -178,26 +178,23 @@ late. Limitations include selection into PP usage and reliance on task coding.
 \subsection{Results}
 
 Across the late-phase sample (5,274 team-ends), non-power-play ends are
-predominantly offensive. The mean defensive share is 0.295 while the offensive
-share is 0.690, yielding a mean behavior index of $-0.395$. Power-play ends
-shift toward defense for both teams. For callers, the defensive share rises to
-0.426 and the offensive share falls to 0.566 (behavior index $-0.141$). For
-non-callers, the defensive share is 0.455 and the offensive share is 0.540
-(behavior index $-0.085$). These descriptive contrasts show a clear defensive
-shift in power-play ends, with the larger shift occurring for the opponent.
+offensive (defensive share 0.295, offensive share 0.690; behavior index
+$-0.395$). Power-play ends shift toward defense for both teams: callers
+(defensive share 0.426; index $-0.141$) and non-callers (0.455; index
+$-0.085$), with the larger shift for the opponent.
+These contrasts show a clear defensive shift in power-play ends, with the
+opponent responding more strongly than the caller.
 
-Power play usage is concentrated in non-tied score states: it is used in 0.113
-of tied ends versus 0.265 when trailing or leading. Within power-play ends, the
-defensive shift is strongest in protective contexts. For example, when the
-caller is leading, the caller's defensive share rises to 0.658 and the
-non-caller's rises to 0.587. Timing splits show that the caller's adjustment
-appears early, while the non-caller remains defensive throughout: in the mid
-window (shots 16--18), defensive shares are 0.266 (non-PP), 0.417 (caller),
-and 0.457 (non-caller), and in the close window (shots 19--22) they are 0.314,
-0.434, and 0.455, respectively. Figure~\ref{fig:pp_def_share_by_score}
-summarizes the score-state pattern by plotting mean late-phase defensive share
-across trailing, tied, and leading contexts for hammer and non-hammer teams,
-split by power play status (HT non-PP, NHT non-PP, HT PP, NHT PP).
+Power play usage is concentrated in non-tied score states (0.113 of tied ends
+versus 0.265 when trailing or leading), and the defensive shift is strongest
+in protective contexts. When the caller is leading, defensive share rises to
+0.658 and the non-caller's to 0.587. Timing splits show the caller adjusts in
+the mid window while the non-caller remains defensive in both mid and close:
+0.266/0.417/0.457 in mid (non-PP/caller/non-caller) and 0.314/0.434/0.455 in
+close. Figure~\ref{fig:pp_def_share_by_score} summarizes the score-state
+pattern by plotting mean late-phase defensive share across trailing, tied,
+and leading contexts for hammer and non-hammer teams, split by power play
+status (HT non-PP, NHT non-PP, HT PP, NHT PP).
 
 \begin{figure}[htbp]
   \centering
@@ -207,27 +204,23 @@ split by power play status (HT non-PP, NHT non-PP, HT PP, NHT PP).
   \label{fig:pp_def_share_by_score}
 \end{figure}
 
-The fixed-effects regression corroborates these descriptive patterns after
-controlling for hammer, score differential, end, team, and match
-(Table~\ref{tab:pp_regression}). In the main model, the PP caller coefficient
-is 0.068 ($p<0.05$) while the PP non-caller coefficient is 0.449 ($p<0.01$),
-indicating a much larger opponent response. Timing models show a caller effect
-in mid (0.128, $p<0.01$) but not in close (0.009, $p=0.82$), while the
-non-caller remains strongly defensive in both mid (0.516) and close (0.414).
+The fixed-effects regression corroborates these patterns after controlling
+for hammer, score differential, end, team, and match
+(Table~\ref{tab:pp_regression}). The PP caller coefficient is 0.068
+($p<0.05$) and the PP non-caller coefficient is 0.449 ($p<0.01$), indicating
+a larger opponent response. Timing models show a caller effect in mid but not
+close, while the non-caller remains strongly defensive in both windows.
 
-Positional validation strengthens the behavioral interpretation: the Spearman
-correlation between defensive share and opponent stones removed late is 0.804.
-Taken together, the results indicate that power-play ends induce a defensive
-shift for both teams, with a substantially larger and more persistent response
-from the non-caller.
+Positional validation supports the proxy: the Spearman correlation between
+defensive share and opponent stones removed late is 0.804. Overall, power-play
+ends induce a defensive shift for both teams, especially the non-caller.
+Taken together, the results indicate a persistent opponent response to power
+play, even after accounting for game state and fixed effects.
 
 \input{tables/regression_powerplay.tex}
 
-To address team strategy profiles, Table~\ref{tab:team_profiles} reports
-descriptive late-phase behavior by team. These profiles summarize each team’s
-late-phase defensive share, offensive share, and behavior index, alongside
-power-play calling rate and hammer frequency. They are intended as descriptive
-benchmarks rather than causal estimates.
+Table~\ref{tab:team_profiles} reports team-level descriptive profiles
+(late-phase shares, behavior index, power play calling rate, hammer frequency).
 
 \input{tables/team_strategy_profiles.tex}
 
