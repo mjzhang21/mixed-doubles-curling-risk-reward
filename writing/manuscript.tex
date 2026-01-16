@@ -197,22 +197,6 @@ to identify removals. Limitations include the discrete nature of the outcome,
 potential selection into power play usage, and reliance on task coding as a
 proxy for intent.
 
-Formally, the main model is:
-\[
-  \begin{aligned}
-    \text{behavior\_index}_{i e} =\; & \beta_0
-    + \beta_1 \text{PP\_caller}_{i e}
-    + \beta_2 \text{PP\_noncaller}_{i e} \\
-    & + \beta_3 \text{has\_hammer}_{i e}
-    + \beta_4 \text{pre\_end\_score\_diff}_{i e} \\
-    & + \alpha_e + \gamma_i + \delta_m + \varepsilon_{i e},
-  \end{aligned}
-\]
-where $i$ indexes team-ends, $e$ indexes ends, and $m$ indexes matches. The
-omitted reference category is non-power-play ends, and standard errors are
-clustered at the match level. We estimate the same specification for the mid
-and close timing splits.
-
 \subsection{Results}
 
 Across the late-phase sample (5,274 team-ends), non-power-play ends are
