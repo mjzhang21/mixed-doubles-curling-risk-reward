@@ -11,12 +11,20 @@ format:
     fontsize: 11pt 
 ---
 
-*This data dictionary is for the master working dataframe* `stones_master_1.csv`.
-*Some notes about data quirks are also included.*
+*This data dictionary is for the master working dataframe produced by the
+cleaning script. Some notes about data quirks are also included.*
 
 ```{python}
+from pathlib import Path
+import sys
+
 import pandas as pd
-stones_master = pd.read_csv('../data/stones_master_1.csv')
+
+CODE_DIR = Path("..") / "code"
+sys.path.append(str(CODE_DIR))
+from stone_level_cleaning import load_cleaned_data
+
+stones_master = load_cleaned_data().copy()
 stones_master.head()
 ```
 
