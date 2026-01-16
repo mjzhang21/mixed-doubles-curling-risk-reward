@@ -164,6 +164,14 @@ neutral (through/no-shot). Task coding is the only consistent indicator of
 intent; position-based intent would add modeling assumptions, so positions
 are reserved for validation.
 
+Using shares rather than raw counts standardizes exposure because hammer teams
+throw four late shots and non-hammer teams throw three. The behavior index
+(defensive minus offensive share) summarizes the tradeoff on a single scale,
+and neutral shots remain in the denominator so shifts reflect selection rather
+than volume. We treat the two team-end rows as paired within each end and use
+clustered SEs to reflect within-match dependence. The mid/close split aligns
+with when removal options expand and provides a simple timing test.
+
 For each team-end we compute late-phase shares and a behavior index
 (defensive minus offensive). We also split late shots into mid (16--18) and
 close (19--22). Hammer teams throw four late shots and non-hammer teams throw
@@ -195,6 +203,14 @@ close. Figure~\ref{fig:pp_def_share_by_score} summarizes the score-state
 pattern by plotting mean late-phase defensive share across trailing, tied,
 and leading contexts for hammer and non-hammer teams, split by power play
 status (HT non-PP, NHT non-PP, HT PP, NHT PP).
+
+The score-state plot shows non-PP behavior is relatively stable across
+trail/tied/lead, while PP groups steepen, especially the NHT PP line. This
+pattern suggests PP is deployed as a control tool when game state matters and
+the opponent responds most aggressively when the caller has something to
+protect. Regression magnitudes echo the descriptives: the opponent coefficient
+is roughly six times the caller’s in the main model, and the caller’s
+mid-window effect fades by close.
 
 \begin{figure}[htbp]
   \centering
