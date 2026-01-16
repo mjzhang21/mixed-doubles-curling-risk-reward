@@ -136,6 +136,19 @@ and task-group shares shift between power play and non-power-play ends
 
 \section{Power Play and Late-Phase Shot Selection}
 \subsection{Data}
+
+We build a team-end panel by aggregating stone-level data to one row per team
+per end, producing paired observations (caller and opponent) within each end.
+This unit preserves team-specific hammer status, score differential, and shot
+selection, and it allows team fixed effects without collapsing two behaviors
+into a single row.
+We treat the two rows within an end as paired, not independent.
+
+Preprocessing merges stones, ends, and games; computes pre-end score and
+pre-end score differential; derives hammer from the first thrown stone
+(ShotID 7); and assigns power play exposure at the end and team-end levels.
+Ends are labeled as non-PP, PP caller, or PP non-caller to compare the caller
+and opponent under the same end context.
 \subsection{Methodology}
 
 Conceptually, we define behavior as offensive, defensive, or probing
@@ -145,13 +158,10 @@ game plan). Because probing behavior is inherently reactive and not uniquely
 encoded in the task labels, we treat neutral or ambiguous shots as the closest
 empirical proxy for probing in this analysis.
 
-Our behavioral analysis is conducted at the team-end level, which creates a
-paired structure within each end and allows a direct comparison between the
-power play caller and the opponent. We focus on the late phase of the end (the
-final seven deliveries) because early shots are heavily constrained by the
-Modified Free Guard Zone and the pre-placed stones. Late shots therefore
-provide the clearest window into strategic choice rather than rule-driven
-necessity.
+We focus on the late phase of the end (shots 16--22) because early shots are
+heavily constrained by the Modified Free Guard Zone and the pre-placed stones.
+Late shots therefore provide the clearest window into strategic choice rather
+than rule-driven necessity.
 
 Behavior is operationalized through shot selection, using the task labels
 assigned by analysts. We group tasks into offensive placements (draws, guards,
@@ -162,14 +172,6 @@ consistently available, interpretable indicator of intent at the shot level.
 Position-based intent would require model-driven inference and introduce a
 second layer of assumptions, so we treat shot selection as the observable
 behavioral signal and reserve positional data for validation.
-
-Power play exposure is assigned at both the end and team-end levels. An end is
-marked as a power play end if either team uses its power play, and within such
-ends we identify the caller and the non-caller. This yields a three-category
-comparison group: non-power-play ends, power-play callers, and power-play
-non-callers. Each team-end is also annotated with hammer status, pre-end score
-differential, end number, team identity, and match identity to control for
-state and repeated context.
 
 For each team-end we compute late-phase shares of offensive, defensive, and
 neutral shots and define the behavior index as defensive minus offensive
