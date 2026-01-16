@@ -567,6 +567,14 @@ plot_def_by_score = (
     + theme_minimal()
 )
 plot_def_by_score
+
+fig_path = Path("../writing/img/pp_def_share_by_score.pdf")
+plot_def_by_score.save(
+    filename=str(fig_path),
+    width=8,
+    height=4.5,
+    dpi=200,
+)
 ```
 
 ## Regression models
