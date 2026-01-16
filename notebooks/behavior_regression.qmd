@@ -571,10 +571,29 @@ plot_def_by_score
 
 ## Regression models
 
-We fit the core specification with PP group, hammer, score differential, end
-fixed effects, team fixed effects, and match fixed effects. Standard errors are
-clustered at the match level, and we report the PP_caller and PP_noncaller
-coefficients for the main late index and the two timing splits.
+We fit a fixed-effects OLS model at the team-end level because the outcome is
+a share-based index that is naturally interpreted in share points. The index
+can be negative and takes discrete steps, so a beta or fractional-logit model
+is not appropriate. A shot-level multinomial would change the estimand to
+per-shot choice probabilities and add a second layer of modeling without
+improving the end-level behavior contrast we want to estimate. OLS keeps the
+PP_caller and PP_noncaller coefficients directly interpretable as average
+shifts in defensive minus offensive share.
+
+PP group is the exposure of interest. We include hammer and pre-end score
+differential because they are the main state variables that plausibly affect
+shot selection and PP usage. End fixed effects capture systematic end-to-end
+dynamics, team fixed effects absorb persistent team styles, and match fixed
+effects absorb match-specific conditions such as sheet, venue, or opponent
+pairing. Standard errors are clustered at the match level to account for
+within-match correlation and the paired structure of team-ends.
+
+We report PP_caller and PP_noncaller because they are the policy-relevant
+contrasts: they separate the caller’s behavioral shift from the opponent’s
+response. Mixed-effects models are reasonable when prediction or variance
+components are the objective, but our focus is within-team, within-match
+comparisons with minimal distributional assumptions, which fixed-effects OLS
+provides.
 
 ```{python}
 model_df = team_end.copy()
@@ -620,6 +639,142 @@ for model_name, res in models.items():
 
 reg_table = pd.DataFrame(rows)
 reg_table
+```
+
+## Sensitivity checks: alternate task mappings
+
+This check asks whether the PP effects depend on reasonable reclassifications
+of borderline task codes. We evaluate four variants: the baseline mapping, an
+all-hits-defensive mapping that moves hit-and-roll into defense, a conservative
+defense mapping that treats only clear take-outs as defensive, and a version
+that drops ambiguous hit shots (wick/soft-peel, hit-and-roll, promotion) from
+the denominator. We recompute late-phase shares and re-fit the main model each
+time. The goal is not to "improve" the mapping, but to verify that the core PP
+contrasts do not hinge on any single coding choice.
+
+```{python}
+team_end_base = team_end[
+    ["match_id", "end_id", "team_id", "has_hammer", "pre_end_score_diff",
+     "pp_group"]
+].copy()
+
+pp_terms = {
+    "PP_caller": "C(pp_group, Treatment(reference='nonPP'))[T.PP_caller]",
+    "PP_noncaller": "C(pp_group, Treatment(reference='nonPP'))[T.PP_noncaller]",
+}
+
+
+def compute_sensitivity(mapping_name, offensive, defensive, neutral,
+                        drop_tasks=None):
+    df_local = df.copy()
+    if drop_tasks:
+        df_local = df_local[~df_local["task"].isin(drop_tasks)].copy()
+
+    conditions = [
+        df_local["task"].isin(offensive),
+        df_local["task"].isin(defensive),
+        df_local["task"].isin(neutral),
+    ]
+    df_local["task_group"] = np.select(
+        conditions, ["offensive", "defensive", "neutral"], default="neutral"
+    )
+
+    late = df_local[df_local["shot_id"].isin(late_ids)].copy()
+    late_metrics = summarize_phase(late, "late")
+
+    team_end_s = team_end_base.merge(late_metrics, on=keys, how="left")
+    team_end_s["behavior_index"] = team_end_s["behavior_index_late"]
+
+    model_df = team_end_s.copy()
+    model_df["has_hammer"] = model_df["has_hammer"].astype(int)
+    model_df = model_df.dropna(subset=[
+        "behavior_index", "has_hammer", "pre_end_score_diff", "pp_group",
+        "end_id", "team_id", "match_id",
+    ])
+    formula = formula_base.format(outcome="behavior_index")
+    res = smf.ols(formula, data=model_df).fit(
+        cov_type="cluster", cov_kwds={"groups": model_df["match_id"]}
+    )
+
+    means = (
+        team_end_s.groupby("pp_group")[["def_share_late", "off_share_late",
+                                        "behavior_index"]]
+        .mean()
+        .reset_index()
+    )
+    means["mapping"] = mapping_name
+
+    return {
+        "mapping": mapping_name,
+        "pp_caller": res.params.get(pp_terms["PP_caller"], np.nan),
+        "pp_noncaller": res.params.get(pp_terms["PP_noncaller"], np.nan),
+        "pp_caller_se": res.bse.get(pp_terms["PP_caller"], np.nan),
+        "pp_noncaller_se": res.bse.get(pp_terms["PP_noncaller"], np.nan),
+        "nobs": int(res.nobs),
+        "r2": res.rsquared,
+        "means": means,
+    }
+
+
+sens_specs = [
+    {
+        "name": "baseline",
+        "offensive": {0, 1, 2, 3, 5, 7},
+        "defensive": {4, 6, 8, 9, 10},
+        "neutral": {11, -1},
+        "drop": set(),
+    },
+    {
+        "name": "all_hits_defensive",
+        "offensive": {0, 1, 2, 3, 5},
+        "defensive": {4, 6, 7, 8, 9, 10},
+        "neutral": {11, -1},
+        "drop": set(),
+    },
+    {
+        "name": "conservative_defense",
+        "offensive": {0, 1, 2, 3, 5, 7},
+        "defensive": {6, 8, 9},
+        "neutral": {4, 10, 11, -1},
+        "drop": set(),
+    },
+    {
+        "name": "drop_ambiguous_hits",
+        "offensive": {0, 1, 2, 3, 5, 7},
+        "defensive": {4, 6, 8, 9, 10},
+        "neutral": {11, -1},
+        "drop": {4, 7, 10},
+    },
+]
+
+sens_results = []
+means_list = []
+for spec in sens_specs:
+    out = compute_sensitivity(
+        spec["name"],
+        spec["offensive"],
+        spec["defensive"],
+        spec["neutral"],
+        drop_tasks=spec["drop"],
+    )
+    sens_results.append({
+        "mapping": out["mapping"],
+        "pp_caller": out["pp_caller"],
+        "pp_caller_se": out["pp_caller_se"],
+        "pp_noncaller": out["pp_noncaller"],
+        "pp_noncaller_se": out["pp_noncaller_se"],
+        "nobs": out["nobs"],
+        "r2": out["r2"],
+    })
+    means_list.append(out["means"])
+
+sens_reg = pd.DataFrame(sens_results)
+sens_reg
+```
+
+```{python}
+sens_means = pd.concat(means_list, ignore_index=True)
+sens_means
 ```
 
 ## Model diagnostics
