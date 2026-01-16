@@ -188,36 +188,13 @@ game_ends = (
 #Quick checks for missing hammer info and disagreements between methods.
 
 
-hammer_check = game_ends[["MatchID", "EndID", "TeamID", "HasHammer_I", "HasHammer_C"]].copy()
-
-missing_i = hammer_check["HasHammer_I"].isna().sum()
-missing_c = hammer_check["HasHammer_C"].isna().sum()
-
-mismatch = hammer_check.dropna(subset=["HasHammer_I", "HasHammer_C"])
-mismatch = mismatch[mismatch["HasHammer_I"] != mismatch["HasHammer_C"]]
-mismatch_ends = mismatch.drop_duplicates(["MatchID", "EndID"]).shape[0]
-
-print("Missing HasHammer_I rows:", missing_i)
-print("Missing HasHammer_C rows:", missing_c)
-print("End-level mismatches (I vs C):", mismatch_ends)
-
-mismatch.head()
-
-
 #There are five cases where they do not match. Once stone-level information is fully merged,
 #I will defer to each case invidually.
 
 ### Stone-Level Data
 
-#Build a master stone-level table (one row per stone toss) by merging stone, end, and game context.
-
-
-if "MatchID" not in stones_df.columns:
-    stones_df["MatchID"] = (
-        stones_df["CompetitionID"].astype(str) + "_" +
-        stones_df["SessionID"].astype(str) + "_" +
-        stones_df["GameID"].astype(str)
-    )
+#Build a master stone-level table (one row per stone toss) by merging stone,
+# end, and game context.
 
 stones_master = (
     stones_df
@@ -231,9 +208,8 @@ stones_master = (
 )
 
 stones_master = stones_master.drop(['CompetitionID', 'GameID', 'SessionID',
-                                    'CompetitionID_end', 'GameID_end', 'SessionID_end']
-                                    , axis=1)
-stones_master.head()
+                                    'CompetitionID_end', 'GameID_end',
+                                    'SessionID_end'], axis=1)
 
 
 #Add pre-shot (pre-end) team score and score differential.
@@ -272,15 +248,6 @@ stones_master = stones_master.merge(
 
 
 #Check that the team throwing first (ShotID == 7) does not have the hammer.
-
-
-first_shot = stones_master.loc[stones_master["ShotID"] == 7].copy()
-first_shot["HasHammer_I"] = first_shot["HasHammer_I"].fillna(False)
-first_shot["HasHammer_C"] = first_shot["HasHammer_C"].fillna(False)
-
-print("ShotID==7 with HasHammer_I:", first_shot["HasHammer_I"].sum())
-print("ShotID==7 with HasHammer_C:", first_shot["HasHammer_C"].sum())
-first_shot[(first_shot["HasHammer_I"]) | (first_shot["HasHammer_C"])].head()
 
 
 #When `ShotID == 7`, the team which threw the stone cannot have the hammer. `HasHammer_C`

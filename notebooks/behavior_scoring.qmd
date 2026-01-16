@@ -1,5 +1,5 @@
 ---
-title: "CSAS 2026: Behavior Classes"
+title: "CSAS 2026: Behavior Scoring"
 author: "Alejandro Haerter"
 date: "2026-01-13"
 format:
@@ -11,7 +11,14 @@ format:
     fontsize: 11pt 
 ---
 
-The final plan.
+The following notebook is an **UNUSED** attempt to "score" a team's performance during
+an end by evaluating the change in the game state from the 4th stone to the 10th
+stone. However the "scores" changed was intended to identify behavioral intent.
+
+The obvious limitation is that these physical changes to the gamestate could
+only capture results, and result being a proxy for intention is a big assumption.
+This became a contrived analysis whichis basically made useless by the fact
+that the stone level data classifies all shots. 
 
 # Build the analysis unit: team-end
 

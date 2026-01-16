@@ -1,0 +1,1142 @@
+---
+title: "Behavior Regression: Power Play and Late-Phase Shot Selection"
+format: html
+execute:
+  warning: false
+  message: false
+---
+
+## Goal and definitions
+
+- Unit: team-end (two rows per end). Treat rows as paired, not independent. 
+- Phase restriction: late phase only, shot_id 16-22. 
+- Behavior labels (shot selection only): 
+    - Defensive = opponent-addressing (takeouts, peels, clears). 
+    - Offensive = placement or pressure (draws, guards, raises). 
+    - Neutral/unknown = through, no-shot, or unknown.
+
+## Import Modules and Data
+
+```{python}
+import importlib.util
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from plotnine import (
+    ggplot,
+    aes,
+    geom_line,
+    geom_point,
+    geom_tile,
+    geom_smooth,
+    geom_hline,
+    geom_abline,
+    labs,
+    theme_minimal,
+    scale_color_manual,
+    scale_fill_gradient,
+    scale_x_discrete,
+)
+import statsmodels.formula.api as smf
+from scipy import stats
+```
+
+The stone-level cleaning script is run directly in this notebook to produce
+a master table. I make take some precautions to ensure data quality.
+
+```{python}
+# load data.
+CLEANING_PATH = Path("../code/stone_level_cleaning.py")
+spec = importlib.util.spec_from_file_location("stone_level_cleaning",
+                                              CLEANING_PATH)
+cleaning = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(cleaning)
+
+df = cleaning.stones_master.copy()
+
+# Minimal cleanup
+for col in ["has_hammer", "powerplay", "pre_end_score_diff", "task", "shot_id"]:
+    if col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+# Use ints where safe; treat missing tasks as neutral (-1)
+if "task" in df.columns:
+    df["task"] = df["task"].fillna(-1).astype(int)
+for col in ["has_hammer", "powerplay", "pre_end_score_diff", "shot_id"]:
+    if col in df.columns:
+        df[col] = df[col].fillna(0).astype(int)
+
+# Quick sanity
+preview_cols = [
+    "match_id",
+    "end_id",
+    "team_id",
+    "shot_id",
+    "task",
+    "powerplay",
+    "has_hammer",
+]
+df[preview_cols].head()
+```
+
+## Task mapping (behavior labels)
+
+This chunk defines the task-to-behavior mapping used in the study, then tags
+every shot as offensive, defensive, or neutral. A mapping table is produced to
+make the operational definition explicit and to show how many shots fall into
+each category.
+
+I assign each task to some behavior based on the curling rule-of-thumb
+that offensive shots are those that seek to advance the scoring potential
+by landing near the button and setting guards to protect scoring stones,
+essentially ignoring the opponent's stones, and that defensive shots
+are those that seek to mitigate opponent scoring potential via take-outs
+of scoring stones and guards.
+
+Conveniently, 0-5 are "slow stones" and 6-11 are "fast stones" (from Curlit)
+which provide very good proxies for offensive/defensive behavior, respectively.
+
+I include task labels from the data dictionary for reference.
+
+
+```{python}
+# Task labels for reference
+task_labels = {
+    0: "Draw",
+    1: "Front",
+    2: "Guard",
+    3: "Raise/Tap-back",
+    4: "Wick/Soft peel",
+    5: "Freeze",
+    6: "Take-out",
+    7: "Hit and roll",
+    8: "Clearing",
+    9: "Double take-out",
+    10: "Promotion take-out",
+    11: "Through",
+    -1: "No shot",
+}
+
+# Behavior groups (late-phase shot selection, which i'll elaborate on)
+offensive_tasks = {0, 1, 2, 3, 5, 7}
+defensive_tasks = {4, 6, 8, 9, 10}
+neutral_tasks = {11, -1}
+
+# Assign groups
+conditions = [
+    df["task"].isin(offensive_tasks),
+    df["task"].isin(defensive_tasks),
+    df["task"].isin(neutral_tasks),
+]
+choices = ["offensive", "defensive", "neutral"]
+df["task_group"] = np.select(conditions, choices, default="neutral")
+
+# mapping table
+mapping_rows = []
+for task_code, label in sorted(task_labels.items(), key=lambda x: x[0]):
+    if task_code in offensive_tasks:
+        group = "offensive"
+    elif task_code in defensive_tasks:
+        group = "defensive"
+    elif task_code in neutral_tasks:
+        group = "neutral"
+    else:
+        group = "neutral"
+    count = int((df["task"] == task_code).sum())
+    mapping_rows.append({
+        "task": task_code,
+        "task_label": label,
+        "task_group": group,
+        "count": count,
+    })
+
+mapping_df = pd.DataFrame(mapping_rows)
+mapping_df
+```
+
+## Build team-end dataset and powerplay attribution
+
+Here we aggregate the stone-level data to the team-end unit, attach end
+context, and build the three-level power-play exposure variable. We also
+create score bins from pre-end score differential for descriptive
+stratification.
+
+The end-goal here is to identify behavior and its changes in various
+game-states while *controlling* / attributing *importance* to these various
+gamestates (e.g., hammer possession, score differential, etc.), making the
+data fed into the model incredibly important. Each end contains the same
+context for both teams, but the `team_end` observational unit allows modelling
+nuance not available to pure end-level data.
+
+Behavior in curling is not mutually informative, i.e., one team's behavior
+does not necessarily dictate another's. This implies that for modelling to
+capture every team's behavior by their shot-selection using every end, we need
+an observational unit that captures the aforementioned behavior for every team
+using every end. Hence the team-end.
+
+It is possible to use end-level data by containing both team's behavior in a
+single row for each end, but this would counterproductively add complexity to
+the model and would make a TeamID fixed effect impossible.
+
+Obviously, each team-end comes in a pair where everything will be the same
+except, of-course, behavior.
+
+```{python}
+keys = ["match_id", "end_id", "team_id"]
+
+team_end = (
+    df.groupby(keys, as_index=False)
+    .agg(
+        has_hammer=("has_hammer", "first"),
+        pre_end_score_diff=("pre_end_score_diff", "first"),
+        team_id1=("team_id1", "first"),
+        team_id2=("team_id2", "first"),
+    )
+)
+
+pp_end = (
+    df.groupby(["match_id", "end_id"], as_index=False)["powerplay"]
+    .max()
+    .rename(columns={"powerplay": "pp_used_end"})
+)
+pp_team = (
+    df.groupby(keys, as_index=False)["powerplay"]
+    .max()
+    .rename(columns={"powerplay": "pp_by_team"})
+)
+
+team_end = (
+    team_end
+    .merge(pp_end, on=["match_id", "end_id"], how="left")
+    .merge(pp_team, on=keys, how="left")
+)
+
+team_end["pp_used_end"] = (team_end["pp_used_end"].fillna(0) != 0).astype(int)
+team_end["pp_by_team"] = (team_end["pp_by_team"].fillna(0) != 0).astype(int)
+
+team_end["pp_group"] = np.select(
+    [
+        team_end["pp_used_end"] == 0,
+        (team_end["pp_used_end"] == 1) & (team_end["pp_by_team"] == 1),
+        (team_end["pp_used_end"] == 1) & (team_end["pp_by_team"] == 0),
+    ],
+    ["nonPP", "PP_caller", "PP_noncaller"],
+    default="nonPP",
+)
+
+team_end["pp_group"] = pd.Categorical(
+    team_end["pp_group"],
+    categories=["nonPP", "PP_caller", "PP_noncaller"],
+    ordered=True,
+)
+
+# Score bins for descriptive plots
+team_end["score_bin"] = pd.Categorical(
+    np.where(
+        team_end["pre_end_score_diff"] < 0,
+        "trail",
+        np.where(team_end["pre_end_score_diff"] > 0, "lead", "tied"),
+    ),
+    categories=["trail", "tied", "lead"],
+    ordered=True,
+)
+
+team_end.head()
+```
+
+## Late-phase behavior metrics
+
+I define an "early" and "late" phase of each end according to the Modified
+Free Guard Zone (MFGZ), which states that no take-outs can be attemped
+for the first 3 tosses of the game. When considering offensive/defensive
+behavior, this structure forces the first three stones to be considered
+"offensive" under pretty much any definition. 
+This explains the skew towards draws, but this skew must be remedied for any
+model.
+
+Thus, I filter out the "early" first three stones. This can intuitvely be
+explained by filtering out probing/opportunistic behavior that sets the stage
+for many stones to be in play before teams decide to choose a behavioral path;
+I'd say this succeeds in the goal of making mixed-doubles a more high-stakes
+game.
+
+The "late" phase of the end consists of the final 7 tosses; these throws
+are those that have no rules. I do a sub-split of the data into `mid`
+(shots 16--18) and `close` (shots 19--22) windows intended to capture the
+change in behavior (elaborated upon later). These represent the early and
+closing windows of the late phase, respectively. This is a pragmatic timing
+split intended to isolate closing behavior, which I consider likely to differ
+from mid-end behavior that might still be offensively-skewed. Because non-
+hammer teams throw only one stone in the mid window (shots 16--18), mid shares
+are discrete (0 or 1) for the non-hammer team. This does not affect the main
+late-phase estimates, but the timing split should be read as a descriptive
+diagnostic rather than a precise causal contrast.
+
+This block filters to late shots (16-22), computes defensive/offensive/neutral
+counts and shares per team-end, and constructs the behavior index (defensive
+share minus offensive share). We use shares rather than raw counts because
+teams throw a different number of late shots (hammer throws four, non-hammer
+throws three), so shares standardize exposure and make team-ends comparable.
+The behavior index then summarizes the balance of defensive versus offensive
+selection on a common scale where zero indicates equal shares, positive values
+indicate more defensive selection, and negative values indicate more offensive
+selection. This makes regression coefficients interpretable in share points
+and avoids conflating behavior with the mechanical shot-count differences.
+The same logic is applied to mid (16--18) and close (19--22) for timing
+diagnostics, then merged back into the team-end table.
+
+```{python}
+late_ids = [16, 17, 18, 19, 20, 21, 22]
+mid_ids = [16, 17, 18]
+close_ids = [19, 20, 21, 22]
+
+
+def summarize_phase(df_phase: pd.DataFrame, label: str) -> pd.DataFrame:
+    counts = (
+        df_phase.groupby(keys + ["task_group"]).size().unstack(fill_value=0)
+    )
+    for g in ["defensive", "offensive", "neutral"]:
+        if g not in counts.columns:
+            counts[g] = 0
+    counts = counts[["defensive", "offensive", "neutral"]]
+    counts = counts.rename(columns={
+        "defensive": f"def_count_{label}",
+        "offensive": f"off_count_{label}",
+        "neutral": f"neu_count_{label}",
+    })
+    counts[f"shots_{label}"] = counts.sum(axis=1)
+
+    denom = counts[f"shots_{label}"]
+    counts[f"def_share_{label}"] = np.where(
+        denom > 0, counts[f"def_count_{label}"] / denom, np.nan
+    )
+    counts[f"off_share_{label}"] = np.where(
+        denom > 0, counts[f"off_count_{label}"] / denom, np.nan
+    )
+    counts[f"neu_share_{label}"] = np.where(
+        denom > 0, counts[f"neu_count_{label}"] / denom, np.nan
+    )
+    counts[f"behavior_index_{label}"] = (
+        counts[f"def_share_{label}"] - counts[f"off_share_{label}"]
+    )
+
+    return counts.reset_index()
+
+
+late = df[df["shot_id"].isin(late_ids)].copy()
+mid = df[df["shot_id"].isin(mid_ids)].copy()
+close = df[df["shot_id"].isin(close_ids)].copy()
+
+late_metrics = summarize_phase(late, "late")
+mid_metrics = summarize_phase(mid, "mid")
+close_metrics = summarize_phase(close, "close")
+
+team_end = (
+    team_end
+    .merge(late_metrics, on=keys, how="left")
+    .merge(mid_metrics, on=keys, how="left")
+    .merge(close_metrics, on=keys, how="left")
+)
+
+# Main outcome alias
+team_end["behavior_index"] = team_end["behavior_index_late"]
+
+team_end.head()
+```
+
+## Data quality checks
+
+I first check coverage of late shots per team-end. Mixed doubles should yield
+3 or 4 late shots per team-end; the coverage rates and counts by hammer confirm
+whether late-phase metrics are broadly available.
+
+```{python}
+# Coverage
+coverage_4 = (team_end["shots_late"] >= 4).mean()
+coverage_3 = (team_end["shots_late"] >= 3).mean()
+coverage_by_hammer = (
+    team_end.groupby("has_hammer")["shots_late"]
+    .value_counts()
+    .unstack(fill_value=0)
+)
+
+print("Coverage >=4 late shots:", round(coverage_4, 3))
+print("Coverage >=3 late shots:", round(coverage_3, 3))
+print("Late shots by has_hammer (counts):")
+coverage_by_hammer
+```
+
+This check ensures the late-phase shares are internally consistent. The sum of
+defensive, offensive, and neutral shares should be 1 for every team-end, with
+only tiny floating-point error.
+
+```{python}
+# Accounting: shares sum to 1
+share_sum = (
+    team_end["def_share_late"]
+    + team_end["off_share_late"]
+    + team_end["neu_share_late"]
+)
+max_abs_err = (share_sum - 1).abs().max()
+print("Max abs error in share sums:", max_abs_err)
+```
+
+We next confirm that each PP group has a meaningful number of observations. If
+PP_caller or PP_noncaller is too small, we would flag it before modeling. It
+ends up being fine.
+
+```{python}
+#PP group sample sizes
+team_end["pp_group"].value_counts()
+```
+
+This  table shows how many shots fall into each behavior group under the
+chosen mapping. It verifies that defensive and offensive buckets are populated
+and that neutral shots remain a small residual class.
+
+```{python}
+#show task mapping counts by group
+(df.groupby("task_group")["task"].count()
+ .rename("shot_count")
+ .reset_index())
+```
+
+I document selection into power play by score state. This gives the
+descriptive context for why PP might be associated with different late-phase
+behavior.
+
+```{python}
+# Selection: PP usage by score and hammer
+pp_by_score = (
+    team_end.groupby("score_bin")["pp_used_end"]
+    .mean()
+    .rename("pp_used_rate")
+)
+pp_by_score_hammer = (
+    team_end.groupby(["score_bin", "has_hammer"])["pp_used_end"]
+    .mean()
+    .rename("pp_used_rate")
+)
+
+print("PP usage by score_bin:")
+pp_by_score
+```
+
+As expected it is symmetrical due to the nature
+of the team-end.
+
+Here we add hammer status to the selection summary to see whether PP usage
+differs for teams with or without hammer within each score bin.
+
+```{python}
+print("PP usage by score_bin and has_hammer:")
+pp_by_score_hammer
+```
+
+## Descriptive tables
+
+We compute mean and median defensive share, offensive share, and behavior index
+by PP group. These tables provide the first-pass descriptive comparisons before
+any controls.
+
+```{python}
+metrics = ["def_share_late", "off_share_late", "behavior_index"]
+
+
+def summary_table(group_cols):
+    out = team_end.groupby(group_cols)[metrics].agg(["mean", "median"])
+    out.columns = ["_".join(col) for col in out.columns]
+    return out.reset_index()
+
+# 1) By pp_group
+summary_pp = summary_table(["pp_group"])
+summary_pp
+```
+
+This table splits the same metrics by PP group and hammer status to show how
+possession changes the descriptive pattern.
+
+```{python}
+# 2) By pp_group x has_hammer
+summary_pp_hammer = summary_table(["pp_group", "has_hammer"])
+summary_pp_hammer
+```
+
+This table stratifies by PP group and score bin so you can see how trailing,
+tied, or leading teams differ in their late-phase behavior.
+
+```{python}
+# 3) By pp_group x score_bin
+summary_pp_score = summary_table(["pp_group", "score_bin"])
+summary_pp_score
+```
+
+## Plots
+
+The following figures visualize the descriptive patterns. Each plot uses
+plotnine to keep the graphics consistent across the notebook.
+
+This heatmap summarizes the discrete behavior-index distribution by PP group,
+showing the share of team-ends at each possible value.
+
+```{python}
+# 1) Behavior index distribution by pp_group (discrete heatmap)
+dist = team_end[["pp_group", "behavior_index"]].copy()
+dist["behavior_index"] = dist["behavior_index"].round(3)
+dist = (
+    dist.groupby(["pp_group", "behavior_index"], as_index=False)
+    .size()
+    .rename(columns={"size": "count"})
+)
+dist["share"] = dist.groupby("pp_group")["count"].transform(
+    lambda s: s / s.sum()
+)
+levels = sorted(dist["behavior_index"].unique())
+dist["behavior_index_str"] = pd.Categorical(
+    dist["behavior_index"].map(lambda v: f"{v:.3f}"),
+    categories=[f"{v:.3f}" for v in levels],
+    ordered=True,
+)
+
+plot_behavior_index = (
+    ggplot(dist, aes(x="pp_group", y="behavior_index_str", fill="share"))
+    + geom_tile(color="white")
+    + scale_fill_gradient(low="#f7fbff", high="#08306b")
+    + labs(
+        title="Behavior index distribution by PP group (late phase)",
+        x="PP group",
+        y="Behavior index (def - off)",
+        fill="Share",
+    )
+    + theme_minimal()
+)
+plot_behavior_index
+```
+
+This line plot shows how mean defensive share varies by score state, with
+separate lines for hammer/non-hammer in PP and non-PP ends. It highlights
+whether PP changes behavior differently when trailing, tied, or leading.
+
+```{python}
+# 2) Mean defensive share by score_bin, lines by hammer x PP status
+def_line = np.select(
+    [
+        (team_end["pp_used_end"] == 0) & (team_end["has_hammer"] == 1),
+        (team_end["pp_used_end"] == 0) & (team_end["has_hammer"] == 0),
+        (team_end["pp_used_end"] == 1) & (team_end["pp_by_team"] == 1),
+        (team_end["pp_used_end"] == 1) & (team_end["pp_by_team"] == 0),
+    ],
+    ["HT non-PP", "NHT non-PP", "HT PP", "NHT PP"],
+    default="unknown",
+)
+mean_def = (
+    team_end.assign(def_line=def_line)
+    .groupby(["score_bin", "def_line"], as_index=False)["def_share_late"]
+    .mean()
+)
+def_line_order = ["HT non-PP", "NHT non-PP", "HT PP", "NHT PP"]
+mean_def["def_line"] = pd.Categorical(
+    mean_def["def_line"],
+    categories=def_line_order,
+    ordered=True,
+)
+
+plot_def_by_score = (
+    ggplot(
+        mean_def,
+        aes(
+            x="score_bin",
+            y="def_share_late",
+            color="def_line",
+            group="def_line",
+        ),
+    )
+    + geom_line()
+    + geom_point()
+    + scale_x_discrete(limits=["trail", "tied", "lead"])
+    + scale_color_manual(
+        values=["#0072B2", "#56B4E9", "#D55E00", "#E69F00"],
+        breaks=def_line_order,
+    )
+    + labs(
+        x="Score state",
+        y="Defensive share (late)",
+        color="Group",
+    )
+    + theme_minimal()
+)
+plot_def_by_score
+```
+
+## Regression models
+
+We fit a fixed-effects OLS model at the team-end level because the outcome is
+a share-based index that is naturally interpreted in share points. The index
+can be negative and takes discrete steps, so a beta or fractional-logit model
+is not appropriate. A shot-level multinomial would change the estimand to
+per-shot choice probabilities and add a second layer of modeling without
+improving the end-level behavior contrast we want to estimate. OLS keeps the
+PP_caller and PP_noncaller coefficients directly interpretable as average
+shifts in defensive minus offensive share.
+
+PP group is the exposure of interest. We include hammer and pre-end score
+differential because they are the main state variables that plausibly affect
+shot selection and PP usage. End fixed effects capture systematic end-to-end
+dynamics, team fixed effects absorb persistent team styles, and match fixed
+effects absorb match-specific conditions such as sheet, venue, or opponent
+pairing. Standard errors are clustered at the match level to account for
+within-match correlation and the paired structure of team-ends.
+
+We report PP_caller and PP_noncaller because they are the policy-relevant
+contrasts: they separate the caller’s behavioral shift from the opponent’s
+response. Mixed-effects models are reasonable when prediction or variance
+components are the objective, but our focus is within-team, within-match
+comparisons with minimal distributional assumptions, which fixed-effects OLS
+provides.
+
+```{python}
+model_df = team_end.copy()
+model_df["has_hammer"] = model_df["has_hammer"].astype(int)
+
+formula_base = (
+    "{outcome} ~ C(pp_group, Treatment(reference='nonPP')) "
+    "+ has_hammer + pre_end_score_diff + C(end_id) + C(team_id) + C(match_id)"
+)
+
+
+def fit_model(outcome: str):
+    formula = formula_base.format(outcome=outcome)
+    res = smf.ols(formula, data=model_df).fit(
+        cov_type="cluster", cov_kwds={"groups": model_df["match_id"]}
+    )
+    return res
+
+
+models = {
+    "behavior_index": fit_model("behavior_index"),
+    "behavior_index_mid": fit_model("behavior_index_mid"),
+    "behavior_index_close": fit_model("behavior_index_close"),
+}
+
+pp_terms = {
+    "PP_caller": "C(pp_group, Treatment(reference='nonPP'))[T.PP_caller]",
+    "PP_noncaller": "C(pp_group, Treatment(reference='nonPP'))[T.PP_noncaller]",
+}
+
+rows = []
+for model_name, res in models.items():
+    for label, term in pp_terms.items():
+        rows.append({
+            "model": model_name,
+            "term": label,
+            "coef": res.params.get(term, np.nan),
+            "se": res.bse.get(term, np.nan),
+            "pvalue": res.pvalues.get(term, np.nan),
+            "nobs": int(res.nobs),
+            "r2": res.rsquared,
+        })
+
+reg_table = pd.DataFrame(rows)
+reg_table
+```
+
+## Robustness checks: clustering level
+
+These checks verify that the PP contrasts are not an artifact of the
+clustering level. We re-fit the main late-phase model with match-level
+clustering and with end-within-match clustering.
+
+```{python}
+robust_df = model_df.copy()
+robust_df["match_end"] = (
+    robust_df["match_id"].astype(str)
+    + "_"
+    + robust_df["end_id"].astype(str)
+)
+robust_df = robust_df.dropna(subset=[
+    "behavior_index", "has_hammer", "pre_end_score_diff", "pp_group",
+    "end_id", "team_id", "match_id",
+])
+
+
+def fit_robust(cluster: str):
+    formula = (
+        "behavior_index ~ C(pp_group, Treatment(reference='nonPP')) "
+        "+ has_hammer + pre_end_score_diff + C(end_id) + C(team_id) "
+        "+ C(match_id)"
+    )
+    groups = robust_df["match_id"]
+    if cluster == "match_end":
+        groups = robust_df["match_end"]
+    return smf.ols(formula, data=robust_df).fit(
+        cov_type="cluster", cov_kwds={"groups": groups}
+    )
+
+
+robust_specs = [
+    {"label": "cluster match", "cluster": "match"},
+    {"label": "cluster match_end", "cluster": "match_end"},
+]
+
+robust_rows = []
+for spec in robust_specs:
+    res = fit_robust(spec["cluster"])
+    robust_rows.append({
+        "spec": spec["label"],
+        "pp_caller": res.params.get(pp_terms["PP_caller"], np.nan),
+        "pp_caller_se": res.bse.get(pp_terms["PP_caller"], np.nan),
+        "pp_noncaller": res.params.get(pp_terms["PP_noncaller"], np.nan),
+        "pp_noncaller_se": res.bse.get(pp_terms["PP_noncaller"], np.nan),
+        "nobs": int(res.nobs),
+        "r2": res.rsquared,
+    })
+
+robust_reg = pd.DataFrame(robust_rows)
+robust_reg
+```
+
+Clustering at end-within-match slightly reduces standard errors
+(PP_caller SE 0.030 → 0.028; PP_noncaller SE 0.035 → 0.033), but the ordering
+and magnitude of PP effects are unchanged.
+
+## Sensitivity checks: alternate task mappings
+
+This check asks whether the PP effects depend on reasonable reclassifications
+of borderline task codes. We evaluate four variants: the baseline mapping, an
+all-hits-defensive mapping that moves hit-and-roll into defense, a conservative
+defense mapping that treats only clear take-outs as defensive, and a version
+that drops ambiguous hit shots (wick/soft-peel, hit-and-roll, promotion) from
+the denominator. We recompute late-phase shares and re-fit the main model each
+time. The goal is not to "improve" the mapping, but to verify that the core PP
+contrasts do not hinge on any single coding choice.
+
+```{python}
+team_end_base = team_end[
+    ["match_id", "end_id", "team_id", "has_hammer", "pre_end_score_diff",
+     "pp_group"]
+].copy()
+
+pp_terms = {
+    "PP_caller": "C(pp_group, Treatment(reference='nonPP'))[T.PP_caller]",
+    "PP_noncaller": "C(pp_group, Treatment(reference='nonPP'))[T.PP_noncaller]",
+}
+
+
+def compute_sensitivity(mapping_name, offensive, defensive, neutral,
+                        drop_tasks=None):
+    df_local = df.copy()
+    if drop_tasks:
+        df_local = df_local[~df_local["task"].isin(drop_tasks)].copy()
+
+    conditions = [
+        df_local["task"].isin(offensive),
+        df_local["task"].isin(defensive),
+        df_local["task"].isin(neutral),
+    ]
+    df_local["task_group"] = np.select(
+        conditions, ["offensive", "defensive", "neutral"], default="neutral"
+    )
+
+    late = df_local[df_local["shot_id"].isin(late_ids)].copy()
+    late_metrics = summarize_phase(late, "late")
+
+    team_end_s = team_end_base.merge(late_metrics, on=keys, how="left")
+    team_end_s["behavior_index"] = team_end_s["behavior_index_late"]
+
+    model_df = team_end_s.copy()
+    model_df["has_hammer"] = model_df["has_hammer"].astype(int)
+    model_df = model_df.dropna(subset=[
+        "behavior_index", "has_hammer", "pre_end_score_diff", "pp_group",
+        "end_id", "team_id", "match_id",
+    ])
+    formula = formula_base.format(outcome="behavior_index")
+    res = smf.ols(formula, data=model_df).fit(
+        cov_type="cluster", cov_kwds={"groups": model_df["match_id"]}
+    )
+
+    means = (
+        team_end_s.groupby("pp_group")[["def_share_late", "off_share_late",
+                                        "behavior_index"]]
+        .mean()
+        .reset_index()
+    )
+    means["mapping"] = mapping_name
+
+    return {
+        "mapping": mapping_name,
+        "pp_caller": res.params.get(pp_terms["PP_caller"], np.nan),
+        "pp_noncaller": res.params.get(pp_terms["PP_noncaller"], np.nan),
+        "pp_caller_se": res.bse.get(pp_terms["PP_caller"], np.nan),
+        "pp_noncaller_se": res.bse.get(pp_terms["PP_noncaller"], np.nan),
+        "nobs": int(res.nobs),
+        "r2": res.rsquared,
+        "means": means,
+    }
+
+
+sens_specs = [
+    {
+        "name": "baseline",
+        "offensive": {0, 1, 2, 3, 5, 7},
+        "defensive": {4, 6, 8, 9, 10},
+        "neutral": {11, -1},
+        "drop": set(),
+    },
+    {
+        "name": "all_hits_defensive",
+        "offensive": {0, 1, 2, 3, 5},
+        "defensive": {4, 6, 7, 8, 9, 10},
+        "neutral": {11, -1},
+        "drop": set(),
+    },
+    {
+        "name": "conservative_defense",
+        "offensive": {0, 1, 2, 3, 5, 7},
+        "defensive": {6, 8, 9},
+        "neutral": {4, 10, 11, -1},
+        "drop": set(),
+    },
+    {
+        "name": "drop_ambiguous_hits",
+        "offensive": {0, 1, 2, 3, 5, 7},
+        "defensive": {4, 6, 8, 9, 10},
+        "neutral": {11, -1},
+        "drop": {4, 7, 10},
+    },
+]
+
+sens_results = []
+means_list = []
+for spec in sens_specs:
+    out = compute_sensitivity(
+        spec["name"],
+        spec["offensive"],
+        spec["defensive"],
+        spec["neutral"],
+        drop_tasks=spec["drop"],
+    )
+    sens_results.append({
+        "mapping": out["mapping"],
+        "pp_caller": out["pp_caller"],
+        "pp_caller_se": out["pp_caller_se"],
+        "pp_noncaller": out["pp_noncaller"],
+        "pp_noncaller_se": out["pp_noncaller_se"],
+        "nobs": out["nobs"],
+        "r2": out["r2"],
+    })
+    means_list.append(out["means"])
+
+sens_reg = pd.DataFrame(sens_results)
+sens_reg
+```
+
+```{python}
+sens_means = pd.concat(means_list, ignore_index=True)
+sens_means
+```
+
+Across mappings, the PP effects remain positive and ordered: PP_noncaller is
+consistently larger than PP_caller. The PP_caller coefficient ranges from
+0.068 to 0.204, while PP_noncaller ranges from 0.437 to 0.587, so the opponent
+response remains larger by roughly 0.32 to 0.42 share points. Model fit is
+stable (R² 0.232–0.248), and the only sample-size change comes from dropping
+ambiguous hits (nobs = 5,256 vs 5,274).
+
+The descriptive means move as expected when mappings change. When all hit
+shots are treated as defensive, defensive shares rise and the behavior index
+for PP groups can cross zero (PP_caller ≈ 0.015; PP_noncaller ≈ 0.145). This
+reflects reclassification rather than a reversal of the PP pattern. Under the
+conservative-defense mapping, defensive shares drop but the ordering persists:
+PP_noncaller remains the most defensive group, followed by PP_caller, with
+nonPP least defensive. Dropping ambiguous hit shots leaves the relative
+ordering intact, while slightly increasing the PP coefficients. Overall, the
+core conclusions do not hinge on any single task coding choice.
+
+## Model diagnostics
+
+We evaluate residual structure and influence for the main late-phase model.
+Because the outcome is discrete and the model includes many fixed effects,
+normality is not expected; the Q-Q plot is descriptive only. The core checks
+here are (1) residual location/scale and outliers, (2) influence, (3) mean
+residuals by fitted-value bins to assess functional form, and (4) a
+heteroskedasticity signal. These diagnostics are meant to assess stability,
+not to enforce strict normality.
+
+```{python}
+main_res = models["behavior_index"]
+influence = main_res.get_influence()
+
+diag_df = pd.DataFrame({
+    "fitted": main_res.fittedvalues,
+    "resid": main_res.resid,
+    "stud_resid": influence.resid_studentized_internal,
+    "leverage": influence.hat_matrix_diag,
+    "cooks_d": influence.cooks_distance[0],
+})
+
+n_obs = len(diag_df)
+diag_summary = pd.DataFrame({
+    "n_obs": [n_obs],
+    "resid_mean": [diag_df["resid"].mean()],
+    "resid_sd": [diag_df["resid"].std(ddof=1)],
+    "stud_abs_gt2": [(diag_df["stud_resid"].abs() > 2).sum()],
+    "stud_abs_gt3": [(diag_df["stud_resid"].abs() > 3).sum()],
+    "cooks_gt_4n": [(diag_df["cooks_d"] > (4 / n_obs)).sum()],
+    "cooks_max": [diag_df["cooks_d"].max()],
+    "leverage_max": [diag_df["leverage"].max()],
+})
+diag_summary
+```
+
+```{python}
+from statsmodels.stats.diagnostic import het_breuschpagan
+from statsmodels.stats.stattools import jarque_bera
+
+jb_stat, jb_p, skew, kurt = jarque_bera(diag_df["resid"])
+dist_summary = pd.DataFrame({
+    "jb_stat": [jb_stat],
+    "jb_pvalue": [jb_p],
+    "skew": [skew],
+    "kurtosis": [kurt],
+})
+dist_summary
+```
+
+```{python}
+bin_df = diag_df.copy()
+bin_df["fitted_bin"] = pd.qcut(
+    bin_df["fitted"], q=10, duplicates="drop"
+)
+bin_summary = (
+    bin_df.groupby("fitted_bin", observed=True)["resid"]
+    .agg(mean="mean", mean_abs=lambda x: x.abs().mean(), n="size")
+    .reset_index()
+)
+bin_summary
+```
+
+```{python}
+bp_stat, bp_p, f_stat, f_p = het_breuschpagan(
+    diag_df["resid"], main_res.model.exog
+)
+het_summary = pd.DataFrame({
+    "bp_stat": [bp_stat],
+    "bp_pvalue": [bp_p],
+    "f_stat": [f_stat],
+    "f_pvalue": [f_p],
+    "corr_abs_resid_fitted": [
+        diag_df["resid"].abs().corr(diag_df["fitted"])
+    ],
+})
+het_summary
+```
+
+The normality test is expected to reject because the outcome is discrete and
+fixed effects absorb much of the variation. The binned residual table checks
+for systematic mean deviations across fitted values; large deviations would
+signal functional-form issues. The heteroskedasticity test is descriptive
+only; we rely on clustered standard errors for inference in the presence of
+non-constant variance. Influence diagnostics in `diag_summary` confirm whether
+any single team-end is unduly driving results.
+
+In this run, residuals are centered (mean ≈ 0) with SD ≈ 0.55. There are 197
+|studentized residuals| > 2 (3.7%) and 9 > 3 (0.17%). Influence is modest
+(Cook's D max ≈ 0.0025; leverage max ≈ 0.10). The JB test rejects normality
+(p ≈ 1e-48), as expected. The BP test indicates heteroskedasticity
+(p ≈ 2e-6), with a mild |resid|–fitted correlation ≈ 0.16; clustered SEs are
+therefore appropriate. Binned residual means range roughly −0.09 to 0.08 with
+no strong drift, suggesting no major functional-form misspecification.
+
+```{python}
+plot_resid = (
+    ggplot(diag_df, aes(x="fitted", y="resid"))
+    + geom_point(alpha=0.4)
+    + geom_hline(yintercept=0, color="#666666")
+    + labs(
+        title="Residuals vs fitted values",
+        x="Fitted values",
+        y="Residuals",
+    )
+    + theme_minimal()
+)
+plot_resid
+```
+
+```{python}
+qq_df = diag_df[["resid"]].dropna().sort_values("resid").reset_index(drop=True)
+qq_df["theoretical"] = stats.norm.ppf((qq_df.index + 0.5) / len(qq_df))
+qq_df["sample"] = qq_df["resid"]
+
+plot_qq = (
+    ggplot(qq_df, aes(x="theoretical", y="sample"))
+    + geom_point(alpha=0.4)
+    + geom_abline(slope=1, intercept=0, color="#2b6cb0")
+    + labs(
+        title="Q-Q plot of residuals",
+        x="Theoretical normal quantiles",
+        y="Sample residual quantiles",
+    )
+    + theme_minimal()
+)
+plot_qq
+```
+
+The residuals are centered near zero with moderate spread, and the
+residual-versus-fitted plot shows no strong curvature. The discrete outcome
+produces visible banding, which is expected given the 1/3 and 1/4 increments.
+Studentized residuals above 2 are present but rare (197 of 5,274), and only 9
+exceed 3. Cook's distances are small (max 0.0025) and the highest leverage is
+about 0.10, indicating no single team-end drives the fit. The Q-Q plot shows
+slight tail deviations, but clustering by match and the large sample mitigate
+concerns about non-normal errors.
+
+## Optional positional validation (one metric)
+
+To validate the behavioral interpretation without redefining it, we compute a
+single positional measure: opponent stones that go off-sheet during late shots.
+We infer which stones belong to the opponent based on the fixed stone index
+ownership (1-6 for team_id1, 7-12 for team_id2), detect transitions to the off-
+sheet sentinel, and aggregate them by team-end.
+
+```{python}
+# Count opponent stones that go off-sheet during late shots.
+# Stone indices 1-6 belong to team_id1; stones 7-12 belong to team_id2.
+
+stone_ids = list(range(1, 13))
+
+df_sorted = df.sort_values(["match_id", "end_id", "shot_id"]).copy()
+
+cols_1_6 = []
+cols_7_12 = []
+
+for i in stone_ids:
+    x_col = f"stone_{i}_x"
+    y_col = f"stone_{i}_y"
+    off_col = f"stone_{i}_off"
+    prev_col = f"stone_{i}_off_prev"
+    to_col = f"stone_{i}_to_off"
+
+    df_sorted[off_col] = (df_sorted[x_col] == 4095) | (df_sorted[y_col] == 4095)
+    df_sorted[prev_col] = (
+        df_sorted.groupby(["match_id", "end_id"])[off_col]
+        .shift(1)
+        .fillna(False)
+    )
+    df_sorted[to_col] = (~df_sorted[prev_col]) & (df_sorted[off_col])
+
+    if i <= 6:
+        cols_1_6.append(to_col)
+    else:
+        cols_7_12.append(to_col)
+
+# Per shot, count new offsheet stones for each side
+for col_list, out_col in [(cols_1_6, "to_off_1_6"), (cols_7_12, "to_off_7_12")]:
+    df_sorted[out_col] = df_sorted[col_list].sum(axis=1).astype(int)
+
+# Opponent removals per shot
+team1_mask = df_sorted["team_id"] == df_sorted["team_id1"]
+df_sorted["opp_offsheet_on_shot"] = np.where(
+    team1_mask, df_sorted["to_off_7_12"], df_sorted["to_off_1_6"]
+)
+
+late_shots = df_sorted[df_sorted["shot_id"].isin(late_ids)].copy()
+opp_off = (
+    late_shots.groupby(keys, as_index=False)["opp_offsheet_on_shot"].sum()
+    .rename(columns={"opp_offsheet_on_shot": "opp_offsheet_late"})
+)
+
+team_end = team_end.merge(opp_off, on=keys, how="left")
+team_end["opp_offsheet_late"] = team_end["opp_offsheet_late"].fillna(0)
+
+corr = (
+    team_end[["def_share_late", "opp_offsheet_late"]]
+    .corr(method="spearman")
+    .iloc[0, 1]
+)
+print("Spearman corr(def_share_late, opp_offsheet_late):", round(corr, 3))
+```
+
+The validation plot visualizes the relationship between defensive share and
+opponent removals, with a fitted linear trend to clarify direction.
+
+```{python}
+plot_validation = (
+    ggplot(team_end, aes(x="def_share_late", y="opp_offsheet_late"))
+    + geom_point(alpha=0.4)
+    + geom_smooth(method="lm", se=False, color="#2b6cb0")
+    + labs(
+        title="Validation: defensive share vs opponent stones off-sheet",
+        x="Defensive share (late)",
+        y="Opponent stones removed (late)",
+    )
+    + theme_minimal()
+)
+plot_validation
+```
+
+## One-sentence thesis
+
+We operationalize behavior as late-phase shot selection (defensive vs offensive
+task types), separate PP caller vs opponent, and estimate PP-associated
+behavioral shifts conditional on hammer, score, and end with team and match
+controls plus clustered inference; timing splits show when the shift occurs.
+
+## Regression analysis write-up
+
+This analysis uses team-end as the unit and models behavior as a late-phase
+shot-selection index: `behavior_index = def_share_late - off_share_late`. The
+core specification is fixed-effects OLS with `nonPP` as the reference group:
+
+`behavior_index ~ C(pp_group) + has_hammer + pre_end_score_diff + C(end_id)
++ C(team_id) + C(match_id)`, with standard errors clustered at `match_id`.
+Identical specifications are fit for the timing splits `behavior_index_mid`
+and `behavior_index_close`. The sample includes 5,274 team-end rows (2,637
+ends), and late-shot coverage is complete: all rows have at least three late
+shots and half have four, consistent with mixed doubles rules.
+
+Model selection is driven by interpretability and structure. The outcome is a
+difference in shares, which behaves approximately continuously despite its
+1/3 and 1/4 discreteness, so OLS provides a direct interpretation in share
+points. Team and match fixed effects absorb persistent strategic differences
+that are plausibly correlated with PP usage, avoiding the stronger independence
+assumption required by random-effects models. End fixed effects control for
+systematic end-level shifts. Clustering by match addresses within-match
+correlation and the paired structure of team-ends.
+
+In the main model, PP is associated with a shift toward more defensive shot
+selection for both teams relative to non-PP ends. The PP caller coefficient is
+0.068 (SE 0.030, p=0.024), while the PP non-caller coefficient is 0.449
+(SE 0.035, p≈1.3e-37). This implies that the opponent response is much larger
+than the caller's shift after controlling for hammer, score differential, end,
+team, and match fixed effects. The model R² is 0.232.
+
+Timing splits clarify when this shift occurs. In the mid window (shots 16--18),
+the PP caller effect is 0.128 (SE 0.038, p=8.5e-4) and the PP non-caller effect
+is 0.516 (SE 0.046, p≈1.3e-29). In the closing window (shots 19--22), the PP
+caller effect is 0.009 (SE 0.038, p=0.82; not significant), while the PP non-
+caller effect remains large at 0.414 (SE 0.043, p≈3.1e-22). This pattern
+indicates that the caller’s defensive shift happens early, whereas the non-
+caller remains defensive throughout the late phase.
+
+Diagnostics support the linear specification. Residuals are centered near zero
+with moderate spread (SD ≈ 0.55), and the residual-versus-fitted plot shows no
+strong curvature. Discreteness appears as banding, which is expected from the
+shot-count denominators. Studentized residuals above 2 are uncommon (197 of
+5,274) and only 9 exceed 3. Cook's distances are small (max 0.0025) and the
+largest leverage is about 0.10, indicating no single team-end dominates the
+fit. The Q-Q plot shows mild tail deviations, which is typical in large samples
+and is mitigated by clustered inference.
+
+Selection patterns are consistent with strategic use of PP: the end-level PP
+rate is about 0.265 when trailing or leading but only 0.113 when tied. The
+controlled model includes score differential and fixed effects to reduce bias
+from this selection, but the results should still be interpreted as
+associations rather than causal effects.
+
+The positional validation supports the behavior label: the Spearman
+correlation between `def_share_late` and opponent stones removed late is 0.804,
+indicating that defensive shot selection corresponds to opponent stone
+removals. The main limitation is that “behavior” is defined by shot-task
+categories rather than positional intent; still, it is the most direct signal
+available in this dataset under the project constraints.
