@@ -26,6 +26,7 @@ import pandas as pd
 from plotnine import (
     ggplot,
     aes,
+    element_text,
     geom_line,
     geom_point,
     geom_tile,
@@ -33,6 +34,7 @@ from plotnine import (
     geom_hline,
     geom_abline,
     labs,
+    theme,
     theme_minimal,
     scale_color_manual,
     scale_fill_gradient,
@@ -565,6 +567,14 @@ plot_def_by_score = (
         color="Group",
     )
     + theme_minimal()
+    + theme(
+        axis_title_x=element_text(size=15),
+        axis_title_y=element_text(size=15),
+        axis_text_x=element_text(size=15),
+        axis_text_y=element_text(size=15),
+        legend_title=element_text(size=15),
+        legend_text=element_text(size=15),
+    )
 )
 plot_def_by_score
 
