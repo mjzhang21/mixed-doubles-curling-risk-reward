@@ -149,49 +149,31 @@ pre-end score differential; derives hammer from the first thrown stone
 (ShotID 7); and assigns power play exposure at the end and team-end levels.
 Ends are labeled as non-PP, PP caller, or PP non-caller to compare the caller
 and opponent under the same end context.
+
 \subsection{Methodology}
 
-Conceptually, we define behavior as offensive, defensive, or probing
-(opportunistic). These behaviors can appear tactically within a single end
-(shot-to-shot choices) and strategically across ends (an intended end goal or
-game plan). Because probing behavior is inherently reactive and not uniquely
-encoded in the task labels, we treat neutral or ambiguous shots as the closest
-empirical proxy for probing in this analysis.
+We define behavior as offensive, defensive, or probing (neutral). Because
+probing intent is not labeled, neutral or ambiguous tasks serve as its proxy.
+We focus on late shots (16--22), when choices are less rule-constrained than
+early MFGZ shots.
 
-We focus on the late phase of the end (shots 16--22) because early shots are
-heavily constrained by the Modified Free Guard Zone and the pre-placed stones.
-Late shots therefore provide the clearest window into strategic choice rather
-than rule-driven necessity.
+Behavior is operationalized through analyst task labels. We group tasks into
+offensive placements (draws, guards, raises, freezes, hit-and-rolls),
+defensive removals (peels, take-outs, clears, doubles, promotions), and
+neutral (through/no-shot). Task coding is the only consistent indicator of
+intent; position-based intent would add modeling assumptions, so positions
+are reserved for validation.
 
-Behavior is operationalized through shot selection, using the task labels
-assigned by analysts. We group tasks into offensive placements (draws, guards,
-raises, freezes, and hit-and-rolls), defensive removals (peels, take-outs,
-clears, doubles, and promotions), and a neutral category for throughs or
-no-shot entries. This choice is deliberate: the task coding is the only
-consistently available, interpretable indicator of intent at the shot level.
-Position-based intent would require model-driven inference and introduce a
-second layer of assumptions, so we treat shot selection as the observable
-behavioral signal and reserve positional data for validation.
-
-For each team-end we compute late-phase shares of offensive, defensive, and
-neutral shots and define the behavior index as defensive minus offensive
-share; larger values indicate more defensive profiles. We also split the late
-phase into mid (shots 16--18) and close (shots 19--22) to test timing
-mechanisms. Hammer teams throw four late shots and non-hammer teams throw
+For each team-end we compute late-phase shares and a behavior index
+(defensive minus offensive). We also split late shots into mid (16--18) and
+close (19--22). Hammer teams throw four late shots and non-hammer teams throw
 three, so shares move in discrete increments but standardize exposure across
-teams and ends.
+teams.
 
-The primary specification is fixed-effects OLS with clustering at the match
-level. Fixed effects for team and match absorb persistent strategy and match-
-specific conditions, while end fixed effects control for systematic end-of-
-game dynamics. This specification favors interpretability of the power play
-coefficients in share points and is conservative with respect to within-match
-correlation. Diagnostics include residual plots, Q--Q plots, and influence
-measures. As a validation, we test whether higher defensive shares correspond
-to more opponent stones removed during late shots, using the off-sheet sentinel
-to identify removals. Limitations include the discrete nature of the outcome,
-potential selection into power play usage, and reliance on task coding as a
-proxy for intent.
+We estimate fixed-effects OLS with match-clustered SEs, including end, team,
+and match fixed effects plus hammer and pre-end score differential. We check
+whether higher defensive share corresponds to more opponent stones removed
+late. Limitations include selection into PP usage and reliance on task coding.
 
 \subsection{Results}
 
