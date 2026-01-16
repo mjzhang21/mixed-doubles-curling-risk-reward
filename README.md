@@ -1,7 +1,7 @@
 # Mixed Doubles Curling Risk/Reward
 
 ## Quick start (required order)
-1. `-r pip install requirements`
+1. `pip install -r requirements.txt`
 2. Import the data challenge CSVs into `data/`:
    - `data/Competition.csv`
    - `data/Competitors.csv`
