@@ -23,14 +23,31 @@ that the stone level data classifies all shots.
 # Build the analysis unit: team-end
 
 ```{python}
+from pathlib import Path
+import sys
+
 import pandas as pd
 import numpy as np
 
-df = pd.read_csv("../data/stones_master_1.csv") 
+CODE_DIR = Path("..") / "code"
+sys.path.append(str(CODE_DIR))
+from stone_level_cleaning import load_cleaned_data
+
+df = load_cleaned_data().copy()
 
 #this is a patch necessitated by section 3. these were 2 ends with mistaken first shot values.
-df.loc[(df["match_id"] == "0_13_1") & (df["end_id"] == 7) & (df["shot_id"] == 7), "stone_2_y"] = 0
-df.loc[(df["match_id"] == "0_8_4") & (df["end_id"] == 2) & (df["shot_id"] == 7), "stone_8_x"] = 0
+df.loc[
+    (df["match_id"] == "0_13_1")
+    & (df["end_id"] == 7)
+    & (df["shot_id"] == 7),
+    "stone_2_y",
+] = 0
+df.loc[
+    (df["match_id"] == "0_8_4")
+    & (df["end_id"] == 2)
+    & (df["shot_id"] == 7),
+    "stone_8_x",
+] = 0
 
 # Ends is a dataframe which contains two rows per match an end; one for each team.
 ends = (
@@ -788,4 +805,3 @@ ax.grid(True, linewidth=0.5, alpha=0.4)
 plt.tight_layout()
 plt.show()
 ```
-

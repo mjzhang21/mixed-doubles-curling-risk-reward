@@ -11,153 +11,7 @@ format:
     fontsize: 11pt 
 ---
 
-#### Game Level Data
-
-- `match_id` - unique ID for each Match in the dataset.
-- `group_id` - In competitions where teams are split into group for play, the ID
-of the group for the teams in this match.
-- `sheet` - The name of the sheet on which the match is played.
-- `noc1` - National Olympic Committee of the first competing team.
-- `noc2` - National Olympic Committee of the second competing team.
-- `team_id1` – ID for the team corresponding to NOC1 and ResultsStr1.
-- `team_id2` - ID for the team corresponding to NOC2 and ResultsStr2.
-- `resultstr1` – Final Score of Team 1.
-- `resultstr2` – Final Score of Team 2.
-- `lsfe` - Last Stone First End. Indicates which team threw the last stone in
-the first end of the match, i.e., starting with the hammer.
-    - 0 means `NOC2` threw the LSFE.
-    - 1 means `NOC1` threw the LSFE.
-- `winner` – Indicates the winning team. 0 indicates that `NOC2` won the match, 1 indicates that `NOC1` won the match.
-
-#### End-Level Context
-
-- `end_id` - ID for an end of the match. 8 ends are typical
-in mixed doubles curling, but concession can lead to only 6
-or 7 ends being played and overtime can lead to a 9th.
-- `result` - The points scored by the skipping team in that end.
-- `powerplay` - A flag for when a team using their power play in an end. A value 
-of 1 corresponds to pre-palced stones being moved to the right side
-2 being pre-placed stones are moved to the left side. 0 means the team is not using their
-powerplay.
-- `pre_end_score` - Running score of the team throwing the stone before the current end.
-- `opp_pre_end_score` - Running score of the opponent team before the current end.
-- `pre_end_score_diff` - Pre-end score differntial computed as
-`pre_end_score` - `opp_pre_end_score`. 
-- `hammer_team_id` - Which `TeamID` in the end has the hammer.
-- `has_hammer` - Boolean for whether the skipping team has the hammer.
-
-#### Shot-By-Shot Data
-
-- `shot_id` - ID for the shot. Within a particular match and end, shots occur in
-ascending order of the ShotID values (i.e. lower ShotIDs are thrown first).
-    - `shot_id` begins at 7 and ascends to 22, skipping 10 through
-    15.
-    - My understanding is that 10-15 are unused "shot slots" from
-    traditional 16 shot curling, and this is an artifact from curlit.
-- `team_id` - ID for the Team which threw the shot for the row.
-- `player_id` - ID for the player taking the shot (1 or 2)
-    - 5 Instances of value 3, all corresponding with `ShotID == 7`.
-    Curlit says this is a data entry error.
-- `task` - The type of shot that the player is throwing,
-or the objective of the shot.
-    - Tasks 0-5 are considered "Slow Stones", as they are focused on precise positioning
-    of the skipped stone.
-    - Tasks 6-10 are considered "Fast Stones", as they are are all Take-out variations,
-    so they must carry enough energy to remove at least one stone from play.
-    - 0: Draw
-        - Meant to be for scoring position; should have close proximity to the button inside
-        the house.
-        - Skip should land close to opponent preplaced button stone as to remove it from scoring
-        potential.
-    - 1: Front
-        - Placed in-front of the house as an obstacle.
-        - Not to be confused with guard; Fronts are not intended to guard particular
-        stones in the house.
-    - 2: Guard
-        - Meant to protect stones in scoring position. Typically stops short of house, directly
-        in-line with a scoring stone in the house.
-    - 3: Raise / Tap-back
-        - Throw pushes another stone forward into a new position. I.e., this
-        moves a stone already in play with the new stone. Can be either team's stone.
-        - This is a way to push your stone onto the button, and if executed correctly,
-        the skipped stone acts as a new guard.
-    - 4: Wick / Soft peeling
-        - Moving another stone such that both the moved and skipped stone land
-        in desired positions. E.g., moving a stone into the house and landing the skipped
-        stone in the house. Could also be used to move opponent stones out of
-        guarding position while moving your own into house. 
-        - "Soft peeling" is a traditional men's/women's term and does not apply due to
-        the nature of no free-guard-zone in mixed doubles. 
-    - 5: Freeze
-        - A special draw which skips as close as possible to an opponent scoring stone
-        in the house.
-        - A "frozen" ston is exceptionally difficult to remove because it will transfer
-        its energy to the stone it is stuck to. Thus, it is suitable for last possibilites
-        (i.e., the 2nd-to-last stone in the end)
-    - 6: Take-out
-        - To remove an opponent's stone from play. The skipped stone is intended to
-        stay in play.
-    - 7: Hit and Roll
-        - A special take-out which removes the target stone, and leaves the skipped
-        stone in a strategic position, perhaps as a guard, or defended by a guard,
-        inside the house.
-    - 8: Clearing
-        - A special take-out primarily to clear stones from in front of the house,
-        intended to take the moved stone and skipped stone out of play. This "clears"
-        the sheet from both teams' obstructions.
-    - 9: Double Take-out
-        - A special take-out which removes two opponent stones from play.
-    - 10: Promotion Take-out
-        - A special take-out which promotes a team's stone, takes out an opponent stone,
-        and leaves the skipped stone as a guard for the promoted stone. 
-        - Not to be confused with Hit and Roll, which leaves the skipped stone as the
-        scoring stone.
-    - 11: Through
-        - A complete player fault which takes the skip and only the skip out of play.
-        I.e., a complete miss to off the sheet.
-        - Awarded 9 points; null value in practice.
-    - -1: Shot not attempted due to concession (filler value).
-- `handle` - The turn of the stone as it is thrown. A 0 value means the shot
-is turning clockwise, a 1 indicates counterclockwise. -1 means the shot wasn't
-thrown due to concession.
-- `timeout` - Binary variable for whether a time was called before the shot.
-- `points` - An assessment of the execution of the shot, ranging from 0 to 4. A 4-point
-shot is one that has been ascertained to have been perfectly executed to the
-player's intention, while a 0 is a shot that totally failed in its intended result.
-    -1 means the shot wasn't attempted due to concession.
-    - Intended to be an objective metric which would be graded the same by every analyst;
-    each shot type must meet specific criteria for point awards.
-    - Points are awarded solely based on intent, not outcome.
-    - The decision to make the skip type (whether good or bad) is not in the criteria.
-- `Stone_{i}_x` - The x position of stone `i` on the on the sheet, after
-the stone for the row has been thrown.
-    - Stones can take x values in (0, 1500).
-    - Value 4095 is a sentinel value indicating the stone has been knocked off the sheet
-    and is no longer in play.
-    - Value 0 indicates the stone has not yet been thrown in this end.
-- `Stone_{i}_y` - The x position of stone `i` on the on the sheet, after
-the stone for the row has been thrown.
-    - Stones can take x values in (0, 3000).
-    - Value 4095 is a sentinel value indicating the stone has been knocked off the sheet
-    and is no longer in play.
-    - Value 0 indicates the stone has not yet been thrown in this end.
-
-**Note on stones:** Stone `i` does not necessarily correspond to ShotID `i`. For each match,
-the first six stones correspond to one team, which stones 7-12 are for the other team. `Stone_1`
-and `Stone_7` are the pre-placed stones, and teams throw the rest of their stones in order. For
-example, a Team 1 in a match would have stones 2-6 and throw them in ascending order.
-
-Each end begins with `ShotID == 7` populated, i.e. there is no row dedicated to the preplaced
-stones.
-
-A curling sheet is marked by several important lines and positions that define gameplay and scoring.
-- Centerline (`x = 750`): Divides the sheet lengthwise and serves as a reference axis for all play.
-- Backline (`y = 200`): Marks the rear edge of the house; stones completely cross to remain in play
-and where players must relase the stone before delivery.
-- Button (`x = 750, y = 800`): Represents the center of the house, used as the reference point for
-scoring.
-
-# Exploratory Analysis (stones_master_1.csv)
+# Exploratory Analysis (cleaned master data)
 
 This exploratory analysis uses the variable definitions in `notebooks/new_data_dictionary.qmd`
 copied above. The intent is to generate a large set of candidate figures for the final report,
@@ -167,6 +21,7 @@ flag (used vs not used).
 ```{python}
 import numpy as np
 import pandas as pd
+import sys
 from plotnine import (
     aes,
     coord_fixed,
@@ -189,8 +44,11 @@ from plotnine import (
 )
 from pathlib import Path
 
-data_path = Path("../data/stones_master_1.csv")
-df = pd.read_csv(data_path)
+CODE_DIR = Path("..") / "code"
+sys.path.append(str(CODE_DIR))
+from stone_level_cleaning import load_cleaned_data
+
+df = load_cleaned_data().copy()
 
 df["powerplay"] = df["powerplay"].fillna(0).astype(int)
 df["powerplay_used"] = (df["powerplay"] != 0).astype(int)

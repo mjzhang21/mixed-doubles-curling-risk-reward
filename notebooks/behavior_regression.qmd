@@ -18,8 +18,8 @@ execute:
 ## Import Modules and Data
 
 ```{python}
-import importlib.util
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
@@ -49,13 +49,11 @@ a master table. I make take some precautions to ensure data quality.
 
 ```{python}
 # load data.
-CLEANING_PATH = Path("../code/stone_level_cleaning.py")
-spec = importlib.util.spec_from_file_location("stone_level_cleaning",
-                                              CLEANING_PATH)
-cleaning = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(cleaning)
+CODE_DIR = Path("..") / "code"
+sys.path.append(str(CODE_DIR))
+from stone_level_cleaning import load_cleaned_data
 
-df = cleaning.stones_master.copy()
+df = load_cleaned_data().copy()
 
 # Minimal cleanup
 for col in ["has_hammer", "powerplay", "pre_end_score_diff", "task", "shot_id"]:

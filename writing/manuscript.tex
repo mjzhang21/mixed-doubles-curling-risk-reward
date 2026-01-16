@@ -16,10 +16,6 @@
 
 \title{Strategic Adaptation to the Power Play in Mixed Doubles Curling}
 
-% \date{[15 January 2026]}
-
-
-
 \begin{document}
 \maketitle
 
@@ -140,84 +136,81 @@ and task-group shares shift between power play and non-power-play ends
 
 \section{Power Play and Late-Phase Shot Selection}
 \subsection{Data}
+
+We build a team-end panel by aggregating stone-level data to one row per team
+per end, producing paired observations (caller and opponent) within each end.
+This unit preserves team-specific hammer status, score differential, and shot
+selection, and it allows team fixed effects without collapsing two behaviors
+into a single row.
+We treat the two rows within an end as paired, not independent.
+
+Preprocessing merges stones, ends, and games; computes pre-end score and
+pre-end score differential; derives hammer from the first thrown stone
+(ShotID 7); and assigns power play exposure at the end and team-end levels.
+Ends are labeled as non-PP, PP caller, or PP non-caller to compare the caller
+and opponent under the same end context.
+
 \subsection{Methodology}
 
-Conceptually, we define behavior as offensive, defensive, or probing
-(opportunistic). These behaviors can appear tactically within a single end
-(shot-to-shot choices) and strategically across ends (an intended end goal or
-game plan). Because probing behavior is inherently reactive and not uniquely
-encoded in the task labels, we treat neutral or ambiguous shots as the closest
-empirical proxy for probing in this analysis.
+We define behavior as offensive, defensive, or probing (neutral). Because
+probing intent is not labeled, neutral or ambiguous tasks serve as its proxy.
+We focus on late shots (16--22), when choices are less rule-constrained than
+early MFGZ shots.
 
-Our behavioral analysis is conducted at the team-end level, which creates a
-paired structure within each end and allows a direct comparison between the
-power play caller and the opponent. We focus on the late phase of the end (the
-final seven deliveries) because early shots are heavily constrained by the
-Modified Free Guard Zone and the pre-placed stones. Late shots therefore
-provide the clearest window into strategic choice rather than rule-driven
-necessity.
+Behavior is operationalized through analyst task labels. We group tasks into
+offensive placements (draws, guards, raises, freezes, hit-and-rolls),
+defensive removals (peels, take-outs, clears, doubles, promotions), and
+neutral (through/no-shot). Task coding is the only consistent indicator of
+intent; position-based intent would add modeling assumptions, so positions
+are reserved for validation.
 
-Behavior is operationalized through shot selection, using the task labels
-assigned by analysts. We group tasks into offensive placements (draws, guards,
-raises, freezes, and hit-and-rolls), defensive removals (peels, take-outs,
-clears, doubles, and promotions), and a neutral category for throughs or
-no-shot entries. This choice is deliberate: the task coding is the only
-consistently available, interpretable indicator of intent at the shot level.
-Position-based intent would require model-driven inference and introduce a
-second layer of assumptions, so we treat shot selection as the observable
-behavioral signal and reserve positional data for validation.
+Using shares rather than raw counts standardizes exposure because hammer teams
+throw four late shots and non-hammer teams throw three. The behavior index
+(defensive minus offensive share) summarizes the tradeoff on a single scale,
+and neutral shots remain in the denominator so shifts reflect selection rather
+than volume. We treat the two team-end rows as paired within each end and use
+clustered SEs to reflect within-match dependence. The mid/close split aligns
+with when removal options expand and provides a simple timing test.
 
-Power play exposure is assigned at both the end and team-end levels. An end is
-marked as a power play end if either team uses its power play, and within such
-ends we identify the caller and the non-caller. This yields a three-category
-comparison group: non-power-play ends, power-play callers, and power-play
-non-callers. Each team-end is also annotated with hammer status, pre-end score
-differential, end number, team identity, and match identity to control for
-state and repeated context.
-
-For each team-end we compute late-phase shares of offensive, defensive, and
-neutral shots and define the behavior index as defensive minus offensive
-share; larger values indicate more defensive profiles. We also split the late
-phase into mid (shots 16--18) and close (shots 19--22) to test timing
-mechanisms. Hammer teams throw four late shots and non-hammer teams throw
+For each team-end we compute late-phase shares and a behavior index
+(defensive minus offensive). We also split late shots into mid (16--18) and
+close (19--22). Hammer teams throw four late shots and non-hammer teams throw
 three, so shares move in discrete increments but standardize exposure across
-teams and ends.
+teams.
 
-The primary specification is fixed-effects OLS with clustering at the match
-level. Fixed effects for team and match absorb persistent strategy and match-
-specific conditions, while end fixed effects control for systematic end-of-
-game dynamics. This specification favors interpretability of the power play
-coefficients in share points and is conservative with respect to within-match
-correlation. Diagnostics include residual plots, Q--Q plots, and influence
-measures. As a validation, we test whether higher defensive shares correspond
-to more opponent stones removed during late shots, using the off-sheet sentinel
-to identify removals. Limitations include the discrete nature of the outcome,
-potential selection into power play usage, and reliance on task coding as a
-proxy for intent.
+We estimate fixed-effects OLS with match-clustered SEs, including end, team,
+and match fixed effects plus hammer and pre-end score differential. We check
+whether higher defensive share corresponds to more opponent stones removed
+late. Limitations include selection into PP usage and reliance on task coding.
 
 \subsection{Results}
 
 Across the late-phase sample (5,274 team-ends), non-power-play ends are
-predominantly offensive. The mean defensive share is 0.295 while the offensive
-share is 0.690, yielding a mean behavior index of $-0.395$. Power-play ends
-shift toward defense for both teams. For callers, the defensive share rises to
-0.426 and the offensive share falls to 0.566 (behavior index $-0.141$). For
-non-callers, the defensive share is 0.455 and the offensive share is 0.540
-(behavior index $-0.085$). These descriptive contrasts show a clear defensive
-shift in power-play ends, with the larger shift occurring for the opponent.
+offensive (defensive share 0.295, offensive share 0.690; behavior index
+$-0.395$). Power-play ends shift toward defense for both teams: callers
+(defensive share 0.426; index $-0.141$) and non-callers (0.455; index
+$-0.085$), with the larger shift for the opponent.
+These contrasts show a clear defensive shift in power-play ends, with the
+opponent responding more strongly than the caller.
 
-Power play usage is concentrated in non-tied score states: it is used in 0.113
-of tied ends versus 0.265 when trailing or leading. Within power-play ends, the
-defensive shift is strongest in protective contexts. For example, when the
-caller is leading, the caller's defensive share rises to 0.658 and the
-non-caller's rises to 0.587. Timing splits show that the caller's adjustment
-appears early, while the non-caller remains defensive throughout: in the mid
-window (shots 16--18), defensive shares are 0.266 (non-PP), 0.417 (caller),
-and 0.457 (non-caller), and in the close window (shots 19--22) they are 0.314,
-0.434, and 0.455, respectively. Figure~\ref{fig:pp_def_share_by_score}
-summarizes the score-state pattern by plotting mean late-phase defensive share
-across trailing, tied, and leading contexts for hammer and non-hammer teams,
-split by power play status (HT non-PP, NHT non-PP, HT PP, NHT PP).
+Power play usage is concentrated in non-tied score states (0.113 of tied ends
+versus 0.265 when trailing or leading), and the defensive shift is strongest
+in protective contexts. When the caller is leading, defensive share rises to
+0.658 and the non-caller's to 0.587. Timing splits show the caller adjusts in
+the mid window while the non-caller remains defensive in both mid and close:
+0.266/0.417/0.457 in mid (non-PP/caller/non-caller) and 0.314/0.434/0.455 in
+close. Figure~\ref{fig:pp_def_share_by_score} summarizes the score-state
+pattern by plotting mean late-phase defensive share across trailing, tied,
+and leading contexts for hammer and non-hammer teams, split by power play
+status (HT non-PP, NHT non-PP, HT PP, NHT PP).
+
+The score-state plot shows non-PP behavior is relatively stable across
+trail/tied/lead, while PP groups steepen, especially the NHT PP line. This
+pattern suggests PP is deployed as a control tool when game state matters and
+the opponent responds most aggressively when the caller has something to
+protect. Regression magnitudes echo the descriptives: the opponent coefficient
+is roughly six times the caller’s in the main model, and the caller’s
+mid-window effect fades by close.
 
 \begin{figure}[htbp]
   \centering
@@ -227,27 +220,23 @@ split by power play status (HT non-PP, NHT non-PP, HT PP, NHT PP).
   \label{fig:pp_def_share_by_score}
 \end{figure}
 
-The fixed-effects regression corroborates these descriptive patterns after
-controlling for hammer, score differential, end, team, and match
-(Table~\ref{tab:pp_regression}). In the main model, the PP caller coefficient
-is 0.068 ($p<0.05$) while the PP non-caller coefficient is 0.449 ($p<0.01$),
-indicating a much larger opponent response. Timing models show a caller effect
-in mid (0.128, $p<0.01$) but not in close (0.009, $p=0.82$), while the
-non-caller remains strongly defensive in both mid (0.516) and close (0.414).
+The fixed-effects regression corroborates these patterns after controlling
+for hammer, score differential, end, team, and match
+(Table~\ref{tab:pp_regression}). The PP caller coefficient is 0.068
+($p<0.05$) and the PP non-caller coefficient is 0.449 ($p<0.01$), indicating
+a larger opponent response. Timing models show a caller effect in mid but not
+close, while the non-caller remains strongly defensive in both windows.
 
-Positional validation strengthens the behavioral interpretation: the Spearman
-correlation between defensive share and opponent stones removed late is 0.804.
-Taken together, the results indicate that power-play ends induce a defensive
-shift for both teams, with a substantially larger and more persistent response
-from the non-caller.
+Positional validation supports the proxy: the Spearman correlation between
+defensive share and opponent stones removed late is 0.804. Overall, power-play
+ends induce a defensive shift for both teams, especially the non-caller.
+Taken together, the results indicate a persistent opponent response to power
+play, even after accounting for game state and fixed effects.
 
 \input{tables/regression_powerplay.tex}
 
-To address team strategy profiles, Table~\ref{tab:team_profiles} reports
-descriptive late-phase behavior by team. These profiles summarize each team’s
-late-phase defensive share, offensive share, and behavior index, alongside
-power-play calling rate and hammer frequency. They are intended as descriptive
-benchmarks rather than causal estimates.
+Table~\ref{tab:team_profiles} reports team-level descriptive profiles
+(late-phase shares, behavior index, power play calling rate, hammer frequency).
 
 \input{tables/team_strategy_profiles.tex}
 
