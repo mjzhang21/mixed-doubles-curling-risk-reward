@@ -641,6 +641,65 @@ reg_table = pd.DataFrame(rows)
 reg_table
 ```
 
+## Robustness checks: clustering level
+
+These checks verify that the PP contrasts are not an artifact of the
+clustering level. We re-fit the main late-phase model with match-level
+clustering and with end-within-match clustering.
+
+```{python}
+robust_df = model_df.copy()
+robust_df["match_end"] = (
+    robust_df["match_id"].astype(str)
+    + "_"
+    + robust_df["end_id"].astype(str)
+)
+robust_df = robust_df.dropna(subset=[
+    "behavior_index", "has_hammer", "pre_end_score_diff", "pp_group",
+    "end_id", "team_id", "match_id",
+])
+
+
+def fit_robust(cluster: str):
+    formula = (
+        "behavior_index ~ C(pp_group, Treatment(reference='nonPP')) "
+        "+ has_hammer + pre_end_score_diff + C(end_id) + C(team_id) "
+        "+ C(match_id)"
+    )
+    groups = robust_df["match_id"]
+    if cluster == "match_end":
+        groups = robust_df["match_end"]
+    return smf.ols(formula, data=robust_df).fit(
+        cov_type="cluster", cov_kwds={"groups": groups}
+    )
+
+
+robust_specs = [
+    {"label": "cluster match", "cluster": "match"},
+    {"label": "cluster match_end", "cluster": "match_end"},
+]
+
+robust_rows = []
+for spec in robust_specs:
+    res = fit_robust(spec["cluster"])
+    robust_rows.append({
+        "spec": spec["label"],
+        "pp_caller": res.params.get(pp_terms["PP_caller"], np.nan),
+        "pp_caller_se": res.bse.get(pp_terms["PP_caller"], np.nan),
+        "pp_noncaller": res.params.get(pp_terms["PP_noncaller"], np.nan),
+        "pp_noncaller_se": res.bse.get(pp_terms["PP_noncaller"], np.nan),
+        "nobs": int(res.nobs),
+        "r2": res.rsquared,
+    })
+
+robust_reg = pd.DataFrame(robust_rows)
+robust_reg
+```
+
+Clustering at end-within-match slightly reduces standard errors
+(PP_caller SE 0.030 → 0.028; PP_noncaller SE 0.035 → 0.033), but the ordering
+and magnitude of PP effects are unchanged.
+
 ## Sensitivity checks: alternate task mappings
 
 This check asks whether the PP effects depend on reasonable reclassifications
@@ -777,10 +836,27 @@ sens_means = pd.concat(means_list, ignore_index=True)
 sens_means
 ```
 
+Across mappings, the PP effects remain positive and ordered: PP_noncaller is
+consistently larger than PP_caller. The PP_caller coefficient ranges from
+0.068 to 0.204, while PP_noncaller ranges from 0.437 to 0.587, so the opponent
+response remains larger by roughly 0.32 to 0.42 share points. Model fit is
+stable (R² 0.232–0.248), and the only sample-size change comes from dropping
+ambiguous hits (nobs = 5,256 vs 5,274).
+
+The descriptive means move as expected when mappings change. When all hit
+shots are treated as defensive, defensive shares rise and the behavior index
+for PP groups can cross zero (PP_caller ≈ 0.015; PP_noncaller ≈ 0.145). This
+reflects reclassification rather than a reversal of the PP pattern. Under the
+conservative-defense mapping, defensive shares drop but the ordering persists:
+PP_noncaller remains the most defensive group, followed by PP_caller, with
+nonPP least defensive. Dropping ambiguous hit shots leaves the relative
+ordering intact, while slightly increasing the PP coefficients. Overall, the
+core conclusions do not hinge on any single task coding choice.
+
 ## Model diagnostics
 
-We evaluate residual structure and influence for the main late-phase model. The
-diagnostics below summarize residual location and scale, outliers, and
+We evaluate residual structure and influence for the main late-phase model.
+The diagnostics below summarize residual location and scale, outliers, and
 influence, and the plots check for curvature or heavy tails.
 
 ```{python}
