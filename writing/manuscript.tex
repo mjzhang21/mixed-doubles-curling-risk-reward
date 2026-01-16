@@ -13,11 +13,6 @@
 
 \graphicspath{{img/}{writing/img/}}
 
-\newcommand{\jy}[1]{{\textcolor{violet}{JY:\@ #1}}}
-\newcommand{\mz}[1]{{\textcolor{teal}{MZ:\@ #1}}}
-% Uncomment this line before submission
-% \renewcommand{\jy}[1]{}
-%\ renewcommand{\mz}[1]{}
 
 \title{Strategic Adaptation to the Power Play in Mixed Doubles Curling}
 
@@ -54,13 +49,6 @@
 
 \section{Introduction}
 
-\jy{Paragraphs are fragmented. I like longer paragraphs, each 130-160 words,
-  with strong topic sentences. A reader could sketch the topic sentences only
-  to get a quick idea about the paper.}
-
-\jy{Three questions to address in introduction and in this order:
-  why important; what've been done; what's new.}
-\mz{created three paragraphs and added more references}
 
 Mixed doubles curling presents a unique strategic environment with recent rule
 changes—such as the modified free guard zone, pre-placed stones, and the power
@@ -73,20 +61,19 @@ repositioning the pre-placed stones. This shift changes incentives and
 necessitates clear guidelines for calling, executing, and responding to the
 power play.
 
-Strategy, curling physics, and robotics are some of the major research areas in
-curling \citep{zacharias2024examination, maeno2016assignments, gwon2020path}.
-Research specifically in curling strategy use methods including decision
-analysis, logistic regression and deep reinforcement learning
-\citep{willoughby2005analysis, clement2012analysis, han2022game}. For example
-\citet{willoughby2005analysis} and \citet{clement2012analysis} address the
-long-debated question on whether blanking or scoring one is the better choice
-in the seventh end. Furthermore, \citet{park2013curling} confirms the advantage
-of possessing the hammer with statistical evidence. However, these studies do
-not specifically account for the unique dynamics introduced by the recent rule
-changes in mixed doubles curling, particularly the power play. Given that mixed
-doubles and the power play introduce different strategic considerations, it is
-essential to extend research efforts to this format to develop data-driven
-guidelines
+Strategy, curling physics, and robotics are major research areas in curling
+\citep{zacharias2024examination, maeno2016assignments, gwon2020path}. Research
+on curling strategy uses decision analysis, logistic regression, and deep
+reinforcement learning \citep{willoughby2005analysis, clement2012analysis,
+han2022game}. For example, \citet{willoughby2005analysis} and
+\citet{clement2012analysis} address the long-debated question of whether
+blanking or scoring one is the better choice in the seventh end. Furthermore,
+\citet{park2013curling} confirms the advantage of possessing the hammer with
+statistical evidence. However, these studies do not address the dynamics
+introduced by recent rule changes in mixed doubles curling, particularly the
+power play. Because mixed doubles and the power play change strategic
+incentives, research must extend to this format to develop data-driven
+guidelines.
 
 Using data from three World Championships and one Winter Olympics, this paper
 offers the first analysis of strategic behavior surrounding the power play in
@@ -111,16 +98,14 @@ and includes unique identifiers for competition, game, end, team, player, and
 shot order, so that each match can be reconstructed chronologically. In
 addition to x--y stone coordinates after every throw, Curlit provides
 analyst-graded fields for intended task and execution quality, which we use to
-classify behavior.
+classify behavior. End results are recorded for both teams, enabling
+reconstruction of score progression and pre-end score differential.
 
 This is the first publicly available mixed doubles dataset that combines
-stone-level geometry with end-level context and shot assessment. These features
-allow us to link strategic choices to both sheet state and game state. End
-results are recorded for both teams, which enables reconstruction of score
-progression and pre-end score differential.
-
-At the shot level, the distribution is draw-heavy, consistent with the MFGZ and
-an opportunistic or probing early phase. Figure~\ref{fig:thrown_positions_all}
+stone-level geometry with end-level context and shot assessment, allowing us
+to link strategic choices to both sheet state and game state. At the shot
+level, the distribution is draw-heavy, consistent with the MFGZ and an
+opportunistic or probing early phase. Figure~\ref{fig:thrown_positions_all}
 summarizes the spatial density of thrown stone locations across all shots.
 Power play usage is observed in a minority of ends and varies by end number,
 and task-group shares shift between power play and non-power-play ends
@@ -136,18 +121,16 @@ and task-group shares shift between power play and non-power-play ends
 
 \begin{figure}[htbp]
   \centering
-  \begin{subfigure}[b]{0.47\textwidth}
+  \begin{subfigure}[b]{0.9\textwidth}
     \centering
-    \includegraphics[width=\linewidth, height=0.23\textheight,
-      keepaspectratio]{img/powerplay_end_frequency.pdf}
+    \includegraphics[width=\linewidth]{img/powerplay_end_frequency.pdf}
     \caption{Power play usage by end number.}
     \label{fig:powerplay_end_frequency}
   \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.47\textwidth}
+  \vspace{0.6em}
+  \begin{subfigure}[b]{0.9\textwidth}
     \centering
-    \includegraphics[width=\linewidth, height=0.23\textheight,
-      keepaspectratio]{img/task_by_powerplay.pdf}
+    \includegraphics[width=\linewidth]{img/task_by_powerplay.pdf}
     \caption{Task-group shares by power play status.}
     \label{fig:task_by_powerplay}
   \end{subfigure}
@@ -193,12 +176,12 @@ differential, end number, team identity, and match identity to control for
 state and repeated context.
 
 For each team-end we compute late-phase shares of offensive, defensive, and
-neutral shots and define the behavior index as defensive share minus offensive
-share, where larger values indicate a more defensive profile. We also split the
-late phase into early-late (shots 16--18) and late-late (shots 19--22) to test
-timing mechanisms. Because hammer teams throw four late shots and non- hammer
-teams throw three, shares are in discrete increments; using shares standardizes
-exposure across teams and ends.
+neutral shots and define the behavior index as defensive minus offensive
+share; larger values indicate more defensive profiles. We also split the late
+phase into mid (shots 16--18) and close (shots 19--22) to test timing
+mechanisms. Hammer teams throw four late shots and non-hammer teams throw
+three, so shares move in discrete increments but standardize exposure across
+teams and ends.
 
 The primary specification is fixed-effects OLS with clustering at the match
 level. Fixed effects for team and match absorb persistent strategy and match-
@@ -211,21 +194,6 @@ to more opponent stones removed during late shots, using the off-sheet sentinel
 to identify removals. Limitations include the discrete nature of the outcome,
 potential selection into power play usage, and reliance on task coding as a
 proxy for intent.
-
-Formally, the main model is:
-\[
-  \begin{aligned}
-    \text{behavior\_index}_{i e} =\; & \beta_0 + \beta_1 \text{PP\_caller}_{i e}
-    + \beta_2 \text{PP\_noncaller}_{i e}                                                     \\
-                                     & + \beta_3 \text{has\_hammer}_{i e}
-    + \beta_4 \text{pre\_end\_score\_diff}_{i e}                                             \\
-                                     & + \alpha_e + \gamma_i + \delta_m + \varepsilon_{i e},
-  \end{aligned}
-\]
-where $i$ indexes team-ends, $e$ indexes ends, and $m$ indexes matches. The
-omitted reference category is non-power-play ends, and standard errors are
-clustered at the match level. We estimate the same specification for the lateA
-and lateB timing splits.
 
 \subsection{Results}
 
@@ -243,18 +211,19 @@ of tied ends versus 0.265 when trailing or leading. Within power-play ends, the
 defensive shift is strongest in protective contexts. For example, when the
 caller is leading, the caller's defensive share rises to 0.658 and the
 non-caller's rises to 0.587. Timing splits show that the caller's adjustment
-appears early, while the non-caller remains defensive throughout: in lateA,
-defensive shares are 0.266 (non-PP), 0.417 (caller), and 0.457 (non-caller),
-and in lateB they are 0.314, 0.434, and 0.455, respectively.
-Figure~\ref{fig:pp_def_share_by_score} summarizes the score-state pattern by
-plotting mean late-phase defensive share across trailing, tied, and leading
-contexts for each power-play group.
+appears early, while the non-caller remains defensive throughout: in the mid
+window (shots 16--18), defensive shares are 0.266 (non-PP), 0.417 (caller),
+and 0.457 (non-caller), and in the close window (shots 19--22) they are 0.314,
+0.434, and 0.455, respectively. Figure~\ref{fig:pp_def_share_by_score}
+summarizes the score-state pattern by plotting mean late-phase defensive share
+across trailing, tied, and leading contexts for hammer and non-hammer teams,
+split by power play status (HT non-PP, NHT non-PP, HT PP, NHT PP).
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.8\textwidth]{img/pp_def_share_by_score.pdf}
   \caption{Mean late-phase defensive share by score state, with separate lines
-    for non-power-play ends, power-play callers, and power-play non-callers.}
+    for HT non-PP, NHT non-PP, HT PP, and NHT PP.}
   \label{fig:pp_def_share_by_score}
 \end{figure}
 
@@ -263,8 +232,8 @@ controlling for hammer, score differential, end, team, and match
 (Table~\ref{tab:pp_regression}). In the main model, the PP caller coefficient
 is 0.068 ($p<0.05$) while the PP non-caller coefficient is 0.449 ($p<0.01$),
 indicating a much larger opponent response. Timing models show a caller effect
-in lateA (0.128, $p<0.01$) but not in lateB (0.009, $p=0.82$), while the
-non-caller remains strongly defensive in both lateA (0.516) and lateB (0.414).
+in mid (0.128, $p<0.01$) but not in close (0.009, $p=0.82$), while the
+non-caller remains strongly defensive in both mid (0.516) and close (0.414).
 
 Positional validation strengthens the behavioral interpretation: the Spearman
 correlation between defensive share and opponent stones removed late is 0.804.
@@ -322,57 +291,45 @@ effects. This framing sets up the clustering-based discussion that follows by
 providing an end-level interpretation of power play behavior before we examine
 the non-hammer team’s first-shot response patterns.
 
-\section{First-shot Non-hammer Team Powerplay Adaptation}
+\section{First-shot Non-hammer Team Power Play Adaptation}
 \subsection{Data}
 
-Before analysis, the data was preprocessed by combining datasets, removing
-irrelevant rows and swapping columns. After the coordinates were standardized,
-the stone-level data were combined with end-level information and filtered to
-include only the first shot of the powerplay in each right-formation end.
-Furthermore, the preplaced stone columns were swapped so that the first
-coordinates referred to the non-hammer team's guard and the second pair
-referred to the hammer-team stone near the button. Finally, rows containing
-missing data were dropped, which effectively removed shots that eliminated
-stones prior to entering the Modified Free Guard Zone.
+Before analysis, we combined datasets, removed irrelevant rows, standardized
+coordinates, and kept only the first shot of each right-formation power play
+end. We swapped the pre-placed stone columns so the first coordinates
+represent the non-hammer guard and the second represent the hammer team stone
+near the button. Rows with missing data were dropped, which removes shots that
+eliminate stones before the Modified Free Guard Zone.
 
 \subsection{Methodology}
 
-To explore strategic patterns in first-shot powerplays, stone positions were
-analyzed using dimensionality reduction techniques (PCA, t-SNE, UMAP) and
-clustered with HDBSCAN. This combination allowed complex six-dimensional data,
-including x and y coordinates of preplaced and first stones, to be visualized
-in two dimensions while revealing clusters corresponding to common tactical
-placements. Cluster quality was assessed using silhouette scores, membership
-probabilities, and coverage metrics. Scatter plots on the curling sheet
-illustrated typical stone positions for each cluster, providing an view of
-different board configurations. Dimensionality reduction, clustering, and
-spatial visualization were used to reveal tactical patterns, while also
-capturing quantitative details of shot placement.
+To explore strategic patterns in first-shot power plays, we applied PCA,
+t-SNE, and UMAP, then clustered with HDBSCAN. This reduces six-dimensional
+coordinates (x and y for pre-placed and first stones) to two dimensions while
+revealing common tactical placements. Cluster quality was assessed using
+silhouette scores, membership probabilities, and coverage metrics. Curling
+sheet scatter plots illustrate typical stone positions for each cluster and
+provide a view of different board configurations.
 
-Performance differences across clusters were evaluated using Welch’s ANOVA with
-bootstrap confidence intervals to account for skewed distributions and unequal
-variances, ensuring robust comparisons of group means. When significant
-differences were detected, Games–Howell post hoc tests identified which
-clusters contributed to observed variation. To examine international variation
-in strategic choices, first non-hammer shots in left and right formation
-powerplays were visualized using histograms and bar charts, capturing both shot
-distributions and frequencies. Only teams with more than twenty powerplay ends
-were included to ensure meaningful comparisons. Similar shot types were
-grouped, and the top five countries for each type were plotted to reveal
-national tendencies in responding to powerplays. These visualizations and
-groupings allowed clear comparisons of shot selection patterns across clusters
-and countries.
+Performance differences across clusters were evaluated with Welch’s ANOVA and
+bootstrap confidence intervals to handle skew and unequal variances; Games--
+Howell tests identified which clusters differed. To examine international
+variation, first non-hammer shots in left and right formation power plays were
+summarized with histograms and bar charts. Only teams with more than twenty
+power play ends were included. Similar shot types were grouped, and the top
+five countries for each type were plotted to reveal national tendencies in
+responding to power plays.
 
 \subsection{Results}
 
 The HDBSCAN clustering produced four distinct clusters, capturing board
-patterns in the first-shot powerplay ends. The coverage rate, DBCV score, and
+patterns in first-shot power play ends. The coverage rate, DBCV score, and
 silhouette score (0.604) indicate a reasonably strong clustering structure
 despite some noise. Clusters 0–3 had mean membership probabilities of 0.773,
 0.753, 0.891, and 0.982, respectively, indicating that Cluster 3 contained the
 most tightly grouped points, while Clusters 0 and 1 had weaker assignments.
-Visualizations on PCA, t-SNE and UMAP confirmed well separated clusters with
-minimal overlap (Figure~\ref{fig:fs_tSNE}).Overall, the clustering identifies
+Visualizations on PCA, t-SNE, and UMAP confirmed well-separated clusters with
+minimal overlap (Figure~\ref{fig:fs_tSNE}). Overall, the clustering identifies
 meaningful groups that can be analyzed for strategic differences.
 
 \begin{figure}[t]
@@ -385,18 +342,18 @@ meaningful groups that can be analyzed for strategic differences.
   \label{fig:fs_tSNE}
 \end{figure}
 
-To further characterize these clusters, we examined the spatial distribution of
-stone placements and shot types. Plotting the stone coordinates on a curling
-sheet three distinct board configurations, shown in Figure~\ref{fig:C_all}.
-Some stones interacted with preplaced guards, while other leave them untouched
-and prioritize placement near the house or in the front. Cluster 3 represented
-a central draw pattern but was excluded from further analysis due to small
-sample size ($n$ = 7).We next examined the distribution of shot types within
-each cluster. Cluster 0 exhibited a roughly equal proportion of raise/tapbacks
-and wick/soft-peeling shots, Cluster 1 consisted entirely of draws, and Cluster
-2 had an equal mix of front and guard placements. Together, these spatial and
-shot-type patterns highlight the primary variations in early powerplay
-strategies across clusters.
+To further characterize these clusters, we examined the spatial distribution
+of stone placements and shot types. Plotting the stone coordinates on a
+curling sheet shows three distinct board configurations
+(Figure~\ref{fig:C_all}). Some stones interact with pre-placed guards, while
+others leave them untouched and prioritize placement near the house or in the
+front. Cluster 3 represented a central draw pattern but was excluded from
+further analysis due to small sample size ($n$ = 7). We next examined the
+distribution of shot types within each cluster. Cluster 0 exhibited a roughly
+equal proportion of raise/tapbacks and wick/soft-peeling shots, Cluster 1
+consisted entirely of draws, and Cluster 2 had an equal mix of front and
+guard placements. Together, these spatial and shot-type patterns highlight
+the primary variations in early power play strategies across clusters.
 
 \begin{figure}[t]
   \centering
@@ -442,39 +399,31 @@ indicate that cluster structure was associated with variation in overall
 pre-end score differences and execution score, but not with hammer-specific
 performance.
 
-\jy{n is not $n$}
-\mz{changed}
 
 \input{tables/cluster_test.tex}
 
 \subsection{Discussion}
 Analysts have observed different responses for countering the power play
-\citep{rocks2021mixed}, although there have been no studies to identify exactly
-which shots teams hit and their effect on performance and context metrics.
-Analysts have observed different responses for countering the power play
-\citep{rocks2021mixed}, although there have been no studies that identify
-exactly which shots teams hit and their effect on performance and context
-metrics. By clustering board positions after the non-hammer team’s first shot,
-three distinct patterns emerge in mixed doubles championships: tick, guard, and
-draw around the guard. Understanding these patterns is critical because the
-first shot of the end dictates the flow and subseuqent shot selection. Also,
-identifying international responses is crucial for developing team specific
-strategies in anticipation of a certain match.
+\citep{rocks2021mixed}, but no studies identify which first shots teams play
+and how they affect performance and context metrics. By clustering board
+positions after the non-hammer team’s first shot, three patterns emerge in
+mixed doubles championships: tick, guard, and draw around the guard. These
+patterns matter because the first shot shapes subsequent shot selection, and
+identifying international responses helps teams prepare for specific
+opponents.
 
-Welch ANOVA was used to compare differences between clusters, revealing
-significant differences in cumulative score difference and points in non-missed
-shots, while hammer and non-hammer scores did not differ significantly. Post
-hoc Games–Howell tests show that the cumulative score differences are driven by
+Welch ANOVA shows differences in cumulative score difference and points in
+non-missed shots, while hammer and non-hammer scores do not differ. Games--
+Howell tests indicate that cumulative score differences are driven by
 contrasts between the tick and draw-around-the-guard clusters. All shots are
-utilized when the hammer team has the score advantage; however, tick shots are
-more common when the score difference is small, whereas draws are favored when
-the hammer team leads by a margin. These patterns suggest teams may throw less
-risky when trailing modestly. Nevertheless, since hammer and non-hammer scores
-do not vary across clusters, shot choice may not strongly influence end-level
-performance.This suggests non-hammer teams select the starting player based on
-overall skill in executing one of the three observed options. Limitations
-include small powerplay sample size and skewed features, particularly in
-non-hammer score.
+utilized when the hammer team has the score advantage, but tick shots are more
+common when the lead is small, whereas draws are favored when the hammer team
+leads by a margin. These patterns suggest teams take fewer risks when trailing
+modestly. Since hammer and non-hammer scores do not vary across clusters, shot
+choice may not strongly influence end-level performance. This suggests
+non-hammer teams select the starting player based on execution skill.
+Limitations include small power play sample size and skewed features,
+particularly in non-hammer score.
 
 When considering all power play ends, countries differ in their first-shot
 strategies. The bar chart of task-group proportions by nation highlights these
@@ -495,9 +444,6 @@ on initial positioning throughout the end.
   \label{fig:noc_pptask}
 \end{figure}
 
-\jy{Could be brief, because this is not exactly an academic paper but a
-  report for reference for the coaching team.}
-\mz{Removed section, will address briefly in discussion section}
 
 \section{Conclusion}
 
@@ -510,16 +456,12 @@ positional validation, suggesting it captures meaningful intent under the data
 constraints.
 
 At the shot level, clustering of the non-hammer team’s first response reveals
-three dominant counterplay patterns. These include the tick shot, draw around
-the guard and a center guard. We conclude that while shot execution and score
-difference when executed varies, the first stone shot selection does not impact
-non-hammer or hammer-team end scores. While teams do show a clear strategy for
-their first stone, it is likely other factors drive powerplay end-level
-success.
+three dominant counterplay patterns: tick, draw around the guard, and center
+guard. We conclude that while execution quality and score difference vary, the
+first stone shot selection does not impact non-hammer or hammer team end
+scores. Teams show clear first-stone preferences, but other factors likely
+drive power play end-level success.
 
-\jy{Do you have team strategy profiles?}
-\mz{Added team offensive defense metrics along with teams with distinct first shot choice
-}
 \bibliographystyle{apalike}
 \clearpage
 \bibliography{references.bib}

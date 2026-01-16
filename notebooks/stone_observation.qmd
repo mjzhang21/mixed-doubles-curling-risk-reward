@@ -181,6 +181,7 @@ from plotnine import (
     labs,
     position_dodge,
     scale_fill_cmap,
+    scale_fill_manual,
     scale_color_discrete,
     stat_bin2d,
     theme,
@@ -213,8 +214,8 @@ task_label_order = [task_labels[i] for i in range(12)]
 task_group_order = ["Slow stones (0-5)", "Fast stones (6-10)", "Through", "No shot"]
 
 powerplay_labels = {
-    0: "No powerplay",
-    1: "Powerplay used",
+    0: "No power play",
+    1: "Power play used",
 }
 powerplay_label_order = [powerplay_labels[i] for i in [0, 1]]
 
@@ -358,15 +359,16 @@ task_powerplay["rate"] = np.where(
 plot_task_powerplay = (
     ggplot(task_powerplay, aes("task_label", "rate", fill="powerplay_label"))
     + geom_col(position=position_dodge(width=0.8))
+    + scale_fill_manual(values=["#4e79a7", "#f28e2b"])
     + labs(
-        title="Task rates by powerplay usage",
         x="Task",
         y="Share of shots",
-        fill="Powerplay",
+        fill="Power play",
     )
     + base_theme()
+    + theme(axis_text_x=element_text(rotation=25, ha="right"))
 )
-save_plot(plot_task_powerplay, "task_by_powerplay", width=11, height=5)
+save_plot(plot_task_powerplay, "task_by_powerplay", width=8, height=4.5)
 plot_task_powerplay
 ```
 
@@ -654,25 +656,29 @@ plot_task_sequence
 powerplay_end = (
     df[["match_id", "end_id", "powerplay_used"]]
     .drop_duplicates()
-    .groupby("powerplay_used")
-    .size()
-    .rename(index=powerplay_labels)
+    .groupby("end_id", as_index=False)["powerplay_used"]
+    .agg(pp_used="sum", end_total="size")
 )
-powerplay_end_df = powerplay_end.reset_index()
-powerplay_end_df.columns = ["powerplay_label", "count"]
-powerplay_end_df["powerplay_label"] = pd.Categorical(
-    powerplay_end_df["powerplay_label"],
-    categories=powerplay_label_order,
+powerplay_end["pp_rate"] = np.where(
+    powerplay_end["end_total"] > 0,
+    powerplay_end["pp_used"] / powerplay_end["end_total"],
+    0,
+)
+powerplay_end["end_label"] = powerplay_end["end_id"].astype(int).astype(str)
+end_order = sorted(powerplay_end["end_id"].unique())
+powerplay_end["end_label"] = pd.Categorical(
+    powerplay_end["end_label"],
+    categories=[str(v) for v in end_order],
     ordered=True,
 )
 
 plot_powerplay_end = (
-    ggplot(powerplay_end_df, aes("powerplay_label", "count"))
-    + geom_col(fill="#2ca02c")
-    + labs(title="Powerplay usage by end", x=None, y="Ends")
+    ggplot(powerplay_end, aes("end_label", "pp_rate"))
+    + geom_col(fill="#4e79a7")
+    + labs(x="End number", y="Share of ends with power play")
     + base_theme()
-    + theme(axis_text_x=element_text(rotation=15, ha="right"))
+    + theme(axis_text_x=element_text(rotation=0, ha="center"))
 )
-save_plot(plot_powerplay_end, "powerplay_end_frequency", width=5, height=4)
+save_plot(plot_powerplay_end, "powerplay_end_frequency", width=8, height=4.5)
 plot_powerplay_end
 ```
